@@ -81,6 +81,72 @@ body {
   animation: fade-in 0.5s ease-out;
 }
 
+/* Aurora background animation */
+.aurora-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.3;
+}
+
+.aurora.one {
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(45deg, #3b82f6, #06b6d4);
+  top: 20%;
+  left: 10%;
+  animation: aurora-move 15s ease-in-out infinite;
+}
+
+.aurora.two {
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(45deg, #8b5cf6, #3b82f6);
+  top: 60%;
+  right: 10%;
+  animation: aurora-move 20s ease-in-out infinite reverse;
+}
+
+.aurora.three {
+  width: 150px;
+  height: 150px;
+  background: linear-gradient(45deg, #06b6d4, #8b5cf6);
+  bottom: 20%;
+  left: 50%;
+  animation: aurora-move 25s ease-in-out infinite;
+}
+
+@keyframes aurora-move {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -20px) scale(1.1);
+  }
+  50% {
+    transform: translate(-20px, 30px) scale(0.9);
+  }
+  75% {
+    transform: translate(20px, 20px) scale(1.05);
+  }
+}
+
+.content-wrapper {
+  position: relative;
+  z-index: 10;
+}
+
 /* No animations class */
 .no-animations * {
   animation-duration: 0s !important;

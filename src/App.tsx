@@ -18,6 +18,31 @@ const queryClient = new QueryClient();
 function AppContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showLandingModal, setShowLandingModal] = useState(false);
+  const [settings, setSettings] = useState({
+    animations: true,
+    compactView: false,
+    theme: 'dark'
+  });
+
+  useEffect(() => {
+    // Load settings from localStorage
+    const savedSettings = localStorage.getItem('batteryAnalysisSettings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      setSettings(parsed);
+    }
+
+    // Listen for settings changes
+    const handleSettingsChanged = (event: CustomEvent) => {
+      setSettings(event.detail);
+    };
+
+    window.addEventListener('settingsChanged', handleSettingsChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (searchParams.get('demo') === 'true') {
@@ -31,8 +56,15 @@ function AppContent() {
     }
   }, [searchParams, setSearchParams]);
 
+  const getAppClasses = () => {
+    let classes = "flex min-h-screen w-full bg-background relative";
+    if (!settings.animations) classes += " no-animations";
+    if (settings.compactView) classes += " compact-view";
+    return classes;
+  };
+
   return (
-    <div className="flex min-h-screen w-full bg-background relative">
+    <div className={getAppClasses()}>
       {/* Aurora Background */}
       <div className="aurora-background">
         <div className="aurora one"></div>

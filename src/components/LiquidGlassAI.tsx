@@ -17,10 +17,17 @@ export default function LiquidGlassAI({ isActive = false, className = "" }: Liqu
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    let isDestroyed = false;
+
     const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+      if (isDestroyed) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
       ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
     };
 
     resizeCanvas();
@@ -40,123 +47,137 @@ export default function LiquidGlassAI({ isActive = false, className = "" }: Liqu
     const colors = ['#3b82f6', '#06b6d4', '#4f46e5', '#8b5cf6'];
     
     // Initialize particles
-    for (let i = 0; i < 50; i++) {
-      particles.push({
-        x: Math.random() * canvas.offsetWidth,
-        y: Math.random() * canvas.offsetHeight,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        size: Math.random() * 4 + 1,
-        opacity: Math.random() * 0.5 + 0.1,
-        color: colors[Math.floor(Math.random() * colors.length)]
-      });
-    }
+    const initParticles = () => {
+      if (isDestroyed) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      particles.length = 0; // Clear existing particles
+      
+      for (let i = 0; i < 30; i++) {
+        particles.push({
+          x: Math.random() * rect.width,
+          y: Math.random() * rect.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          size: Math.random() * 3 + 1,
+          opacity: Math.random() * 0.3 + 0.1,
+          color: colors[Math.floor(Math.random() * colors.length)]
+        });
+      }
+    };
 
-    const animate = (time: number) => {
-      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    initParticles();
+
+    const animate = () => {
+      if (isDestroyed) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      ctx.clearRect(0, 0, rect.width, rect.height);
 
       // Update and draw particles
       particles.forEach((particle, index) => {
+        if (isDestroyed) return;
+        
         // Move particles
         particle.x += particle.vx;
         particle.y += particle.vy;
 
         // Mouse interaction
-        if (isActive) {
+        if (isActive && mousePos.x !== 0 && mousePos.y !== 0) {
           const dx = mousePos.x - particle.x;
           const dy = mousePos.y - particle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (distance < 100) {
-            const force = (100 - distance) / 100;
-            particle.vx += dx * force * 0.001;
-            particle.vy += dy * force * 0.001;
+          if (distance < 80) {
+            const force = (80 - distance) / 80;
+            particle.vx += dx * force * 0.0005;
+            particle.vy += dy * force * 0.0005;
           }
         }
 
         // Boundary bounce
-        if (particle.x < 0 || particle.x > canvas.offsetWidth) particle.vx *= -1;
-        if (particle.y < 0 || particle.y > canvas.offsetHeight) particle.vy *= -1;
+        if (particle.x < 0 || particle.x > rect.width) particle.vx *= -0.8;
+        if (particle.y < 0 || particle.y > rect.height) particle.vy *= -0.8;
 
         // Keep particles in bounds
-        particle.x = Math.max(0, Math.min(canvas.offsetWidth, particle.x));
-        particle.y = Math.max(0, Math.min(canvas.offsetHeight, particle.y));
+        particle.x = Math.max(0, Math.min(rect.width, particle.x));
+        particle.y = Math.max(0, Math.min(rect.height, particle.y));
 
         // Damping
-        particle.vx *= 0.999;
-        particle.vy *= 0.999;
+        particle.vx *= 0.998;
+        particle.vy *= 0.998;
 
         // Draw particle with glow effect
-        ctx.save();
-        
-        // Outer glow
-        const gradient = ctx.createRadialGradient(
-          particle.x, particle.y, 0,
-          particle.x, particle.y, particle.size * 4
-        );
-        gradient.addColorStop(0, `${particle.color}${Math.floor(particle.opacity * 255).toString(16).padStart(2, '0')}`);
-        gradient.addColorStop(1, `${particle.color}00`);
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size * 4, 0, Math.PI * 2);
-        ctx.fill();
+        try {
+          ctx.save();
+          
+          // Outer glow
+          const gradient = ctx.createRadialGradient(
+            particle.x, particle.y, 0,
+            particle.x, particle.y, particle.size * 3
+          );
+          
+          const alphaHex = Math.floor(particle.opacity * 80).toString(16).padStart(2, '0');
+          gradient.addColorStop(0, `${particle.color}${alphaHex}`);
+          gradient.addColorStop(1, `${particle.color}00`);
+          
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * 3, 0, Math.PI * 2);
+          ctx.fill();
 
-        // Inner core
-        ctx.fillStyle = `${particle.color}${Math.floor((particle.opacity + 0.3) * 255).toString(16).padStart(2, '0')}`;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
+          // Inner core
+          const coreAlphaHex = Math.floor((particle.opacity + 0.2) * 150).toString(16).padStart(2, '0');
+          ctx.fillStyle = `${particle.color}${coreAlphaHex}`;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fill();
 
-        ctx.restore();
+          ctx.restore();
+        } catch (error) {
+          // Silently handle any rendering errors
+        }
 
         // Draw connections
-        particles.slice(index + 1).forEach(otherParticle => {
-          const dx = particle.x - otherParticle.x;
-          const dy = particle.y - otherParticle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+        if (!isDestroyed) {
+          particles.slice(index + 1).forEach(otherParticle => {
+            const dx = particle.x - otherParticle.x;
+            const dy = particle.y - otherParticle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-          if (distance < 120) {
-            ctx.save();
-            const alpha = (120 - distance) / 120 * 0.1;
-            ctx.strokeStyle = `rgba(59, 130, 246, ${alpha})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            ctx.lineTo(otherParticle.x, otherParticle.y);
-            ctx.stroke();
-            ctx.restore();
-          }
-        });
+            if (distance < 100) {
+              try {
+                ctx.save();
+                const alpha = (100 - distance) / 100 * 0.05;
+                ctx.strokeStyle = `rgba(59, 130, 246, ${alpha})`;
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(particle.x, particle.y);
+                ctx.lineTo(otherParticle.x, otherParticle.y);
+                ctx.stroke();
+                ctx.restore();
+              } catch (error) {
+                // Silently handle any rendering errors
+              }
+            }
+          });
+        }
       });
 
-      // Add flowing liquid effect
-      const time_s = time * 0.001;
-      ctx.save();
-      
-      // Create flowing gradients
-      const flowGradient = ctx.createLinearGradient(
-        0, 0, canvas.offsetWidth, canvas.offsetHeight
-      );
-      
-      const wave1 = Math.sin(time_s * 0.5) * 0.3 + 0.3;
-      const wave2 = Math.sin(time_s * 0.7 + Math.PI) * 0.3 + 0.3;
-      
-      flowGradient.addColorStop(0, `rgba(59, 130, 246, ${wave1 * 0.05})`);
-      flowGradient.addColorStop(0.5, `rgba(6, 182, 212, ${wave2 * 0.08})`);
-      flowGradient.addColorStop(1, `rgba(79, 70, 229, ${wave1 * 0.05})`);
-      
-      ctx.fillStyle = flowGradient;
-      ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      
-      ctx.restore();
-
-      animationRef.current = requestAnimationFrame(animate);
+      if (!isDestroyed) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
     };
 
     animationRef.current = requestAnimationFrame(animate);
 
     return () => {
+      isDestroyed = true;
       window.removeEventListener('resize', resizeCanvas);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
@@ -180,7 +201,9 @@ export default function LiquidGlassAI({ isActive = false, className = "" }: Liqu
       className={`absolute inset-0 pointer-events-auto ${className}`}
       style={{ 
         background: 'transparent',
-        mixBlendMode: 'screen'
+        mixBlendMode: 'screen',
+        width: '100%',
+        height: '100%'
       }}
       onMouseMove={handleMouseMove}
     />
