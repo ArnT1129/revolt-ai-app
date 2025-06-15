@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,50 +144,61 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
           {comparisonData.length > 0 && (
             <div className="space-y-6">
               {/* SoH Trends Comparison */}
-              <div className="h-72 w-full">
+              <div className="w-full">
                 <h3 className="text-lg font-medium text-slate-200 mb-4">State of Health Degradation Over Cycles</h3>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.3} />
-                    <XAxis 
-                      dataKey="cycle" 
-                      stroke="#94a3b8" 
-                      fontSize={12}
-                      label={{ value: 'Cycle Count', position: 'insideBottom', offset: -5, style: { fill: '#94a3b8' } }}
-                    />
-                    <YAxis 
-                      stroke="#94a3b8" 
-                      fontSize={12}
-                      label={{ value: 'SoH (%)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8' } }}
-                      domain={[75, 100]}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(15, 22, 41, 0.95)', 
-                        border: '1px solid rgba(71, 85, 105, 0.4)',
-                        borderRadius: '8px',
-                        color: '#f1f5f9'
-                      }} 
-                      formatter={(value: any, name: string) => [`${Number(value).toFixed(1)}%`, name]}
-                      labelFormatter={(cycle) => `Cycle: ${cycle}`}
-                    />
-                    <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
-                      iconType="line"
-                    />
-                    {selectedBatteries.map((batteryId, index) => (
-                      <Line
-                        key={batteryId}
-                        type="monotone"
-                        dataKey={batteryId}
-                        stroke={colors[index]}
-                        strokeWidth={3}
-                        dot={{ fill: colors[index], strokeWidth: 0, r: 4 }}
-                        activeDot={{ r: 6, stroke: colors[index], strokeWidth: 2, fill: '#fff' }}
+                <div className="h-80 w-full bg-slate-900/20 rounded-lg p-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart 
+                      data={comparisonData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.3} />
+                      <XAxis 
+                        dataKey="cycle" 
+                        stroke="#94a3b8" 
+                        fontSize={12}
+                        label={{ value: 'Cycle Count', position: 'insideBottom', offset: -10, style: { fill: '#94a3b8' } }}
                       />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+                      <YAxis 
+                        stroke="#94a3b8" 
+                        fontSize={12}
+                        label={{ value: 'SoH (%)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8' } }}
+                        domain={[75, 100]}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 22, 41, 0.95)', 
+                          border: '1px solid rgba(71, 85, 105, 0.4)',
+                          borderRadius: '8px',
+                          color: '#f1f5f9'
+                        }} 
+                        formatter={(value: any, name: string) => [`${Number(value).toFixed(1)}%`, name]}
+                        labelFormatter={(cycle) => `Cycle: ${cycle}`}
+                      />
+                      <Legend 
+                        wrapperStyle={{ 
+                          paddingTop: '15px',
+                          position: 'relative',
+                          marginTop: '10px'
+                        }}
+                        iconType="line"
+                        verticalAlign="bottom"
+                        height={36}
+                      />
+                      {selectedBatteries.map((batteryId, index) => (
+                        <Line
+                          key={batteryId}
+                          type="monotone"
+                          dataKey={batteryId}
+                          stroke={colors[index]}
+                          strokeWidth={2.5}
+                          dot={{ fill: colors[index], strokeWidth: 0, r: 3 }}
+                          activeDot={{ r: 5, stroke: colors[index], strokeWidth: 2, fill: '#fff' }}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               {/* Comparison Metrics */}
