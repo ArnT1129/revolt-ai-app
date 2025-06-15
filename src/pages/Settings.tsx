@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,134 +7,14 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-
-interface AppSettings {
-  // Analysis Settings
-  defaultChemistry: string;
-  voltageThreshold: number;
-  capacityThreshold: number;
-  temperatureUnit: string;
-  
-  // Data Processing
-  autoDetectFormat: boolean;
-  smoothingEnabled: boolean;
-  outlierRemoval: boolean;
-  interpolationMethod: string;
-  
-  // Display Settings
-  darkMode: boolean;
-  animationsEnabled: boolean;
-  compactView: boolean;
-  defaultView: string;
-  
-  // Export Settings
-  exportFormat: string;
-  includeMetadata: boolean;
-  decimalPlaces: number;
-  
-  // Notifications
-  analysisComplete: boolean;
-  errorAlerts: boolean;
-  emailNotifications: boolean;
-}
-
-const defaultSettings: AppSettings = {
-  defaultChemistry: "auto",
-  voltageThreshold: 2.5,
-  capacityThreshold: 80,
-  temperatureUnit: "celsius",
-  autoDetectFormat: true,
-  smoothingEnabled: true,
-  outlierRemoval: true,
-  interpolationMethod: "linear",
-  darkMode: false,
-  animationsEnabled: true,
-  compactView: false,
-  defaultView: "fleet",
-  exportFormat: "csv",
-  includeMetadata: true,
-  decimalPlaces: 3,
-  analysisComplete: true,
-  errorAlerts: true,
-  emailNotifications: false,
-};
+import { useSettings } from "@/contexts/SettingsContext";
 
 export default function Settings() {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
-  const [isLoading, setIsLoading] = useState(true);
+  const { settings, updateSetting, resetSettings, saveSettings } = useSettings();
 
-  // Load settings from localStorage on component mount
-  useEffect(() => {
-    const loadSettings = () => {
-      try {
-        const savedSettings = localStorage.getItem('batteryAnalysisSettings');
-        if (savedSettings) {
-          const parsed = JSON.parse(savedSettings);
-          setSettings({ ...defaultSettings, ...parsed });
-        }
-      } catch (error) {
-        console.error('Error loading settings:', error);
-        toast({
-          title: "Settings Load Error",
-          description: "Failed to load saved settings. Using defaults.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadSettings();
-  }, []);
-
-  // Apply settings globally
-  useEffect(() => {
-    // Apply dark mode
-    const htmlElement = document.documentElement;
-    if (settings.darkMode) {
-      htmlElement.classList.add('dark');
-      htmlElement.style.colorScheme = 'dark';
-    } else {
-      htmlElement.classList.remove('dark');
-      htmlElement.style.colorScheme = 'light';
-    }
-
-    // Apply animations setting
-    if (!settings.animationsEnabled) {
-      htmlElement.style.setProperty('--transition-duration', '0s');
-      htmlElement.classList.add('no-animations');
-    } else {
-      htmlElement.style.removeProperty('--transition-duration');
-      htmlElement.classList.remove('no-animations');
-    }
-
-    // Apply compact view
-    if (settings.compactView) {
-      htmlElement.style.setProperty('--spacing-unit', '0.5rem');
-      htmlElement.style.setProperty('--card-padding', '0.75rem');
-      htmlElement.classList.add('compact-view');
-    } else {
-      htmlElement.style.setProperty('--spacing-unit', '1rem');
-      htmlElement.style.setProperty('--card-padding', '1.5rem');
-      htmlElement.classList.remove('compact-view');
-    }
-
-    // Store settings globally
-    (window as any).batteryAnalysisSettings = settings;
-    
-    // Dispatch settings change event
-    window.dispatchEvent(new CustomEvent('settingsChanged', { detail: settings }));
-  }, [settings]);
-
-  const updateSetting = (key: keyof AppSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  const saveSettings = () => {
+  const handleSaveSettings = async () => {
     try {
-      localStorage.setItem('batteryAnalysisSettings', JSON.stringify(settings));
-      (window as any).batteryAnalysisSettings = settings;
-      
+      saveSettings();
       toast({
         title: "Settings Saved",
         description: "Your preferences have been updated successfully.",
@@ -150,11 +29,9 @@ export default function Settings() {
     }
   };
 
-  const resetSettings = () => {
+  const handleResetSettings = () => {
     try {
-      localStorage.removeItem('batteryAnalysisSettings');
-      setSettings(defaultSettings);
-      
+      resetSettings();
       toast({
         title: "Settings Reset",
         description: "All settings have been reset to defaults.",
@@ -168,16 +45,6 @@ export default function Settings() {
       });
     }
   };
-
-  if (isLoading) {
-    return (
-      <main className="flex-1 p-4 md:p-8 animate-fade-in">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center">Loading settings...</div>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
@@ -415,10 +282,10 @@ export default function Settings() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap justify-end gap-4">
-          <Button variant="outline" onClick={resetSettings}>
+          <Button variant="outline" onClick={handleResetSettings}>
             Reset to Defaults
           </Button>
-          <Button onClick={saveSettings}>
+          <Button onClick={handleSaveSettings}>
             Save Settings
           </Button>
         </div>

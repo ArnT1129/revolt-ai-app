@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Clock, Zap, Database, Cpu } from "lucide-react";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface PerformanceMetric {
   name: string;
@@ -14,6 +15,7 @@ interface PerformanceMetric {
 }
 
 export default function PerformanceMetrics() {
+  const { settings } = useSettings();
   const [metrics, setMetrics] = useState<PerformanceMetric[]>([
     { name: "Load Time", value: 0, unit: "ms", icon: Clock, color: "text-blue-400", target: 1000 },
     { name: "Response Time", value: 0, unit: "ms", icon: Zap, color: "text-green-400", target: 500 },
@@ -22,7 +24,16 @@ export default function PerformanceMetrics() {
   ]);
 
   useEffect(() => {
-    // Simulate performance metrics
+    // Skip animations if disabled in settings
+    if (!settings.animationsEnabled) {
+      setMetrics(prev => prev.map(metric => ({
+        ...metric,
+        value: metric.target * (0.6 + Math.random() * 0.3)
+      })));
+      return;
+    }
+
+    // Simulate performance metrics with animation
     const interval = setInterval(() => {
       setMetrics(prev => prev.map(metric => ({
         ...metric,
@@ -39,7 +50,11 @@ export default function PerformanceMetrics() {
     })));
 
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.animationsEnabled]);
+
+  const getAnimationClasses = () => {
+    return settings.animationsEnabled ? "animate-fade-in" : "";
+  };
 
   return (
     <Card className="enhanced-card">
@@ -49,23 +64,23 @@ export default function PerformanceMetrics() {
           Performance Metrics
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={`space-y-4 ${settings.compactView ? 'space-y-2' : 'space-y-4'}`}>
         {metrics.map((metric, index) => (
-          <div key={metric.name} className="space-y-2 animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+          <div key={metric.name} className={`space-y-2 ${getAnimationClasses()}`} style={{ animationDelay: settings.animationsEnabled ? `${index * 100}ms` : '0ms' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <metric.icon className={`h-4 w-4 ${metric.color}`} />
-                <span className="text-sm font-medium text-slate-300">{metric.name}</span>
+                <span className={`text-sm font-medium text-slate-300 ${settings.compactView ? 'text-xs' : 'text-sm'}`}>{metric.name}</span>
               </div>
-              <span className={`text-sm font-bold ${metric.color}`}>
-                {metric.value.toFixed(metric.unit === "ms" ? 0 : 1)}{metric.unit}
+              <span className={`text-sm font-bold ${metric.color} ${settings.compactView ? 'text-xs' : 'text-sm'}`}>
+                {metric.value.toFixed(metric.unit === "ms" ? 0 : settings.decimalPlaces)}{metric.unit}
               </span>
             </div>
             <Progress 
               value={(metric.value / metric.target) * 100} 
-              className="h-2"
+              className={settings.compactView ? "h-1" : "h-2"}
             />
-            <div className="text-xs text-slate-400">
+            <div className={`text-xs text-slate-400 ${settings.compactView ? 'text-[10px]' : 'text-xs'}`}>
               Target: {metric.target}{metric.unit}
             </div>
           </div>

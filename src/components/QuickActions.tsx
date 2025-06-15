@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Download, RefreshCw, Settings, FileText, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export default function QuickActions() {
+  const { settings } = useSettings();
+
   const actions = [
     {
       title: "Upload Data",
@@ -15,11 +18,17 @@ export default function QuickActions() {
     },
     {
       title: "Export Report",
-      description: "Download analysis report",
+      description: `Download as ${settings.exportFormat.toUpperCase()}`,
       icon: Download,
       onClick: () => {
-        // Trigger export functionality
-        window.dispatchEvent(new CustomEvent('exportData'));
+        console.log(`Exporting data as ${settings.exportFormat} with ${settings.decimalPlaces} decimal places`);
+        window.dispatchEvent(new CustomEvent('exportData', { 
+          detail: { 
+            format: settings.exportFormat, 
+            includeMetadata: settings.includeMetadata,
+            decimalPlaces: settings.decimalPlaces
+          } 
+        }));
       },
       color: "hover:bg-green-500/10 hover:border-green-400"
     },
@@ -37,7 +46,6 @@ export default function QuickActions() {
       description: "Advanced insights",
       icon: BarChart3,
       onClick: () => {
-        // Switch to analytics tab
         const tabTrigger = document.querySelector('[value="analytics"]') as HTMLElement;
         tabTrigger?.click();
       },
@@ -48,8 +56,11 @@ export default function QuickActions() {
       description: "Create detailed report",
       icon: FileText,
       onClick: () => {
-        // Generate comprehensive report
-        console.log("Generating comprehensive report...");
+        console.log("Generating comprehensive report with settings:", {
+          format: settings.exportFormat,
+          includeMetadata: settings.includeMetadata,
+          decimalPlaces: settings.decimalPlaces
+        });
       },
       color: "hover:bg-yellow-500/10 hover:border-yellow-400"
     },
@@ -62,25 +73,37 @@ export default function QuickActions() {
     }
   ];
 
+  const getAnimationClasses = () => {
+    return settings.animationsEnabled ? "animate-fade-in" : "";
+  };
+
+  const getButtonPadding = () => {
+    return settings.compactView ? "p-3" : "p-4";
+  };
+
+  const getTextSize = () => {
+    return settings.compactView ? "text-[10px]" : "text-xs";
+  };
+
   return (
     <Card className="enhanced-card">
       <CardHeader>
         <CardTitle className="text-white">Quick Actions</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid grid-cols-2 gap-3 ${settings.compactView ? 'gap-2' : 'gap-3'}`}>
           {actions.map((action, index) => (
             action.href ? (
               <Link key={action.title} to={action.href}>
                 <Button
                   variant="outline"
-                  className={`w-full h-auto p-4 flex flex-col items-center gap-2 glass-button transition-all duration-200 animate-fade-in ${action.color}`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  className={`w-full h-auto ${getButtonPadding()} flex flex-col items-center gap-2 glass-button transition-all duration-200 ${getAnimationClasses()} ${action.color}`}
+                  style={{ animationDelay: settings.animationsEnabled ? `${index * 50}ms` : '0ms' }}
                 >
                   <action.icon className="h-5 w-5" />
                   <div className="text-center">
-                    <div className="font-medium text-xs">{action.title}</div>
-                    <div className="text-xs text-muted-foreground">{action.description}</div>
+                    <div className={`font-medium ${getTextSize()}`}>{action.title}</div>
+                    <div className={`${getTextSize()} text-muted-foreground`}>{action.description}</div>
                   </div>
                 </Button>
               </Link>
@@ -89,13 +112,13 @@ export default function QuickActions() {
                 key={action.title}
                 variant="outline"
                 onClick={action.onClick}
-                className={`w-full h-auto p-4 flex flex-col items-center gap-2 glass-button transition-all duration-200 animate-fade-in ${action.color}`}
-                style={{ animationDelay: `${index * 50}ms` }}
+                className={`w-full h-auto ${getButtonPadding()} flex flex-col items-center gap-2 glass-button transition-all duration-200 ${getAnimationClasses()} ${action.color}`}
+                style={{ animationDelay: settings.animationsEnabled ? `${index * 50}ms` : '0ms' }}
               >
                 <action.icon className="h-5 w-5" />
                 <div className="text-center">
-                  <div className="font-medium text-xs">{action.title}</div>
-                  <div className="text-xs text-muted-foreground">{action.description}</div>
+                  <div className={`font-medium ${getTextSize()}`}>{action.title}</div>
+                  <div className={`${getTextSize()} text-muted-foreground`}>{action.description}</div>
                 </div>
               </Button>
             )

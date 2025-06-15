@@ -12,37 +12,14 @@ import NotFound from "./pages/NotFound";
 import Sidebar from "./components/Sidebar";
 import LiquidGlassAI from "./components/LiquidGlassAI";
 import LandingPageModal from "./components/LandingPageModal";
+import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 
 const queryClient = new QueryClient();
 
 function AppContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showLandingModal, setShowLandingModal] = useState(false);
-  const [settings, setSettings] = useState({
-    animations: true,
-    compactView: false,
-    theme: 'dark'
-  });
-
-  useEffect(() => {
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('batteryAnalysisSettings');
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      setSettings(parsed);
-    }
-
-    // Listen for settings changes
-    const handleSettingsChanged = (event: CustomEvent) => {
-      setSettings(event.detail);
-    };
-
-    window.addEventListener('settingsChanged', handleSettingsChanged as EventListener);
-    
-    return () => {
-      window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
-    };
-  }, []);
+  const { settings } = useSettings();
 
   useEffect(() => {
     if (searchParams.get('demo') === 'true') {
@@ -58,7 +35,7 @@ function AppContent() {
 
   const getAppClasses = () => {
     let classes = "flex min-h-screen w-full bg-background relative";
-    if (!settings.animations) classes += " no-animations";
+    if (!settings.animationsEnabled) classes += " no-animations";
     if (settings.compactView) classes += " compact-view";
     return classes;
   };
@@ -100,11 +77,13 @@ function AppContent() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+      <SettingsProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </SettingsProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
