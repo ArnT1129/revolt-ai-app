@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
-import { Battery, TrendIcon, AlertTriangle, Zap, Activity } from "lucide-react";
+import { Battery, TrendingUp, AlertTriangle, Zap, Activity } from "lucide-react";
 import { useSettings } from "@/contexts/SettingsContext";
 
 interface FleetMetrics {
@@ -151,7 +150,7 @@ export default function FleetAnalytics() {
                 <p className="text-sm text-muted-foreground">Avg. RUL</p>
                 <p className="text-2xl font-bold text-white">{Math.round(metrics.averageRUL)}</p>
               </div>
-              <TrendIcon className="h-8 w-8 text-purple-400" />
+              <TrendingUp className="h-8 w-8 text-purple-400" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">cycles remaining</p>
           </CardContent>
