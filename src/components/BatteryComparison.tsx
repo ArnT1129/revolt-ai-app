@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,22 +88,47 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
               Select batteries to compare (max 4):
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {batteries.map(battery => (
-                <Button
-                  key={battery.id}
-                  variant={selectedBatteries.includes(battery.id) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleBatterySelect(battery.id)}
-                  disabled={!selectedBatteries.includes(battery.id) && selectedBatteries.length >= 4}
-                  className={`text-xs transition-all duration-200 ${
-                    selectedBatteries.includes(battery.id) 
-                      ? 'bg-blue-600/70 border-blue-400/50 text-white shadow-md transform scale-105' 
-                      : 'bg-slate-700/50 border-slate-500/50 text-slate-300 hover:bg-slate-600/60'
-                  }`}
-                >
-                  {battery.id}
-                </Button>
-              ))}
+              {batteries.map(battery => {
+                const isSelected = selectedBatteries.includes(battery.id);
+                const selectedIndex = selectedBatteries.indexOf(battery.id);
+                
+                return (
+                  <Button
+                    key={battery.id}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleBatterySelect(battery.id)}
+                    disabled={!isSelected && selectedBatteries.length >= 4}
+                    className={`text-xs transition-all duration-300 relative ${
+                      isSelected
+                        ? `bg-gradient-to-r from-blue-600/80 to-blue-500/80 border-2 text-white shadow-lg transform scale-105 ring-2 ring-blue-400/50` 
+                        : 'bg-slate-700/50 border-slate-500/50 text-slate-300 hover:bg-slate-600/60 hover:border-slate-400/60'
+                    }`}
+                    style={isSelected ? {
+                      borderColor: colors[selectedIndex],
+                      boxShadow: `0 0 15px ${colors[selectedIndex]}40, 0 4px 12px rgba(0,0,0,0.3)`
+                    } : {}}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isSelected && (
+                        <div 
+                          className="w-2 h-2 rounded-full animate-pulse"
+                          style={{ backgroundColor: colors[selectedIndex] }}
+                        />
+                      )}
+                      {battery.id}
+                      {isSelected && (
+                        <Badge 
+                          variant="secondary" 
+                          className="ml-1 text-xs px-1 py-0 bg-white/20 text-white border-0"
+                        >
+                          {selectedIndex + 1}
+                        </Badge>
+                      )}
+                    </div>
+                  </Button>
+                );
+              })}
             </div>
           </div>
 
@@ -168,14 +192,21 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
               {/* Comparison Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {getComparisonMetrics().map((battery, index) => (
-                  <Card key={battery.id} className="border border-slate-600/30 bg-slate-800/40">
+                  <Card key={battery.id} className="border border-slate-600/30 bg-slate-800/40 relative">
+                    <div 
+                      className="absolute top-0 left-0 w-full h-1 rounded-t-lg"
+                      style={{ backgroundColor: colors[index] }}
+                    />
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-semibold text-slate-100">{battery.id}</h4>
                         <div className="flex items-center gap-2">
                           <div 
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: colors[index] }}
+                            className="w-3 h-3 rounded-full shadow-lg"
+                            style={{ 
+                              backgroundColor: colors[index],
+                              boxShadow: `0 0 8px ${colors[index]}60`
+                            }}
                           />
                           <Badge 
                             variant="outline"
