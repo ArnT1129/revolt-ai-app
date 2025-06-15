@@ -1,4 +1,6 @@
 
+import { BatteryIssue } from "@/services/issueAnalysis";
+
 export type BatteryGrade = "A" | "B" | "C" | "D";
 
 export type BatteryStatus = "Healthy" | "Degrading" | "Critical" | "Unknown";
@@ -18,4 +20,6 @@ export interface Battery {
   chemistry: "LFP" | "NMC";
   uploadDate: string;
   sohHistory: SoHDataPoint[];
+  issues?: BatteryIssue[];
+  rawData?: any[];
 }

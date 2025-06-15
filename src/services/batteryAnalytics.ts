@@ -1,5 +1,5 @@
-
 import { Battery, SoHDataPoint } from "@/types";
+import { BatteryIssue, IssueAnalysisService } from "./issueAnalysis";
 
 export interface BatteryAnalytics {
   calculateSoH: (cycleData: any[]) => number;
@@ -8,6 +8,7 @@ export interface BatteryAnalytics {
   calculateStatus: (soh: number, degradationRate: number) => "Healthy" | "Degrading" | "Critical" | "Unknown";
   generateSoHHistory: (rawData: any[]) => SoHDataPoint[];
   calculateDegradationRate: (sohHistory: SoHDataPoint[]) => number;
+  analyzeIssues: (battery: Battery, rawData: any[]) => BatteryIssue[];
 }
 
 export class BatteryAnalyticsService implements BatteryAnalytics {
@@ -173,6 +174,10 @@ export class BatteryAnalyticsService implements BatteryAnalytics {
     });
 
     return sohHistory.length > 0 ? sohHistory : [{ cycle: 1, soh: 100 }];
+  }
+
+  analyzeIssues(battery: Battery, rawData: any[]): BatteryIssue[] {
+    return IssueAnalysisService.analyzeIssues(battery, rawData);
   }
 }
 

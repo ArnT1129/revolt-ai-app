@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Battery, BatteryGrade, BatteryStatus } from "@/types";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
-import { FileText, Trash2, Plus } from "lucide-react";
+import { FileText, Trash2, Plus, AlertTriangle } from "lucide-react";
 import BatteryPassportModal from "./BatteryPassportModal";
 import ManualBatteryModal from "./ManualBatteryModal";
+import IssueDetailViewer from "./IssueDetailViewer";
 import { toast } from "@/hooks/use-toast";
 
 const mockData: Battery[] = [
@@ -37,24 +37,36 @@ export default function BatteryTable() {
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [viewingIssues, setViewingIssues] = useState<Battery | null>(null);
   const [batteries, setBatteries] = useState<Battery[]>(mockData);
 
   useEffect(() => {
-    // Load uploaded batteries from localStorage and merge with mock data
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const allBatteries = [...mockData];
+    const updateBatteries = () => {
+      // Load uploaded batteries from localStorage and merge with mock data
+      const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+      const allBatteries = [...mockData];
+      
+      // Add uploaded batteries, avoiding duplicates
+      uploadedBatteries.forEach((uploadedBattery: Battery) => {
+        const existingIndex = allBatteries.findIndex(b => b.id === uploadedBattery.id);
+        if (existingIndex >= 0) {
+          allBatteries[existingIndex] = uploadedBattery; // Update existing
+        } else {
+          allBatteries.push(uploadedBattery); // Add new
+        }
+      });
+      
+      setBatteries(allBatteries);
+    };
+
+    updateBatteries();
+
+    // Listen for battery data updates
+    window.addEventListener('batteryDataUpdated', updateBatteries);
     
-    // Add uploaded batteries, avoiding duplicates
-    uploadedBatteries.forEach((uploadedBattery: Battery) => {
-      const existingIndex = allBatteries.findIndex(b => b.id === uploadedBattery.id);
-      if (existingIndex >= 0) {
-        allBatteries[existingIndex] = uploadedBattery; // Update existing
-      } else {
-        allBatteries.push(uploadedBattery); // Add new
-      }
-    });
-    
-    setBatteries(allBatteries);
+    return () => {
+      window.removeEventListener('batteryDataUpdated', updateBatteries);
+    };
   }, []);
 
   const handleViewPassport = (battery: Battery) => {
@@ -63,10 +75,8 @@ export default function BatteryTable() {
   };
 
   const handleDeleteBattery = (batteryId: string) => {
-    // Remove from local state
     setBatteries(prev => prev.filter(battery => battery.id !== batteryId));
     
-    // Remove from localStorage
     const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
     const updatedUploaded = uploadedBatteries.filter((b: Battery) => b.id !== batteryId);
     localStorage.setItem('uploadedBatteries', JSON.stringify(updatedUploaded));
@@ -75,13 +85,13 @@ export default function BatteryTable() {
       title: "Battery Deleted",
       description: `Battery ${batteryId} has been removed from the system`,
     });
+    
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
   const handleAddManualBattery = (newBattery: Battery) => {
-    // Add to local state
     setBatteries(prev => [...prev, newBattery]);
     
-    // Add to localStorage
     const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
     uploadedBatteries.push(newBattery);
     localStorage.setItem('uploadedBatteries', JSON.stringify(uploadedBatteries));
@@ -90,10 +100,11 @@ export default function BatteryTable() {
       title: "Battery Added",
       description: `Battery ${newBattery.id} has been added to the system`,
     });
+    
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
   const handleSaveBattery = (updatedBattery: Battery) => {
-    // Update local state
     setBatteries(prev => 
       prev.map(battery => 
         battery.id === updatedBattery.id ? updatedBattery : battery
@@ -101,7 +112,6 @@ export default function BatteryTable() {
     );
     setSelectedBattery(updatedBattery);
     
-    // Update localStorage for uploaded batteries
     const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
     const isUploaded = uploadedBatteries.some((b: Battery) => b.id === updatedBattery.id);
     if (isUploaded) {
@@ -110,7 +120,26 @@ export default function BatteryTable() {
       );
       localStorage.setItem('uploadedBatteries', JSON.stringify(updatedUploaded));
     }
+    
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
+
+  if (viewingIssues) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => setViewingIssues(null)}>
+            ← Back to Battery Table
+          </Button>
+          <h2 className="text-lg font-semibold">Issues for {viewingIssues.id}</h2>
+        </div>
+        <IssueDetailViewer 
+          issues={viewingIssues.issues || []} 
+          batteryId={viewingIssues.id} 
+        />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -135,6 +164,7 @@ export default function BatteryTable() {
                 <TableHead className="text-right">RUL (cycles)</TableHead>
                 <TableHead className="text-right">Total Cycles</TableHead>
                 <TableHead>SoH Trend</TableHead>
+                <TableHead className="text-center">Issues</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -167,6 +197,21 @@ export default function BatteryTable() {
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {battery.issues && battery.issues.length > 0 ? (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setViewingIssues(battery)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        {battery.issues.length}
+                      </Button>
+                    ) : (
+                      <span className="text-green-500 text-sm">None</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center gap-2">

@@ -23,7 +23,7 @@ export default function FileUploader() {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     setFile(file);
-    setError(null); // Clear any previous errors when a new file is dropped
+    setError(null);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
@@ -32,7 +32,7 @@ export default function FileUploader() {
     const file = e.target.files?.[0];
     if (file) {
       setFile(file);
-      setError(null); // Clear any previous errors when a new file is selected
+      setError(null);
     }
   };
 
@@ -43,7 +43,7 @@ export default function FileUploader() {
     }
 
     setIsLoading(true);
-    setError(null); // Clear any previous errors
+    setError(null);
 
     try {
       const { data, metadata } = await BatteryDataParser.parseFile(file);
@@ -56,6 +56,9 @@ export default function FileUploader() {
       const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
       uploadedBatteries.push(battery);
       localStorage.setItem('uploadedBatteries', JSON.stringify(uploadedBatteries));
+
+      // Trigger dashboard update
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
     } catch (e: any) {
       console.error("Upload Error:", e);
@@ -81,16 +84,20 @@ export default function FileUploader() {
       id: `BAT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       grade,
       status,
-      soh: Math.round(currentSoH * 10) / 10, // Round to 1 decimal place
+      soh: Math.round(currentSoH * 10) / 10,
       rul,
       cycles: totalCycles,
       chemistry: metadata.chemistry === 'LFP' ? 'LFP' : 'NMC',
       uploadDate: new Date().toLocaleDateString(),
       sohHistory: sohHistory.map(point => ({
         ...point,
-        soh: Math.round(point.soh * 10) / 10 // Round to 1 decimal place
-      }))
+        soh: Math.round(point.soh * 10) / 10
+      })),
+      rawData: parsedData
     };
+
+    // Analyze issues
+    battery.issues = batteryAnalytics.analyzeIssues(battery, parsedData);
 
     console.log('Generated battery analysis:', battery);
     return battery;
@@ -105,16 +112,16 @@ export default function FileUploader() {
   };
 
   const handleSaveBattery = (updatedBattery: Battery) => {
-    // Update the battery in local storage
     const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
     const updatedBatteries = uploadedBatteries.map((battery: Battery) =>
       battery.id === updatedBattery.id ? updatedBattery : battery
     );
     localStorage.setItem('uploadedBatteries', JSON.stringify(updatedBatteries));
 
-    // Update the local state
     setBatteryAnalysis(updatedBattery);
     setIsModalOpen(false);
+    
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
   return (
@@ -207,6 +214,26 @@ export default function FileUploader() {
                   <Input type="text" value={batteryAnalysis.chemistry} readOnly />
                 </div>
               </div>
+              
+              {batteryAnalysis.issues && batteryAnalysis.issues.length > 0 && (
+                <div className="mt-4">
+                  <Label className="text-base font-semibold">Issues Detected: {batteryAnalysis.issues.length}</Label>
+                  <div className="grid gap-2 mt-2">
+                    {batteryAnalysis.issues.slice(0, 3).map((issue) => (
+                      <Alert key={issue.id} variant={issue.severity === 'Critical' ? 'destructive' : 'default'}>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>{issue.title}</AlertTitle>
+                        <AlertDescription>{issue.description}</AlertDescription>
+                      </Alert>
+                    ))}
+                    {batteryAnalysis.issues.length > 3 && (
+                      <p className="text-sm text-muted-foreground">
+                        +{batteryAnalysis.issues.length - 3} more issues. View full details in Battery Passport.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
