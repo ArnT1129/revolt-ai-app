@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Battery, BatteryGrade, BatteryStatus } from '@/types';
 import { batteryAnalytics } from './batteryAnalytics';
@@ -17,7 +16,7 @@ const DEMO_BATTERIES: Battery[] = [
     soh: 95.5,
     rul: 800,
     cycles: 200,
-    chemistry: 'Li-ion',
+    chemistry: 'NMC',
     uploadDate: '2024-01-15T10:30:00Z',
     sohHistory: [
       { cycle: 50, soh: 98.2 },
@@ -36,7 +35,7 @@ const DEMO_BATTERIES: Battery[] = [
     soh: 82.3,
     rul: 450,
     cycles: 650,
-    chemistry: 'Li-ion',
+    chemistry: 'LFP',
     uploadDate: '2024-01-10T14:20:00Z',
     sohHistory: [
       { cycle: 200, soh: 95.0 },
@@ -135,7 +134,7 @@ class BatteryService {
           soh: Number(soh.toFixed(2)),
           rul,
           cycles,
-          chemistry: 'Li-ion', // Default
+          chemistry: 'NMC', // Default to NMC
           notes: `Uploaded from file data with ${data.length} data points`,
         })
         .select()
