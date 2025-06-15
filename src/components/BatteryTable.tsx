@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,6 @@ import { FileText } from "lucide-react";
 import BatteryPassportModal from "./BatteryPassportModal";
 
 const mockData: Battery[] = [
-  // ... (mock data for several batteries)
   { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 10, soh: 100 - i * 0.05 })) },
   { id: "LFP-002B", grade: "B", status: "Degrading", soh: 92.5, rul: 820, cycles: 1180, chemistry: "LFP", uploadDate: "2025-06-12", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 50, soh: 98 - i * 0.3 })) },
   { id: "NMC-003C", grade: "C", status: "Critical", soh: 84.3, rul: 210, cycles: 2400, chemistry: "NMC", uploadDate: "2025-06-10", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 100, soh: 95 - i * 0.6 })) },
@@ -38,18 +37,47 @@ export default function BatteryTable() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [batteries, setBatteries] = useState<Battery[]>(mockData);
 
+  useEffect(() => {
+    // Load uploaded batteries from localStorage and merge with mock data
+    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+    const allBatteries = [...mockData];
+    
+    // Add uploaded batteries, avoiding duplicates
+    uploadedBatteries.forEach((uploadedBattery: Battery) => {
+      const existingIndex = allBatteries.findIndex(b => b.id === uploadedBattery.id);
+      if (existingIndex >= 0) {
+        allBatteries[existingIndex] = uploadedBattery; // Update existing
+      } else {
+        allBatteries.push(uploadedBattery); // Add new
+      }
+    });
+    
+    setBatteries(allBatteries);
+  }, []);
+
   const handleViewPassport = (battery: Battery) => {
     setSelectedBattery(battery);
     setIsModalOpen(true);
   };
 
   const handleSaveBattery = (updatedBattery: Battery) => {
+    // Update local state
     setBatteries(prev => 
       prev.map(battery => 
         battery.id === updatedBattery.id ? updatedBattery : battery
       )
     );
     setSelectedBattery(updatedBattery);
+    
+    // Update localStorage for uploaded batteries
+    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+    const isUploaded = uploadedBatteries.some((b: Battery) => b.id === updatedBattery.id);
+    if (isUploaded) {
+      const updatedUploaded = uploadedBatteries.map((b: Battery) => 
+        b.id === updatedBattery.id ? updatedBattery : b
+      );
+      localStorage.setItem('uploadedBatteries', JSON.stringify(updatedUploaded));
+    }
   };
 
   return (
