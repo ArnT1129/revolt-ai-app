@@ -1,72 +1,112 @@
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Sidebar from "@/components/Sidebar";
-import Dashboard from "@/pages/Dashboard";
-import Upload from "@/pages/Upload";
-import Settings from "@/pages/Settings";
-import NotFound from "@/pages/NotFound";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { ErrorBoundary } from "react-error-boundary";
-import "./App.css";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
+import Upload from "./pages/Upload";
+import Settings from "./pages/Settings";
+import NotFound from "./pages/NotFound";
+import Sidebar from "./components/Sidebar";
+import LiquidGlassAI from "./components/LiquidGlassAI";
+import LandingPageModal from "./components/LandingPageModal";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
-function ErrorFallback({ error }: { error: Error }) {
-  console.error('App Error:', error);
-  
+function AppContent() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showLandingModal, setShowLandingModal] = useState(false);
+  const [settings, setSettings] = useState({
+    animations: true,
+    compactView: false,
+    theme: 'dark'
+  });
+
+  useEffect(() => {
+    // Load settings from localStorage
+    const savedSettings = localStorage.getItem('batteryAnalysisSettings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      setSettings(parsed);
+    }
+
+    // Listen for settings changes
+    const handleSettingsChanged = (event: CustomEvent) => {
+      setSettings(event.detail);
+    };
+
+    window.addEventListener('settingsChanged', handleSettingsChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get('demo') === 'true') {
+      setShowLandingModal(true);
+      // Remove the demo parameter from URL
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete('demo');
+        return newParams;
+      });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const getAppClasses = () => {
+    let classes = "flex min-h-screen w-full bg-background relative";
+    if (!settings.animations) classes += " no-animations";
+    if (settings.compactView) classes += " compact-view";
+    return classes;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold text-white">Something went wrong</h2>
-        <p className="text-slate-400">Please refresh the page and try again</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Refresh Page
-        </button>
+    <div className={getAppClasses()}>
+      {/* Aurora Background */}
+      <div className="aurora-background">
+        <div className="aurora one"></div>
+        <div className="aurora two"></div>
+        <div className="aurora three"></div>
       </div>
+      
+      {/* Liquid Glass AI Background */}
+      <div className="fixed inset-0 z-[1] pointer-events-none">
+        <LiquidGlassAI isActive={true} />
+      </div>
+      
+      <div className="content-wrapper flex min-h-screen w-full">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/upload" element={<Upload />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+      </div>
+
+      <LandingPageModal 
+        isOpen={showLandingModal} 
+        onClose={() => setShowLandingModal(false)} 
+      />
     </div>
   );
 }
 
-function App() {
-  return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Router>
-            <ProtectedRoute>
-              <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
-                <Sidebar />
-                <div className="flex-1 flex flex-col">
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/upload" element={<Upload />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </div>
-              </div>
-            </ProtectedRoute>
-            <Toaster />
-            <Sonner />
-          </Router>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

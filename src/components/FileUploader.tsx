@@ -1,231 +1,341 @@
-import React, { useCallback, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { batteryService } from '@/services/batteryService';
-import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-
-interface FileWithProgress {
-  file: File;
-  progress: number;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
-  error?: string;
-  batteryId?: string;
-}
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Upload, CheckCircle2, AlertCircle, Eye } from "lucide-react";
+import { Battery } from "@/types";
+import { BatteryDataParser } from "@/services/batteryDataParser";
+import BatteryPassportModal from "@/components/BatteryPassportModal";
+import { batteryAnalytics } from "@/services/batteryAnalytics";
 
 export default function FileUploader() {
-  const { user, isDemo } = useAuth();
   const navigate = useNavigate();
-  const [files, setFiles] = useState<FileWithProgress[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [metadata, setMetadata] = useState<any>(null);
+  const [batteryAnalysis, setBatteryAnalysis] = useState<Battery | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
-      file,
-      progress: 0,
-      status: 'uploading' as const
-    }));
-    
-    setFiles(prev => [...prev, ...newFiles]);
-    
-    // Process each file
-    newFiles.forEach((fileWithProgress, index) => {
-      processFile(fileWithProgress, files.length + index);
-    });
-  }, [files.length]);
+    const file = acceptedFiles[0];
+    setFile(file);
+    setError(null);
+  }, []);
 
-  const processFile = async (fileWithProgress: FileWithProgress, index: number) => {
-    // Check if user exists (either real user or demo user)
-    if (!user) {
-      updateFileStatus(index, 'error', 'Please sign in or use demo mode to upload files');
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFile(file);
+      setError(null);
+    }
+  };
+
+  const applyDataProcessingSettings = (data: any[]): any[] => {
+    const settings = (window as any).batteryAnalysisSettings;
+    if (!settings) return data;
+
+    let processedData = [...data];
+
+    // Apply outlier removal
+    if (settings.outlierRemoval) {
+      processedData = removeOutliers(processedData);
+    }
+
+    // Apply data smoothing
+    if (settings.smoothingEnabled) {
+      processedData = applySmoothingFilter(processedData);
+    }
+
+    return processedData;
+  };
+
+  const removeOutliers = (data: any[]): any[] => {
+    // Simple outlier removal using IQR method for voltage and current
+    const voltages = data.map(d => d.voltage_V).filter(v => v != null);
+    const currents = data.map(d => d.current_A).filter(c => c != null);
+
+    const getIQRBounds = (values: number[]) => {
+      const sorted = [...values].sort((a, b) => a - b);
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = q3 - q1;
+      return {
+        lower: q1 - 1.5 * iqr,
+        upper: q3 + 1.5 * iqr
+      };
+    };
+
+    const voltageBounds = getIQRBounds(voltages);
+    const currentBounds = getIQRBounds(currents);
+
+    return data.filter(d => {
+      const voltageOk = d.voltage_V >= voltageBounds.lower && d.voltage_V <= voltageBounds.upper;
+      const currentOk = d.current_A >= currentBounds.lower && d.current_A <= currentBounds.upper;
+      return voltageOk && currentOk;
+    });
+  };
+
+  const applySmoothingFilter = (data: any[]): any[] => {
+    // Simple moving average smoothing for voltage and current
+    const windowSize = 5;
+    const smoothed = [...data];
+
+    for (let i = windowSize; i < data.length - windowSize; i++) {
+      const voltageWindow = data.slice(i - windowSize, i + windowSize + 1).map(d => d.voltage_V);
+      const currentWindow = data.slice(i - windowSize, i + windowSize + 1).map(d => d.current_A);
+      
+      smoothed[i].voltage_V = voltageWindow.reduce((a, b) => a + b, 0) / voltageWindow.length;
+      smoothed[i].current_A = currentWindow.reduce((a, b) => a + b, 0) / currentWindow.length;
+    }
+
+    return smoothed;
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("Please select a file to upload.");
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
     try {
-      // Update progress to show uploading
-      updateFileProgress(index, 25);
-      updateFileStatus(index, 'processing');
-
-      // Read file content
-      const text = await fileWithProgress.file.text();
-      updateFileProgress(index, 50);
-
-      // Parse and process the data - pass user ID (works for both demo and real users)
-      const result = await batteryService.uploadBatteryData(text, user.id);
-      updateFileProgress(index, 75);
-
-      // Complete the upload
-      updateFileStatus(index, 'completed');
-      updateFileProgress(index, 100);
+      const { data, metadata } = await BatteryDataParser.parseFile(file);
       
-      // Update the file with battery ID
-      setFiles(prev => prev.map((f, i) => 
-        i === index ? { ...f, batteryId: result.batteryId } : f
-      ));
+      // Apply data processing settings
+      const processedData = applyDataProcessingSettings(data);
+      
+      setParsedData(processedData);
+      setMetadata(metadata);
+      const battery = analyzeBatteryData(processedData, metadata);
+      setBatteryAnalysis(battery);
 
-      toast({
-        title: "Upload Successful",
-        description: isDemo 
-          ? `Demo upload completed! Battery ID: ${result.batteryId}` 
-          : `Battery data processed successfully. Battery ID: ${result.batteryId}`,
-      });
+      // Store the uploaded battery data in local storage
+      const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+      uploadedBatteries.push(battery);
+      localStorage.setItem('uploadedBatteries', JSON.stringify(uploadedBatteries));
 
-      // Trigger a battery data update event
+      // Trigger dashboard update
       window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
-    } catch (error) {
-      console.error('File processing error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
-      updateFileStatus(index, 'error', errorMessage);
-      updateFileProgress(index, 0);
-      
-      toast({
-        title: "Upload Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Auto-open passport for manual editing
+      setIsModalOpen(true);
+
+    } catch (e: any) {
+      console.error("Upload Error:", e);
+      setError(e.message || "An error occurred during file processing.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const updateFileProgress = (index: number, progress: number) => {
-    setFiles(prev => prev.map((f, i) => 
-      i === index ? { ...f, progress } : f
-    ));
+  const analyzeBatteryData = (parsedData: any[], metadata: any): Battery => {
+    console.log('Analyzing battery data with', parsedData.length, 'data points');
+    
+    // Use analytics service for accurate calculations
+    const sohHistory = batteryAnalytics.generateSoHHistory(parsedData);
+    const currentSoH = batteryAnalytics.calculateSoH(parsedData);
+    const degradationRate = batteryAnalytics.calculateDegradationRate(sohHistory);
+    const rul = batteryAnalytics.calculateRUL(sohHistory, currentSoH);
+    const totalCycles = metadata.totalCycles || Math.max(...parsedData.map(d => d.cycle_number));
+    const grade = batteryAnalytics.calculateGrade(currentSoH, rul, totalCycles);
+    const status = batteryAnalytics.calculateStatus(currentSoH, degradationRate);
+
+    const battery: Battery = {
+      id: `BAT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      grade,
+      status,
+      soh: Math.round(currentSoH * 10) / 10,
+      rul,
+      cycles: totalCycles,
+      chemistry: metadata.chemistry === 'LFP' ? 'LFP' : 'NMC',
+      uploadDate: new Date().toLocaleDateString(),
+      sohHistory: sohHistory.map(point => ({
+        ...point,
+        soh: Math.round(point.soh * 10) / 10
+      })),
+      rawData: parsedData
+    };
+
+    // Analyze issues and calculate advanced metrics
+    battery.issues = batteryAnalytics.analyzeIssues(battery, parsedData);
+    battery.metrics = batteryAnalytics.calculateAdvancedMetrics(battery, parsedData);
+
+    console.log('Generated battery analysis:', battery);
+    return battery;
   };
 
-  const updateFileStatus = (index: number, status: FileWithProgress['status'], error?: string) => {
-    setFiles(prev => prev.map((f, i) => 
-      i === index ? { ...f, status, error } : f
-    ));
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
   };
 
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
-  const viewBattery = (batteryId: string) => {
-    navigate(`/?battery=${batteryId}`);
+  const handleSaveBattery = (updatedBattery: Battery) => {
+    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+    const updatedBatteries = uploadedBatteries.map((battery: Battery) =>
+      battery.id === updatedBattery.id ? updatedBattery : battery
+    );
+    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedBatteries));
+
+    setBatteryAnalysis(updatedBattery);
+    setIsModalOpen(false);
+    
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'text/csv': ['.csv'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls']
-    },
-    multiple: true
-  });
-
-  const getStatusIcon = (status: FileWithProgress['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
-      default:
-        return <FileSpreadsheet className="h-5 w-5 text-blue-500" />;
-    }
-  };
-
-  const getStatusText = (file: FileWithProgress) => {
-    switch (file.status) {
-      case 'uploading':
-        return 'Uploading...';
-      case 'processing':
-        return 'Processing data...';
-      case 'completed':
-        return 'Upload complete';
-      case 'error':
-        return file.error || 'Upload failed';
-      default:
-        return 'Pending';
+  const handleViewOnDashboard = () => {
+    if (batteryAnalysis) {
+      // Navigate to dashboard with battery ID to open passport
+      navigate(`/?battery=${batteryAnalysis.id}`);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="border-dashed border-2 border-white/20">
-        <CardContent className="p-8">
-          <div
-            {...getRootProps()}
-            className={`text-center cursor-pointer transition-colors ${
-              isDragActive ? 'bg-blue-500/10' : 'hover:bg-white/5'
-            } p-8 rounded-lg`}
-          >
-            <input {...getInputProps()} />
-            <Upload className="mx-auto h-12 w-12 text-blue-500 mb-4" />
-            <h3 className="text-lg font-semibold text-white mb-2">
-              {isDragActive ? 'Drop files here' : 'Upload Battery Data'}
-            </h3>
-            <p className="text-slate-400 mb-4">
-              Drag and drop your battery data files here, or click to browse
-            </p>
-            <p className="text-sm text-slate-500">
-              Supports .csv, .xlsx, and .xls files from Maccor, Arbin, and Neware systems
-            </p>
-            {isDemo && (
-              <p className="text-sm text-orange-400 mt-2">
-                Demo Mode: Uploads will be simulated with sample data
-              </p>
+    <div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload Battery Data</CardTitle>
+          <CardDescription>
+            Upload a CSV or XLSX file containing battery cycle data to analyze its health and performance.
+            Files of any size are supported.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {/* File Uploader */}
+            <div {...getRootProps()} className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-md cursor-pointer">
+              <input {...getInputProps()} onChange={handleFileChange} />
+              {isDragActive ? (
+                <p className="text-center">Drop the files here ...</p>
+              ) : (
+                <div className="text-center">
+                  <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">Select a file or drag and drop here</p>
+                  <p className="text-xs text-muted-foreground mt-1">No size limit - any file size supported</p>
+                </div>
+              )}
+            </div>
+
+            {/* Selected File */}
+            {file && (
+              <div className="flex items-center space-x-4">
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                <div>
+                  <p className="text-sm font-medium">Selected File:</p>
+                  <p className="text-sm text-muted-foreground">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
             )}
-            <Button variant="outline" className="mt-4">
-              Select Files
+
+            {/* Error Message */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Upload Button */}
+            <Button onClick={handleUpload} disabled={isLoading}>
+              {isLoading ? "Analyzing..." : "Analyze Battery Data"}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {files.length > 0 && (
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Upload Progress</h3>
-            <div className="space-y-4">
-              {files.map((fileWithProgress, index) => (
-                <div key={index} className="flex items-center space-x-4 p-4 bg-white/5 rounded-lg">
-                  <div className="flex-shrink-0">
-                    {getStatusIcon(fileWithProgress.status)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      {fileWithProgress.file.name}
-                    </p>
-                    <p className="text-sm text-slate-400">
-                      {getStatusText(fileWithProgress)}
-                    </p>
-                    {fileWithProgress.status !== 'error' && (
-                      <Progress 
-                        value={fileWithProgress.progress} 
-                        className="mt-2 h-2"
-                      />
+      {/* Battery Analysis Result */}
+      {batteryAnalysis && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Battery Analysis Result</CardTitle>
+              <CardDescription>
+                Here are the key metrics and insights derived from the uploaded battery data.
+                <div className="flex gap-2 mt-2">
+                  <Button onClick={handleOpenModal} size="sm">View Passport</Button>
+                  <Button onClick={handleViewOnDashboard} size="sm" variant="outline">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View on Dashboard
+                  </Button>
+                </div>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Battery ID</Label>
+                  <Input type="text" value={batteryAnalysis.id} readOnly />
+                </div>
+                <div>
+                  <Label>Grade</Label>
+                  <Input type="text" value={batteryAnalysis.grade} readOnly />
+                </div>
+                <div>
+                  <Label>State of Health (SoH)</Label>
+                  <Input type="text" value={`${batteryAnalysis.soh}%`} readOnly />
+                </div>
+                <div>
+                  <Label>Remaining Useful Life (RUL)</Label>
+                  <Input type="text" value={batteryAnalysis.rul} readOnly />
+                </div>
+                <div>
+                  <Label>Total Cycles</Label>
+                  <Input type="text" value={batteryAnalysis.cycles} readOnly />
+                </div>
+                <div>
+                  <Label>Chemistry</Label>
+                  <Input type="text" value={batteryAnalysis.chemistry} readOnly />
+                </div>
+              </div>
+              
+              {batteryAnalysis.issues && batteryAnalysis.issues.length > 0 && (
+                <div className="mt-4">
+                  <Label className="text-base font-semibold">Issues Detected: {batteryAnalysis.issues.length}</Label>
+                  <div className="grid gap-2 mt-2">
+                    {batteryAnalysis.issues.slice(0, 3).map((issue) => (
+                      <Alert key={issue.id} variant={issue.severity === 'Critical' ? 'destructive' : 'default'}>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>{issue.title}</AlertTitle>
+                        <AlertDescription>{issue.description}</AlertDescription>
+                      </Alert>
+                    ))}
+                    {batteryAnalysis.issues.length > 3 && (
+                      <p className="text-sm text-muted-foreground">
+                        +{batteryAnalysis.issues.length - 3} more issues. View full details in Battery Passport.
+                      </p>
                     )}
-                  </div>
-                  <div className="flex-shrink-0 flex items-center space-x-2">
-                    {fileWithProgress.status === 'completed' && fileWithProgress.batteryId && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => viewBattery(fileWithProgress.batteryId!)}
-                      >
-                        View Battery
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeFile(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Battery Passport Modal */}
+      {batteryAnalysis && (
+        <BatteryPassportModal
+          battery={batteryAnalysis}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSave={handleSaveBattery}
+        />
       )}
     </div>
   );
