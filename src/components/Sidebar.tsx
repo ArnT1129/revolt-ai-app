@@ -1,6 +1,6 @@
 
 import { Link, useLocation } from "react-router-dom";
-import { BatteryCharging, Home, Upload, Settings } from "lucide-react";
+import { Home, Upload, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -16,7 +16,21 @@ export default function Sidebar() {
     <div className="hidden md:flex md:w-64 md:flex-col">
       <div className="flex flex-col grow gap-y-5 overflow-y-auto bg-card px-6 pb-4 border-r border-border">
         <div className="flex h-16 shrink-0 items-center gap-2">
-          <BatteryCharging className="h-8 w-8 text-primary" />
+          <img 
+            src="/your-logo.png" 
+            alt="ReVolt Logo" 
+            className="h-8 w-8 object-contain"
+            onError={(e) => {
+              // Fallback to text if image doesn't load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const fallback = target.nextElementSibling as HTMLElement;
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <div className="h-8 w-8 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold text-sm" style={{ display: 'none' }}>
+            R
+          </div>
           <span className="text-xl font-bold text-primary">ReVolt</span>
         </div>
         <nav className="flex flex-1 flex-col">
