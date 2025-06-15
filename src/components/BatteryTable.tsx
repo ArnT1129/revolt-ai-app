@@ -1,10 +1,14 @@
 
+import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Battery, BatteryGrade, BatteryStatus } from "@/types";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
+import { FileText } from "lucide-react";
+import BatteryPassportModal from "./BatteryPassportModal";
 
 const mockData: Battery[] = [
   // ... (mock data for several batteries)
@@ -30,56 +34,94 @@ const statusColor: Record<BatteryStatus, string> = {
 }
 
 export default function BatteryTable() {
+  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [batteries, setBatteries] = useState<Battery[]>(mockData);
+
+  const handleViewPassport = (battery: Battery) => {
+    setSelectedBattery(battery);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveBattery = (updatedBattery: Battery) => {
+    setBatteries(prev => 
+      prev.map(battery => 
+        battery.id === updatedBattery.id ? updatedBattery : battery
+      )
+    );
+    setSelectedBattery(updatedBattery);
+  };
+
   return (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Battery ID</TableHead>
-              <TableHead className="text-center">Grade</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">SoH (%)</TableHead>
-              <TableHead className="text-right">RUL (cycles)</TableHead>
-              <TableHead className="text-right">Total Cycles</TableHead>
-              <TableHead>SoH Trend</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockData.map((battery) => (
-              <TableRow key={battery.id}>
-                <TableCell className="font-medium">{battery.id}</TableCell>
-                <TableCell className="text-center">
-                  <Badge className={cn("text-white", gradeColor[battery.grade])}>{battery.grade}</Badge>
-                </TableCell>
-                <TableCell>
-                    <span className={cn("font-semibold", statusColor[battery.status])}>
-                        {battery.status}
-                    </span>
-                </TableCell>
-                <TableCell className="text-right">{battery.soh.toFixed(1)}</TableCell>
-                <TableCell className="text-right">{battery.rul}</TableCell>
-                <TableCell className="text-right">{battery.cycles}</TableCell>
-                <TableCell>
-                  <div className="h-10 w-32">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={battery.sohHistory} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorSoh" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <Area type="monotone" dataKey="soh" stroke="#8884d8" fillOpacity={1} fill="url(#colorSoh)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </TableCell>
+    <>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Battery ID</TableHead>
+                <TableHead className="text-center">Grade</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">SoH (%)</TableHead>
+                <TableHead className="text-right">RUL (cycles)</TableHead>
+                <TableHead className="text-right">Total Cycles</TableHead>
+                <TableHead>SoH Trend</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {batteries.map((battery) => (
+                <TableRow key={battery.id}>
+                  <TableCell className="font-medium">{battery.id}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={cn("text-white", gradeColor[battery.grade])}>{battery.grade}</Badge>
+                  </TableCell>
+                  <TableCell>
+                      <span className={cn("font-semibold", statusColor[battery.status])}>
+                          {battery.status}
+                      </span>
+                  </TableCell>
+                  <TableCell className="text-right">{battery.soh.toFixed(1)}</TableCell>
+                  <TableCell className="text-right">{battery.rul}</TableCell>
+                  <TableCell className="text-right">{battery.cycles}</TableCell>
+                  <TableCell>
+                    <div className="h-10 w-32">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={battery.sohHistory} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorSoh" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <Area type="monotone" dataKey="soh" stroke="#8884d8" fillOpacity={1} fill="url(#colorSoh)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleViewPassport(battery)}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      View Passport
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <BatteryPassportModal
+        battery={selectedBattery}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveBattery}
+      />
+    </>
   );
 }
