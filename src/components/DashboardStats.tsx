@@ -64,32 +64,28 @@ export default function DashboardStats() {
       value: stats.totalBatteries.toString(), 
       icon: BatteryFull,
       color: "text-blue-400",
-      bgColor: "bg-blue-500/10",
-      trend: "+2.5%"
+      bgColor: "bg-blue-500/10"
     },
     { 
       name: "Avg. State of Health (SoH)", 
       value: `${stats.averageSoH.toFixed(1)}%`, 
       icon: BatteryMedium,
       color: "text-cyan-400",
-      bgColor: "bg-cyan-500/10",
-      trend: "+1.2%"
+      bgColor: "bg-cyan-500/10"
     },
     { 
       name: "Critical Issues Flagged", 
       value: stats.criticalIssues.toString(), 
       icon: AlertTriangle,
       color: "text-orange-400",
-      bgColor: "bg-orange-500/10",
-      trend: "-8.1%"
+      bgColor: "bg-orange-500/10"
     },
     { 
       name: "Fleet Growth Rate", 
       value: `${stats.growthRate}%`, 
       icon: TrendingUp,
       color: "text-green-400",
-      bgColor: "bg-green-500/10",
-      trend: "+4.7%"
+      bgColor: "bg-green-500/10"
     },
   ], [stats]);
 
@@ -104,12 +100,7 @@ export default function DashboardStats() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-3xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
-            <div className="flex items-center text-xs text-slate-400">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-400" />
-              <span className="text-green-400">{stat.trend}</span>
-              <span className="ml-1">from last month</span>
-            </div>
+            <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
           </CardContent>
         </Card>
       ))}
