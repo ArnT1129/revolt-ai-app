@@ -6,17 +6,15 @@ import BatteryComparison from "@/components/BatteryComparison";
 import DataExporter from "@/components/DataExporter";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, TrendingUp, BarChart3, GitCompare, Download } from "lucide-react";
+import { Upload, BarChart3, GitCompare, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {
-  const [recentUploads, setRecentUploads] = useState<Battery[]>([]);
   const [allBatteries, setAllBatteries] = useState<Battery[]>([]);
 
-  const updateRecentUploads = () => {
+  const updateBatteries = () => {
     // Mock data
     const mockData: Battery[] = [
       { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: [] },
@@ -37,19 +35,14 @@ export default function Dashboard() {
       }
     });
 
-    const recent = combined
-      .sort((a: Battery, b: Battery) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
-      .slice(0, 3);
-    
-    setRecentUploads(recent);
     setAllBatteries(combined);
   };
 
   useEffect(() => {
-    updateRecentUploads();
+    updateBatteries();
 
     const handleBatteryUpdate = () => {
-      updateRecentUploads();
+      updateBatteries();
     };
 
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
@@ -79,11 +72,10 @@ export default function Dashboard() {
       <DashboardStats />
       
       <div className="mt-8">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-black/20 border border-white/10">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Overview
+        <Tabs defaultValue="fleet" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10">
+            <TabsTrigger value="fleet" className="flex items-center gap-2">
+              Fleet
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -97,45 +89,13 @@ export default function Dashboard() {
               <Download className="h-4 w-4" />
               Export
             </TabsTrigger>
-            <TabsTrigger value="fleet" className="flex items-center gap-2">
-              Fleet
-            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            {recentUploads.length > 0 && (
-              <Card className="enhanced-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <TrendingUp className="h-5 w-5 text-blue-400" />
-                    Recently Analyzed Batteries
-                  </CardTitle>
-                  <CardDescription>
-                    Latest batteries processed with advanced diagnostics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {recentUploads.map((battery) => (
-                      <div key={battery.id} className="p-4 border border-white/10 rounded-lg bg-black/20 backdrop-blur-sm hover:border-blue-500/40 transition-all duration-300">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-white">{battery.id}</h4>
-                          <span className="text-sm text-muted-foreground">{battery.uploadDate}</span>
-                        </div>
-                        <div className="space-y-1 text-sm">
-                          <p className="text-slate-300">SoH: <span className="font-medium text-blue-400">{battery.soh.toFixed(1)}%</span></p>
-                          <p className="text-slate-300">Grade: <span className="font-medium text-cyan-400">Grade {battery.grade}</span></p>
-                          <p className="text-slate-300">Cycles: <span className="font-medium text-indigo-400">{battery.cycles}</span></p>
-                          {battery.issues && (
-                            <p className="text-slate-300">Issues: <span className="font-medium text-red-400">{battery.issues.length}</span></p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          <TabsContent value="fleet">
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold text-white">Battery Fleet Overview</h2>
+              <BatteryTable />
+            </div>
           </TabsContent>
 
           <TabsContent value="analytics">
@@ -148,13 +108,6 @@ export default function Dashboard() {
 
           <TabsContent value="export">
             <DataExporter batteries={allBatteries} />
-          </TabsContent>
-
-          <TabsContent value="fleet">
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-white">Battery Fleet Overview</h2>
-              <BatteryTable />
-            </div>
           </TabsContent>
         </Tabs>
       </div>

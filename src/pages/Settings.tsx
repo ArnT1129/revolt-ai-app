@@ -98,22 +98,39 @@ export default function Settings() {
 
   // Apply settings globally
   useEffect(() => {
-    // Apply dark mode
+    // Apply dark mode by toggling the dark class on document element
+    const htmlElement = document.documentElement;
     if (settings.darkMode) {
-      document.documentElement.classList.add('dark');
+      htmlElement.classList.add('dark');
+      htmlElement.style.colorScheme = 'dark';
     } else {
-      document.documentElement.classList.remove('dark');
+      htmlElement.classList.remove('dark');
+      htmlElement.style.colorScheme = 'light';
     }
 
-    // Apply animations
+    // Apply animations setting
     if (!settings.animationsEnabled) {
-      document.documentElement.classList.add('no-animations');
+      htmlElement.style.setProperty('--transition-duration', '0s');
+      htmlElement.classList.add('no-animations');
     } else {
-      document.documentElement.classList.remove('no-animations');
+      htmlElement.style.removeProperty('--transition-duration');
+      htmlElement.classList.remove('no-animations');
+    }
+
+    // Apply compact view by adjusting CSS variables
+    if (settings.compactView) {
+      htmlElement.style.setProperty('--spacing-unit', '0.75rem');
+      htmlElement.style.setProperty('--card-padding', '1rem');
+    } else {
+      htmlElement.style.setProperty('--spacing-unit', '1rem');
+      htmlElement.style.setProperty('--card-padding', '1.5rem');
     }
 
     // Store settings in global state for other components to access
-    window.batteryAnalysisSettings = settings;
+    (window as any).batteryAnalysisSettings = settings;
+    
+    // Dispatch a custom event to notify other components
+    window.dispatchEvent(new CustomEvent('settingsChanged', { detail: settings }));
   }, [settings]);
 
   const updateSetting = (key: keyof AppSettings, value: any) => {
@@ -125,7 +142,7 @@ export default function Settings() {
       localStorage.setItem('batteryAnalysisSettings', JSON.stringify(settings));
       
       // Apply settings immediately
-      window.batteryAnalysisSettings = settings;
+      (window as any).batteryAnalysisSettings = settings;
       
       toast({
         title: "Settings Saved",
@@ -363,7 +380,7 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Dark Mode</Label>
-                <p className="text-sm text-muted-foreground">Use dark theme</p>
+                <p className="text-sm text-muted-foreground">Use dark theme (applies immediately)</p>
               </div>
               <Switch
                 checked={settings.darkMode}
@@ -501,19 +518,6 @@ export default function Settings() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap justify-end gap-4">
-          <input
-            type="file"
-            accept=".json"
-            onChange={importSettings}
-            style={{ display: 'none' }}
-            id="import-settings"
-          />
-          <Button variant="outline" onClick={() => document.getElementById('import-settings')?.click()}>
-            Import Settings
-          </Button>
-          <Button variant="outline" onClick={exportSettings}>
-            Export Settings
-          </Button>
           <Button variant="outline" onClick={resetSettings}>
             Reset to Defaults
           </Button>

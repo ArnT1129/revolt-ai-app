@@ -30,6 +30,11 @@
     --bg-dark: #010206;
     --accent-primary: #3b82f6;
     --accent-secondary: #06b6d4;
+    
+    /* Settings-controlled variables */
+    --spacing-unit: 1rem;
+    --card-padding: 1.5rem;
+    --transition-duration: 0.3s;
   }
 
   .dark {
@@ -53,6 +58,31 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
   }
+  
+  /* Light mode overrides */
+  :root:not(.dark) {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 215 20.2% 65.1%;
+    
+    --bg-dark: #f8fafc;
+  }
 }
 
 @layer base {
@@ -64,7 +94,17 @@
     font-family: 'Inter', sans-serif;
     background-color: var(--bg-dark);
     overflow-x: hidden;
+    transition: background-color var(--transition-duration) ease;
   }
+}
+
+/* Disable animations when setting is off */
+.no-animations *,
+.no-animations *::before,
+.no-animations *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
 }
 
 /* Aurora Background Effect */
@@ -130,9 +170,15 @@
   -webkit-backdrop-filter: blur(32px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 1.5rem;
-  transition: all 0.4s ease;
+  transition: all var(--transition-duration) ease;
   position: relative;
   box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+  padding: var(--card-padding);
+}
+
+:root:not(.dark) .glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .glass-card:hover {
@@ -143,12 +189,17 @@
     inset 0 0 20px rgba(59, 130, 246, 0.1);
 }
 
+:root:not(.dark) .glass-card:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
 .glass-button {
   background: rgba(59, 130, 246, 0.15);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(59, 130, 246, 0.4);
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
-  transition: all 0.3s ease;
+  transition: all var(--transition-duration) ease;
 }
 
 .glass-button:hover {
@@ -186,6 +237,11 @@
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+:root:not(.dark) .sidebar-glass {
+  background: rgba(255, 255, 255, 0.8);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 /* Enhanced card styling */
 .enhanced-card {
   @apply glass-card;
@@ -202,9 +258,22 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-duration) ease;
 }
 
 .enhanced-card:hover::before {
   opacity: 1;
+}
+
+/* Compact view adjustments */
+.compact .card {
+  padding: calc(var(--card-padding) * 0.75);
+}
+
+.compact .space-y-4 > * + * {
+  margin-top: calc(var(--spacing-unit) * 0.75);
+}
+
+.compact .space-y-6 > * + * {
+  margin-top: calc(var(--spacing-unit) * 1);
 }
