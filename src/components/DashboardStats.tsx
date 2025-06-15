@@ -21,17 +21,15 @@ export default function DashboardStats() {
       { id: "LFP-004A", grade: "A", status: "Healthy", soh: 99.8, rul: 2800, cycles: 50, chemistry: "LFP", uploadDate: "2025-06-15", sohHistory: [] },
     ];
 
-    // Get uploaded batteries from localStorage
     const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
     const allBatteries = [...mockData];
     
-    // Add uploaded batteries, avoiding duplicates
     uploadedBatteries.forEach((uploadedBattery: Battery) => {
       const existingIndex = allBatteries.findIndex(b => b.id === uploadedBattery.id);
       if (existingIndex >= 0) {
-        allBatteries[existingIndex] = uploadedBattery; // Update existing
+        allBatteries[existingIndex] = uploadedBattery;
       } else {
-        allBatteries.push(uploadedBattery); // Add new
+        allBatteries.push(uploadedBattery);
       }
     });
 
@@ -47,7 +45,6 @@ export default function DashboardStats() {
   useEffect(() => {
     updateStats();
 
-    // Listen for battery data updates
     const handleBatteryUpdate = () => {
       updateStats();
     };
@@ -63,30 +60,33 @@ export default function DashboardStats() {
     { 
       name: "Total Batteries Analyzed", 
       value: stats.totalBatteries.toString(), 
-      icon: BatteryFull 
+      icon: BatteryFull,
+      color: "text-blue-400"
     },
     { 
       name: "Avg. State of Health (SoH)", 
       value: `${stats.averageSoH.toFixed(1)}%`, 
-      icon: BatteryMedium 
+      icon: BatteryMedium,
+      color: "text-cyan-400"
     },
     { 
       name: "Critical Issues Flagged", 
       value: stats.criticalIssues.toString(), 
-      icon: AlertTriangle 
+      icon: AlertTriangle,
+      color: "text-indigo-400"
     },
   ];
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {statsData.map((stat, index) => (
-        <Card key={stat.name} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+        <Card key={stat.name} className="enhanced-card animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{stat.name}</CardTitle>
-            <stat.icon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-300">{stat.name}</CardTitle>
+            <stat.icon className={`h-4 w-4 ${stat.color}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stat.value}</div>
+            <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
           </CardContent>
         </Card>
       ))}
