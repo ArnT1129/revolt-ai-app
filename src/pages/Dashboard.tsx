@@ -11,95 +11,101 @@ import { Upload, BarChart3, GitCompare, Download } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
+import { batteryService } from "@/services/batteryService";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [allBatteries, setAllBatteries] = useState<Battery[]>([]);
   const [defaultView, setDefaultView] = useState("fleet");
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const updateBatteries = () => {
-    // Mock data
-    const mockData: Battery[] = [
-      { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: [] },
-      { id: "LFP-002B", grade: "B", status: "Degrading", soh: 92.5, rul: 820, cycles: 1180, chemistry: "LFP", uploadDate: "2025-06-12", sohHistory: [] },
-      { id: "NMC-003C", grade: "C", status: "Critical", soh: 84.3, rul: 210, cycles: 2400, chemistry: "NMC", uploadDate: "2025-06-10", sohHistory: [] },
-      { id: "LFP-004A", grade: "A", status: "Healthy", soh: 99.8, rul: 2800, cycles: 50, chemistry: "LFP", uploadDate: "2025-06-15", sohHistory: [] },
-    ];
-
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const combined = [...mockData];
+  const updateBatteries = async () => {
+    if (!user) return [];
     
-    uploadedBatteries.forEach((uploadedBattery: Battery) => {
-      const existingIndex = combined.findIndex(b => b.id === uploadedBattery.id);
-      if (existingIndex >= 0) {
-        combined[existingIndex] = uploadedBattery;
-      } else {
-        combined.push(uploadedBattery);
-      }
-    });
-
-    setAllBatteries(combined);
-    return combined;
+    try {
+      const batteries = await batteryService.getUserBatteries(user.id);
+      setAllBatteries(batteries);
+      return batteries;
+    } catch (error) {
+      console.error('Error fetching batteries:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveBattery = (updatedBattery: Battery) => {
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const updatedBatteries = uploadedBatteries.map((battery: Battery) =>
-      battery.id === updatedBattery.id ? updatedBattery : battery
-    );
-    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedBatteries));
-
-    setSelectedBattery(updatedBattery);
-    setIsPassportOpen(false);
-    
-    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+  const handleSaveBattery = async (updatedBattery: Battery) => {
+    try {
+      await batteryService.updateBattery(updatedBattery.id, updatedBattery);
+      setSelectedBattery(updatedBattery);
+      setIsPassportOpen(false);
+      updateBatteries(); // Refresh the data
+    } catch (error) {
+      console.error('Error updating battery:', error);
+    }
   };
 
   useEffect(() => {
-    const batteries = updateBatteries();
+    const initializeDashboard = async () => {
+      if (!user) return;
+      
+      const batteries = await updateBatteries();
 
-    // Check if there's a battery ID in the URL
-    const batteryId = searchParams.get('battery');
-    if (batteryId) {
-      const battery = batteries.find(b => b.id === batteryId);
-      if (battery) {
-        setSelectedBattery(battery);
-        setIsPassportOpen(true);
-        // Remove the battery parameter from URL
-        setSearchParams(prev => {
-          const newParams = new URLSearchParams(prev);
-          newParams.delete('battery');
-          return newParams;
-        });
+      // Check if there's a battery ID in the URL
+      const batteryId = searchParams.get('battery');
+      if (batteryId) {
+        const battery = batteries.find(b => b.id === batteryId);
+        if (battery) {
+          setSelectedBattery(battery);
+          setIsPassportOpen(true);
+          // Remove the battery parameter from URL
+          setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            newParams.delete('battery');
+            return newParams;
+          });
+        }
       }
-    }
 
-    // Load default view from settings
-    const savedSettings = localStorage.getItem('batteryAnalysisSettings');
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      setDefaultView(settings.defaultView || "fleet");
-    }
-
-    const handleBatteryUpdate = () => {
-      updateBatteries();
+      // Load default view from settings
+      const savedSettings = localStorage.getItem('batteryAnalysisSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setDefaultView(settings.defaultView || "fleet");
+      }
     };
+
+    initializeDashboard();
 
     const handleSettingsChanged = (event: CustomEvent) => {
       const settings = event.detail;
       setDefaultView(settings.defaultView || "fleet");
     };
 
-    window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
     window.addEventListener('settingsChanged', handleSettingsChanged as EventListener);
     
     return () => {
-      window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
       window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
     };
-  }, [searchParams, setSearchParams]);
+  }, [user, searchParams, setSearchParams]);
+
+  if (!user) {
+    return null; // This will be handled by ProtectedRoute
+  }
+
+  if (loading) {
+    return (
+      <main className="flex-1 p-4 md:p-8 animate-fade-in">
+        <div className="text-center py-8">
+          <div className="text-white">Loading your dashboard...</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
@@ -142,7 +148,7 @@ export default function Dashboard() {
 
           <TabsContent value="fleet">
             <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-white">Battery Fleet Overview</h2>
+              <h2 className="text-2xl font-semibold text-white">My Battery Fleet</h2>
               <BatteryTable />
             </div>
           </TabsContent>
