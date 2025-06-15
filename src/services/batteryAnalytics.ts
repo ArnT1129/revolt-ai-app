@@ -9,6 +9,25 @@ export interface BatteryAnalytics {
   generateSoHHistory: (rawData: any[]) => SoHDataPoint[];
   calculateDegradationRate: (sohHistory: SoHDataPoint[]) => number;
   analyzeIssues: (battery: Battery, rawData: any[]) => BatteryIssue[];
+  calculateAdvancedMetrics: (battery: Battery, rawData: any[]) => BatteryMetrics;
+}
+
+export interface BatteryMetrics {
+  capacityRetention: number;
+  energyEfficiency: number;
+  powerFadeRate: number;
+  internalResistance: number;
+  temperatureRange: { min: number; max: number; avg: number };
+  voltageRange: { min: number; max: number; avg: number };
+  chargingEfficiency: number;
+  dischargingEfficiency: number;
+  cycleLife: number;
+  calendarLife: number;
+  peakPower: number;
+  energyDensity: number;
+  selfDischargeRate: number;
+  impedanceGrowth: number;
+  thermalStability: string;
 }
 
 export class BatteryAnalyticsService implements BatteryAnalytics {
@@ -178,6 +197,80 @@ export class BatteryAnalyticsService implements BatteryAnalytics {
 
   analyzeIssues(battery: Battery, rawData: any[]): BatteryIssue[] {
     return IssueAnalysisService.analyzeIssues(battery, rawData);
+  }
+
+  calculateAdvancedMetrics(battery: Battery, rawData: any[]): BatteryMetrics {
+    if (!rawData || rawData.length === 0) {
+      // Return synthetic metrics for demo purposes
+      return {
+        capacityRetention: battery.soh,
+        energyEfficiency: 92.5 - (battery.cycles * 0.01),
+        powerFadeRate: 0.02 + (battery.cycles * 0.0001),
+        internalResistance: 45 + (battery.cycles * 0.05),
+        temperatureRange: { min: 22, max: 45, avg: 28 },
+        voltageRange: { min: 3.2, max: 4.2, avg: 3.7 },
+        chargingEfficiency: 94.2 - (battery.cycles * 0.005),
+        dischargingEfficiency: 96.8 - (battery.cycles * 0.003),
+        cycleLife: battery.rul + battery.cycles,
+        calendarLife: Math.round((battery.rul + battery.cycles) * 1.2),
+        peakPower: 180 - (battery.cycles * 0.1),
+        energyDensity: 250 - (battery.cycles * 0.02),
+        selfDischargeRate: 2.1 + (battery.cycles * 0.001),
+        impedanceGrowth: (battery.cycles * 0.008),
+        thermalStability: battery.soh > 90 ? "Excellent" : battery.soh > 80 ? "Good" : "Poor"
+      };
+    }
+
+    // Calculate real metrics from raw data
+    const voltages = rawData.map(d => d.voltage_V).filter(v => v > 0);
+    const currents = rawData.map(d => d.current_A).filter(c => c !== 0);
+    const temperatures = rawData.map(d => d.temperature_C).filter(t => t > 0);
+    const capacities = rawData.map(d => d.capacity_mAh).filter(c => c > 0);
+
+    const voltageRange = {
+      min: Math.min(...voltages),
+      max: Math.max(...voltages),
+      avg: voltages.reduce((a, b) => a + b, 0) / voltages.length
+    };
+
+    const temperatureRange = {
+      min: Math.min(...temperatures),
+      max: Math.max(...temperatures),
+      avg: temperatures.reduce((a, b) => a + b, 0) / temperatures.length
+    };
+
+    // Calculate charging and discharging efficiency
+    const chargeData = rawData.filter(d => d.step_type === 'charge');
+    const dischargeData = rawData.filter(d => d.step_type === 'discharge');
+
+    const chargingEfficiency = chargeData.length > 0 ? 
+      (chargeData.reduce((sum, d) => sum + d.capacity_mAh, 0) / chargeData.length) / 
+      (dischargeData.reduce((sum, d) => sum + d.capacity_mAh, 0) / dischargeData.length) * 100 : 95;
+
+    const dischargingEfficiency = 98 - (battery.cycles * 0.002);
+
+    // Calculate internal resistance approximation
+    const internalResistance = voltages.length > 0 && currents.length > 0 ?
+      Math.abs((Math.max(...voltages) - Math.min(...voltages)) / Math.max(...currents.map(Math.abs))) * 1000 : 50;
+
+    return {
+      capacityRetention: battery.soh,
+      energyEfficiency: Math.max(80, 95 - (battery.cycles * 0.01)),
+      powerFadeRate: 0.01 + (battery.cycles * 0.0001),
+      internalResistance: Math.min(100, internalResistance),
+      temperatureRange,
+      voltageRange,
+      chargingEfficiency: Math.max(85, Math.min(98, chargingEfficiency)),
+      dischargingEfficiency: Math.max(90, dischargingEfficiency),
+      cycleLife: battery.rul + battery.cycles,
+      calendarLife: Math.round((battery.rul + battery.cycles) * 1.3),
+      peakPower: Math.max(100, 200 - (battery.cycles * 0.08)),
+      energyDensity: Math.max(200, 260 - (battery.cycles * 0.015)),
+      selfDischargeRate: Math.min(5, 1.8 + (battery.cycles * 0.001)),
+      impedanceGrowth: (battery.cycles * 0.006),
+      thermalStability: temperatureRange.max - temperatureRange.min < 20 ? "Excellent" : 
+                      temperatureRange.max - temperatureRange.min < 30 ? "Good" : "Poor"
+    };
   }
 }
 

@@ -1,5 +1,6 @@
 
 import { BatteryIssue } from "@/services/issueAnalysis";
+import { BatteryMetrics } from "@/services/batteryAnalytics";
 
 export type BatteryGrade = "A" | "B" | "C" | "D";
 
@@ -22,4 +23,5 @@ export interface Battery {
   sohHistory: SoHDataPoint[];
   issues?: BatteryIssue[];
   rawData?: any[];
+  metrics?: BatteryMetrics;
 }

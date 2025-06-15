@@ -96,8 +96,9 @@ export default function FileUploader() {
       rawData: parsedData
     };
 
-    // Analyze issues
+    // Analyze issues and calculate advanced metrics
     battery.issues = batteryAnalytics.analyzeIssues(battery, parsedData);
+    battery.metrics = batteryAnalytics.calculateAdvancedMetrics(battery, parsedData);
 
     console.log('Generated battery analysis:', battery);
     return battery;

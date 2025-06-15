@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Battery } from "@/types";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart } from "recharts";
-import { Edit, Save, X, Download, FileText } from "lucide-react";
+import { Edit, Save, X, Download, FileText, Thermometer, Zap, Activity, Battery as BatteryIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -68,10 +67,11 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
   };
 
   const currentBattery = isEditing ? editedBattery! : battery;
+  const metrics = currentBattery.metrics;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-2xl font-bold">Digital Battery Passport</DialogTitle>
           <div className="flex gap-2">
@@ -102,7 +102,10 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Basic Information</h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Basic Information
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="batteryId">Battery ID</Label>
@@ -153,9 +156,12 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
             </div>
           </div>
 
-          {/* Performance Metrics */}
+          {/* Core Performance Metrics */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Performance Metrics</h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <BatteryIcon className="h-5 w-5" />
+              Core Performance
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-muted/50 p-4 rounded-lg">
                 <Label className="text-xs text-muted-foreground">State of Health</Label>
@@ -171,12 +177,112 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
                 <p className="text-2xl font-bold">{currentBattery.cycles}</p>
               </div>
               <div className="bg-muted/50 p-4 rounded-lg">
-                <Label className="text-xs text-muted-foreground">Degradation Rate</Label>
-                <p className="text-2xl font-bold">0.05%</p>
-                <p className="text-xs text-muted-foreground">per cycle</p>
+                <Label className="text-xs text-muted-foreground">Capacity Retention</Label>
+                <p className="text-2xl font-bold">{metrics?.capacityRetention?.toFixed(1) || 'N/A'}%</p>
               </div>
             </div>
           </div>
+
+          {/* Advanced Analytics */}
+          {metrics && (
+            <div className="lg:col-span-2 space-y-6">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Advanced Analytics
+              </h3>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <Label className="text-xs text-muted-foreground">Energy Efficiency</Label>
+                  <p className="text-xl font-bold">{metrics.energyEfficiency.toFixed(1)}%</p>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <Label className="text-xs text-muted-foreground">Power Fade Rate</Label>
+                  <p className="text-xl font-bold">{(metrics.powerFadeRate * 100).toFixed(2)}%</p>
+                  <p className="text-xs text-muted-foreground">per cycle</p>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <Label className="text-xs text-muted-foreground">Internal Resistance</Label>
+                  <p className="text-xl font-bold">{metrics.internalResistance.toFixed(1)}</p>
+                  <p className="text-xs text-muted-foreground">mΩ</p>
+                </div>
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <Label className="text-xs text-muted-foreground">Peak Power</Label>
+                  <p className="text-xl font-bold">{metrics.peakPower.toFixed(0)}</p>
+                  <p className="text-xs text-muted-foreground">W</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Efficiency Metrics */}
+                <div className="space-y-4">
+                  <h4 className="text-md font-semibold flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    Efficiency Metrics
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Charging Efficiency</Label>
+                      <p className="text-lg font-semibold">{metrics.chargingEfficiency.toFixed(1)}%</p>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Discharging Efficiency</Label>
+                      <p className="text-lg font-semibold">{metrics.dischargingEfficiency.toFixed(1)}%</p>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Energy Density</Label>
+                      <p className="text-lg font-semibold">{metrics.energyDensity.toFixed(0)}</p>
+                      <p className="text-xs text-muted-foreground">Wh/kg</p>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Self-Discharge Rate</Label>
+                      <p className="text-lg font-semibold">{metrics.selfDischargeRate.toFixed(1)}%</p>
+                      <p className="text-xs text-muted-foreground">per month</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Environmental Metrics */}
+                <div className="space-y-4">
+                  <h4 className="text-md font-semibold flex items-center gap-2">
+                    <Thermometer className="h-4 w-4" />
+                    Environmental & Life Metrics
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Temperature Range</Label>
+                      <p className="text-sm font-semibold">
+                        {metrics.temperatureRange.min.toFixed(1)}°C - {metrics.temperatureRange.max.toFixed(1)}°C
+                      </p>
+                      <p className="text-xs text-muted-foreground">Avg: {metrics.temperatureRange.avg.toFixed(1)}°C</p>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Voltage Range</Label>
+                      <p className="text-sm font-semibold">
+                        {metrics.voltageRange.min.toFixed(2)}V - {metrics.voltageRange.max.toFixed(2)}V
+                      </p>
+                      <p className="text-xs text-muted-foreground">Avg: {metrics.voltageRange.avg.toFixed(2)}V</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-muted/30 p-3 rounded">
+                        <Label className="text-xs text-muted-foreground">Cycle Life</Label>
+                        <p className="text-lg font-semibold">{metrics.cycleLife}</p>
+                      </div>
+                      <div className="bg-muted/30 p-3 rounded">
+                        <Label className="text-xs text-muted-foreground">Calendar Life</Label>
+                        <p className="text-lg font-semibold">{metrics.calendarLife}</p>
+                        <p className="text-xs text-muted-foreground">days</p>
+                      </div>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded">
+                      <Label className="text-xs text-muted-foreground">Thermal Stability</Label>
+                      <p className="text-lg font-semibold">{metrics.thermalStability}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* SoH Chart */}
           <div className="lg:col-span-2">
