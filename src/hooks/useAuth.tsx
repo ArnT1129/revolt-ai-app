@@ -56,8 +56,8 @@ export function useAuth() {
         } else {
           setUser(null);
           setIsDemo(false);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
@@ -126,9 +126,12 @@ export function useAuth() {
   const signOut = async () => {
     try {
       if (isDemo) {
+        console.log('useAuth: Exiting demo mode');
         localStorage.removeItem('demo_mode');
         setUser(null);
         setIsDemo(false);
+        setSession(null);
+        setLoading(false);
         return;
       }
       
@@ -136,6 +139,12 @@ export function useAuth() {
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('useAuth: Sign out error:', error);
+      } else {
+        // Force clear state immediately
+        setUser(null);
+        setSession(null);
+        setIsDemo(false);
+        setLoading(false);
       }
     } catch (error) {
       console.error('useAuth: Error during sign out:', error);
@@ -154,6 +163,7 @@ export function useAuth() {
     };
     setUser(demoUser);
     setIsDemo(true);
+    setSession(null);
     setLoading(false);
   };
 

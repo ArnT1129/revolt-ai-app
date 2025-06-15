@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +18,7 @@ interface FileWithProgress {
 }
 
 export default function FileUploader() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const navigate = useNavigate();
   const [files, setFiles] = useState<FileWithProgress[]>([]);
 
@@ -39,8 +38,9 @@ export default function FileUploader() {
   }, [files.length]);
 
   const processFile = async (fileWithProgress: FileWithProgress, index: number) => {
+    // Check if user exists (either real user or demo user)
     if (!user) {
-      updateFileStatus(index, 'error', 'User not authenticated');
+      updateFileStatus(index, 'error', 'Please sign in or use demo mode to upload files');
       return;
     }
 
@@ -53,7 +53,7 @@ export default function FileUploader() {
       const text = await fileWithProgress.file.text();
       updateFileProgress(index, 50);
 
-      // Parse and process the data
+      // Parse and process the data - pass user ID (works for both demo and real users)
       const result = await batteryService.uploadBatteryData(text, user.id);
       updateFileProgress(index, 75);
 
@@ -68,7 +68,9 @@ export default function FileUploader() {
 
       toast({
         title: "Upload Successful",
-        description: `Battery data processed successfully. Battery ID: ${result.batteryId}`,
+        description: isDemo 
+          ? `Demo upload completed! Battery ID: ${result.batteryId}` 
+          : `Battery data processed successfully. Battery ID: ${result.batteryId}`,
       });
 
       // Trigger a battery data update event
@@ -165,6 +167,11 @@ export default function FileUploader() {
             <p className="text-sm text-slate-500">
               Supports .csv, .xlsx, and .xls files from Maccor, Arbin, and Neware systems
             </p>
+            {isDemo && (
+              <p className="text-sm text-orange-400 mt-2">
+                Demo Mode: Uploads will be simulated with sample data
+              </p>
+            )}
             <Button variant="outline" className="mt-4">
               Select Files
             </Button>

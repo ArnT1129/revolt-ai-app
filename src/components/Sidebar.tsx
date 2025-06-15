@@ -28,7 +28,13 @@ export default function Sidebar() {
   const { user, signOut, isDemo } = useAuth();
 
   const handleSignOut = async () => {
-    await signOut();
+    console.log('Sidebar: Sign out clicked');
+    try {
+      await signOut();
+      console.log('Sidebar: Sign out completed');
+    } catch (error) {
+      console.error('Sidebar: Sign out error:', error);
+    }
   };
 
   return (
