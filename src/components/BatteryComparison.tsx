@@ -27,16 +27,29 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
   const generateComparison = () => {
     const selected = batteries.filter(b => selectedBatteries.includes(b.id));
     
-    // Generate comparison chart data
-    const maxCycles = Math.max(...selected.map(b => b.sohHistory.length > 0 ? Math.max(...b.sohHistory.map(h => h.cycle)) : b.cycles));
+    // Generate more accurate comparison chart data
+    const maxCycles = Math.max(...selected.map(b => b.cycles));
     const chartData = [];
     
-    for (let cycle = 0; cycle <= maxCycles; cycle += Math.ceil(maxCycles / 20)) {
+    // Create data points every 50 cycles or based on available history
+    const stepSize = Math.max(50, Math.ceil(maxCycles / 20));
+    
+    for (let cycle = 0; cycle <= maxCycles; cycle += stepSize) {
       const dataPoint: any = { cycle };
       
       selected.forEach(battery => {
-        const sohPoint = battery.sohHistory.find(h => h.cycle <= cycle);
-        dataPoint[battery.id] = sohPoint ? sohPoint.soh : 100;
+        // If battery has SoH history, use it; otherwise simulate degradation
+        if (battery.sohHistory && battery.sohHistory.length > 0) {
+          const closestPoint = battery.sohHistory
+            .filter(h => h.cycle <= cycle)
+            .sort((a, b) => Math.abs(a.cycle - cycle) - Math.abs(b.cycle - cycle))[0];
+          dataPoint[battery.id] = closestPoint ? closestPoint.soh : 100;
+        } else {
+          // Simulate realistic degradation based on current state
+          const degradationRate = (100 - battery.soh) / battery.cycles;
+          const simulatedSoh = Math.max(80, 100 - (degradationRate * cycle));
+          dataPoint[battery.id] = cycle <= battery.cycles ? simulatedSoh : battery.soh;
+        }
       });
       
       chartData.push(dataPoint);
@@ -47,30 +60,35 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
 
   const getComparisonMetrics = () => {
     const selected = batteries.filter(b => selectedBatteries.includes(b.id));
-    return selected.map(battery => ({
-      ...battery,
-      degradationRate: battery.cycles > 0 ? (100 - battery.soh) / battery.cycles : 0,
-      efficiencyScore: (battery.soh * 0.4) + (battery.rul / 50 * 0.3) + ((2000 - battery.cycles) / 20 * 0.3)
-    }));
+    return selected.map(battery => {
+      const degradationRate = battery.cycles > 0 ? (100 - battery.soh) / battery.cycles : 0;
+      const efficiencyScore = (battery.soh * 0.4) + ((battery.rul / 50) * 0.3) + (((2000 - battery.cycles) / 2000) * 0.3);
+      
+      return {
+        ...battery,
+        degradationRate: Math.max(0, degradationRate),
+        efficiencyScore: Math.min(100, Math.max(0, efficiencyScore))
+      };
+    });
   };
 
-  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c'];
+  const colors = ['#60a5fa', '#34d399', '#fbbf24', '#f87171'];
 
   return (
     <div className="space-y-6">
       <Card className="enhanced-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <GitCompare className="h-5 w-5 text-blue-400" />
+          <CardTitle className="flex items-center gap-2 text-slate-100">
+            <GitCompare className="h-5 w-5 text-blue-300" />
             Battery Performance Comparison
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-slate-300 mb-2 block">
+            <label className="text-sm font-medium text-slate-300 mb-3 block">
               Select batteries to compare (max 4):
             </label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {batteries.map(battery => (
                 <Button
                   key={battery.id}
@@ -78,7 +96,11 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
                   size="sm"
                   onClick={() => handleBatterySelect(battery.id)}
                   disabled={!selectedBatteries.includes(battery.id) && selectedBatteries.length >= 4}
-                  className="text-xs"
+                  className={`text-xs transition-all duration-200 ${
+                    selectedBatteries.includes(battery.id) 
+                      ? 'bg-blue-600/70 border-blue-400/50 text-white shadow-md transform scale-105' 
+                      : 'bg-slate-700/50 border-slate-500/50 text-slate-300 hover:bg-slate-600/60'
+                  }`}
                 >
                   {battery.id}
                 </Button>
@@ -86,36 +108,57 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
             </div>
           </div>
 
-          <Button onClick={generateComparison} disabled={selectedBatteries.length < 2}>
+          <Button 
+            onClick={generateComparison} 
+            disabled={selectedBatteries.length < 2}
+            className="bg-blue-600/70 hover:bg-blue-600/85 border-blue-400/50"
+          >
             Generate Comparison
           </Button>
 
           {comparisonData.length > 0 && (
             <div className="space-y-6">
               {/* SoH Trends Comparison */}
-              <div className="h-64 w-full">
+              <div className="h-72 w-full">
+                <h3 className="text-lg font-medium text-slate-200 mb-4">State of Health Degradation Over Cycles</h3>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={comparisonData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis dataKey="cycle" stroke="#9CA3AF" />
-                    <YAxis stroke="#9CA3AF" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#475569" opacity={0.3} />
+                    <XAxis 
+                      dataKey="cycle" 
+                      stroke="#94a3b8" 
+                      fontSize={12}
+                      label={{ value: 'Cycle Count', position: 'insideBottom', offset: -5, style: { fill: '#94a3b8' } }}
+                    />
+                    <YAxis 
+                      stroke="#94a3b8" 
+                      fontSize={12}
+                      label={{ value: 'SoH (%)', angle: -90, position: 'insideLeft', style: { fill: '#94a3b8' } }}
+                      domain={[75, 100]}
+                    />
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: '#1F2937', 
-                        border: '1px solid #374151',
+                        backgroundColor: 'rgba(15, 22, 41, 0.95)', 
+                        border: '1px solid rgba(71, 85, 105, 0.4)',
                         borderRadius: '8px',
-                        color: '#F3F4F6'
+                        color: '#f1f5f9'
                       }} 
+                      formatter={(value: any, name: string) => [`${Number(value).toFixed(1)}%`, name]}
+                      labelFormatter={(cycle) => `Cycle: ${cycle}`}
                     />
-                    <Legend />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="line"
+                    />
                     {selectedBatteries.map((batteryId, index) => (
                       <Line
                         key={batteryId}
                         type="monotone"
                         dataKey={batteryId}
                         stroke={colors[index]}
-                        strokeWidth={2}
-                        dot={{ fill: colors[index], strokeWidth: 0, r: 3 }}
+                        strokeWidth={3}
+                        dot={{ fill: colors[index], strokeWidth: 0, r: 4 }}
+                        activeDot={{ r: 6, stroke: colors[index], strokeWidth: 2, fill: '#fff' }}
                       />
                     ))}
                   </LineChart>
@@ -125,37 +168,53 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
               {/* Comparison Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {getComparisonMetrics().map((battery, index) => (
-                  <Card key={battery.id} className="border border-white/10 bg-black/20">
+                  <Card key={battery.id} className="border border-slate-600/30 bg-slate-800/40">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-white">{battery.id}</h4>
-                        <Badge 
-                          className="text-white"
-                          style={{ backgroundColor: colors[index] }}
-                        >
-                          {battery.grade}
-                        </Badge>
+                        <h4 className="font-semibold text-slate-100">{battery.id}</h4>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: colors[index] }}
+                          />
+                          <Badge 
+                            variant="outline"
+                            className="text-slate-200 border-slate-500/50"
+                          >
+                            Grade {battery.grade}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">SoH:</span>
-                          <span className="text-blue-400 font-medium">{battery.soh.toFixed(1)}%</span>
+                          <span className="text-slate-400">Current SoH:</span>
+                          <span className="text-blue-300 font-medium">{battery.soh.toFixed(1)}%</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">RUL:</span>
-                          <span className="text-cyan-400 font-medium">{battery.rul}</span>
+                          <span className="text-slate-400">Remaining Life:</span>
+                          <span className="text-emerald-300 font-medium">{battery.rul} cycles</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Cycles:</span>
-                          <span className="text-indigo-400 font-medium">{battery.cycles}</span>
+                          <span className="text-slate-400">Total Cycles:</span>
+                          <span className="text-purple-300 font-medium">{battery.cycles.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Degradation Rate:</span>
-                          <span className="text-yellow-400 font-medium">{battery.degradationRate.toFixed(3)}/cycle</span>
+                          <span className="text-amber-300 font-medium">{(battery.degradationRate * 100).toFixed(3)}%/cycle</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Efficiency Score:</span>
-                          <span className="text-green-400 font-medium">{battery.efficiencyScore.toFixed(1)}</span>
+                          <span className="text-slate-400">Chemistry:</span>
+                          <span className="text-cyan-300 font-medium">{battery.chemistry}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Status:</span>
+                          <span className={`font-medium ${
+                            battery.status === 'Healthy' ? 'text-green-400' :
+                            battery.status === 'Degrading' ? 'text-yellow-400' :
+                            'text-red-400'
+                          }`}>
+                            {battery.status}
+                          </span>
                         </div>
                       </div>
                     </CardContent>

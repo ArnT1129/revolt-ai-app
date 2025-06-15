@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -36,211 +37,210 @@
 }
 
 body {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #334155 50%, #475569 75%, #64748b 100%);
+  background: linear-gradient(135deg, #0f1629 0%, #1a2332 25%, #243447 50%, #2e455c 75%, #385670 100%);
   color: hsl(var(--foreground));
   min-height: 100vh;
 }
 
-/* Override all elements to have rounded edges */
+/* Subtle rounded edges */
 * {
-  border-radius: 12px !important;
-}
-
-/* Special cases for smaller elements */
-button, input, select, textarea {
   border-radius: 8px !important;
 }
 
-/* Card components with enhanced glass effect - more subtle blues */
+/* Smaller elements get less radius */
+button, input, select, textarea {
+  border-radius: 6px !important;
+}
+
+/* Professional card styling with very subtle glass effect */
 .card, [data-component="card"] {
-  background: rgba(30, 58, 138, 0.15) !important;
-  backdrop-filter: blur(25px) !important;
-  border: 1px solid rgba(59, 130, 246, 0.2) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 15px 30px -8px rgba(59, 130, 246, 0.2) !important;
-  transition: all 0.3s ease !important;
-  color: rgba(255, 255, 255, 0.95) !important;
+  background: rgba(15, 22, 41, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(71, 85, 105, 0.25) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.2s ease !important;
+  color: rgba(248, 250, 252, 0.95) !important;
 }
 
 .card:hover, [data-component="card"]:hover {
-  background: rgba(30, 58, 138, 0.25) !important;
-  border-color: rgba(59, 130, 246, 0.3) !important;
-  box-shadow: 0 20px 40px -8px rgba(59, 130, 246, 0.3) !important;
-  transform: translateY(-2px) !important;
-}
-
-.glass-effect {
-  background: rgba(30, 58, 138, 0.15);
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.glass-effect:hover {
-  background: rgba(30, 58, 138, 0.25);
-  border-color: rgba(59, 130, 246, 0.3);
-  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
-  transform: translateY(-2px);
-}
-
-.enhanced-card {
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.18), rgba(29, 78, 216, 0.15));
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 20px;
-  box-shadow: 0 15px 30px -8px rgba(59, 130, 246, 0.25);
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.enhanced-card:hover {
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.28), rgba(29, 78, 216, 0.25));
-  border-color: rgba(59, 130, 246, 0.35);
-  box-shadow: 0 20px 40px -8px rgba(59, 130, 246, 0.35);
-  transform: translateY(-3px);
-}
-
-.glass-button {
-  background: rgba(30, 58, 138, 0.2);
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.glass-button:hover {
-  background: rgba(30, 58, 138, 0.3);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
-  transform: translateY(-1px);
-}
-
-/* Button styling with glass effect - more subtle */
-button {
-  background: rgba(30, 58, 138, 0.2) !important;
-  backdrop-filter: blur(15px) !important;
-  border: 1px solid rgba(59, 130, 246, 0.25) !important;
-  border-radius: 12px !important;
-  transition: all 0.3s ease !important;
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-button:hover {
-  background: rgba(30, 58, 138, 0.3) !important;
-  border-color: rgba(59, 130, 246, 0.4) !important;
-  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.3) !important;
+  background: rgba(15, 22, 41, 0.9) !important;
+  border-color: rgba(71, 85, 105, 0.35) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
   transform: translateY(-1px) !important;
 }
 
-/* Input styling with better visibility */
+.glass-effect {
+  background: rgba(15, 22, 41, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(71, 85, 105, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  color: rgba(248, 250, 252, 0.95);
+}
+
+.glass-effect:hover {
+  background: rgba(15, 22, 41, 0.85);
+  border-color: rgba(71, 85, 105, 0.35);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.enhanced-card {
+  background: linear-gradient(135deg, rgba(15, 22, 41, 0.85), rgba(30, 41, 59, 0.8));
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(71, 85, 105, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  color: rgba(248, 250, 252, 0.95);
+}
+
+.enhanced-card:hover {
+  background: linear-gradient(135deg, rgba(15, 22, 41, 0.9), rgba(30, 41, 59, 0.85));
+  border-color: rgba(71, 85, 105, 0.35);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.glass-button {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: rgba(248, 250, 252, 0.9);
+}
+
+.glass-button:hover {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(71, 85, 105, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Professional button styling */
+button {
+  background: rgba(30, 41, 59, 0.6) !important;
+  backdrop-filter: blur(6px) !important;
+  border: 1px solid rgba(71, 85, 105, 0.3) !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  color: rgba(248, 250, 252, 0.9) !important;
+}
+
+button:hover {
+  background: rgba(30, 41, 59, 0.75) !important;
+  border-color: rgba(71, 85, 105, 0.45) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Subtle input styling */
 input, textarea, select {
-  background: rgba(30, 58, 138, 0.12) !important;
-  backdrop-filter: blur(15px) !important;
-  border: 1px solid rgba(59, 130, 246, 0.2) !important;
-  border-radius: 10px !important;
-  transition: all 0.3s ease !important;
-  color: rgba(255, 255, 255, 0.95) !important;
+  background: rgba(15, 22, 41, 0.6) !important;
+  backdrop-filter: blur(6px) !important;
+  border: 1px solid rgba(71, 85, 105, 0.3) !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+  color: rgba(248, 250, 252, 0.95) !important;
 }
 
 input:focus, textarea:focus, select:focus {
-  background: rgba(30, 58, 138, 0.2) !important;
-  border-color: rgba(59, 130, 246, 0.4) !important;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.25) !important;
+  background: rgba(15, 22, 41, 0.75) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.15) !important;
 }
 
 input::placeholder, textarea::placeholder {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: rgba(148, 163, 184, 0.6) !important;
 }
 
-/* Ensure text visibility across components */
+/* Professional text styling */
 h1, h2, h3, h4, h5, h6 {
-  color: rgba(255, 255, 255, 0.95) !important;
+  color: rgba(248, 250, 252, 0.95) !important;
 }
 
 p, span, div {
-  color: rgba(255, 255, 255, 0.85) !important;
+  color: rgba(226, 232, 240, 0.9) !important;
 }
 
-/* Muted text should still be visible */
 .text-muted-foreground {
-  color: rgba(255, 255, 255, 0.65) !important;
+  color: rgba(148, 163, 184, 0.8) !important;
 }
 
-/* Specific color adjustments for dashboard stats */
+/* More subtle dashboard colors */
 .text-blue-400 {
-  color: rgba(96, 165, 250, 0.9) !important;
+  color: rgba(96, 165, 250, 0.8) !important;
 }
 
 .text-cyan-400 {
-  color: rgba(34, 211, 238, 0.9) !important;
+  color: rgba(34, 211, 238, 0.75) !important;
 }
 
 .text-indigo-400 {
-  color: rgba(129, 140, 248, 0.9) !important;
+  color: rgba(129, 140, 248, 0.8) !important;
 }
 
-/* Gradient text should be more subtle */
+/* Professional gradient text */
 .bg-gradient-to-r {
-  background: linear-gradient(to right, rgba(96, 165, 250, 0.9), rgba(34, 211, 238, 0.9)) !important;
+  background: linear-gradient(to right, rgba(96, 165, 250, 0.8), rgba(34, 211, 238, 0.7)) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
 }
 
-/* Tab styling - more subtle */
+/* Professional tab styling */
 .tabs-list {
-  background: rgba(30, 58, 138, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 15px;
+  background: rgba(15, 22, 41, 0.7);
+  border: 1px solid rgba(71, 85, 105, 0.25);
+  border-radius: 10px;
 }
 
 .tabs-trigger {
   background: transparent;
-  border-radius: 10px;
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: rgba(226, 232, 240, 0.8);
 }
 
 .tabs-trigger[data-state="active"] {
-  background: rgba(30, 58, 138, 0.3);
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  color: rgba(255, 255, 255, 0.95);
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: rgba(248, 250, 252, 0.95);
 }
 
-/* Primary button styling - more subtle */
+/* Professional primary button */
 .btn-primary {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(29, 78, 216, 0.7));
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(29, 78, 216, 0.6));
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: rgba(248, 250, 252, 0.95);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(29, 78, 216, 0.85));
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.75), rgba(29, 78, 216, 0.75));
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
   transform: translateY(-1px);
 }
 
-/* Sidebar specific styling */
+/* Professional sidebar */
 [data-component="sidebar"] {
-  background: rgba(30, 58, 138, 0.15) !important;
-  backdrop-filter: blur(25px) !important;
-  border-right: 2px solid rgba(59, 130, 246, 0.3) !important;
-  border-radius: 0 20px 20px 0 !important;
+  background: rgba(15, 22, 41, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+  border-right: 1px solid rgba(71, 85, 105, 0.3) !important;
+  border-radius: 0 12px 12px 0 !important;
 }
 
-/* Modal and dialog styling */
+/* Professional modal styling */
 [role="dialog"], .dialog {
-  background: rgba(30, 58, 138, 0.2) !important;
-  backdrop-filter: blur(25px) !important;
-  border: 2px solid rgba(59, 130, 246, 0.3) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 25px 50px rgba(59, 130, 246, 0.4) !important;
+  background: rgba(15, 22, 41, 0.9) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(71, 85, 105, 0.4) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
 }
 
 @keyframes fade-in {
@@ -255,10 +255,10 @@ p, span, div {
 }
 
 .animate-fade-in {
-  animation: fade-in 0.5s ease-out;
+  animation: fade-in 0.3s ease-out;
 }
 
-/* Aurora background animation */
+/* More subtle aurora background */
 .aurora-background {
   position: fixed;
   top: 0;
@@ -273,35 +273,35 @@ p, span, div {
 .aurora {
   position: absolute;
   border-radius: 50%;
-  filter: blur(50px);
-  opacity: 0.3;
+  filter: blur(60px);
+  opacity: 0.15;
 }
 
 .aurora.one {
-  width: 200px;
-  height: 200px;
+  width: 180px;
+  height: 180px;
   background: linear-gradient(45deg, #3b82f6, #06b6d4);
   top: 20%;
   left: 10%;
-  animation: aurora-move 15s ease-in-out infinite;
+  animation: aurora-move 20s ease-in-out infinite;
 }
 
 .aurora.two {
-  width: 300px;
-  height: 300px;
+  width: 250px;
+  height: 250px;
   background: linear-gradient(45deg, #8b5cf6, #3b82f6);
   top: 60%;
   right: 10%;
-  animation: aurora-move 20s ease-in-out infinite reverse;
+  animation: aurora-move 25s ease-in-out infinite reverse;
 }
 
 .aurora.three {
-  width: 150px;
-  height: 150px;
+  width: 130px;
+  height: 130px;
   background: linear-gradient(45deg, #06b6d4, #8b5cf6);
   bottom: 20%;
   left: 50%;
-  animation: aurora-move 25s ease-in-out infinite;
+  animation: aurora-move 30s ease-in-out infinite;
 }
 
 @keyframes aurora-move {
@@ -309,13 +309,13 @@ p, span, div {
     transform: translate(0, 0) scale(1);
   }
   25% {
-    transform: translate(30px, -20px) scale(1.1);
+    transform: translate(20px, -15px) scale(1.05);
   }
   50% {
-    transform: translate(-20px, 30px) scale(0.9);
+    transform: translate(-15px, 20px) scale(0.95);
   }
   75% {
-    transform: translate(20px, 20px) scale(1.05);
+    transform: translate(15px, 15px) scale(1.02);
   }
 }
 
