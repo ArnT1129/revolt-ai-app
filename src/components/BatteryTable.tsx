@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Battery, BatteryGrade, BatteryStatus } from "@/types";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
-import { FileText, Trash2, Plus, AlertTriangle } from "lucide-react";
+import { FileText, Trash2, Plus, AlertTriangle, Search } from "lucide-react";
 import BatteryPassportModal from "./BatteryPassportModal";
 import ManualBatteryModal from "./ManualBatteryModal";
 import IssueDetailViewer from "./IssueDetailViewer";
+import RootCauseAnalysis from "./RootCauseAnalysis";
 import { toast } from "@/hooks/use-toast";
 
 const mockData: Battery[] = [
@@ -38,6 +39,7 @@ export default function BatteryTable() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [viewingIssues, setViewingIssues] = useState<Battery | null>(null);
+  const [viewingRootCause, setViewingRootCause] = useState<Battery | null>(null);
   const [batteries, setBatteries] = useState<Battery[]>(mockData);
 
   useEffect(() => {
@@ -124,6 +126,20 @@ export default function BatteryTable() {
     window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
+  if (viewingRootCause) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => setViewingRootCause(null)}>
+            ← Back to Battery Table
+          </Button>
+          <h2 className="text-lg font-semibold text-white">Root Cause Analysis for {viewingRootCause.id}</h2>
+        </div>
+        <RootCauseAnalysis battery={viewingRootCause} />
+      </div>
+    );
+  }
+
   if (viewingIssues) {
     return (
       <div className="space-y-4">
@@ -131,7 +147,7 @@ export default function BatteryTable() {
           <Button variant="outline" onClick={() => setViewingIssues(null)}>
             ← Back to Battery Table
           </Button>
-          <h2 className="text-lg font-semibold">Issues for {viewingIssues.id}</h2>
+          <h2 className="text-lg font-semibold text-white">Issues for {viewingIssues.id}</h2>
         </div>
         <IssueDetailViewer 
           issues={viewingIssues.issues || []} 
@@ -146,8 +162,8 @@ export default function BatteryTable() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Battery Fleet Overview</CardTitle>
-            <Button onClick={() => setIsManualModalOpen(true)} size="sm">
+            <CardTitle className="text-white">Battery Fleet Overview</CardTitle>
+            <Button onClick={() => setIsManualModalOpen(true)} size="sm" className="glass-button">
               <Plus className="h-4 w-4 mr-2" />
               Add Battery
             </Button>
@@ -157,21 +173,21 @@ export default function BatteryTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Battery ID</TableHead>
-                <TableHead className="text-center">Grade</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">SoH (%)</TableHead>
-                <TableHead className="text-right">RUL (cycles)</TableHead>
-                <TableHead className="text-right">Total Cycles</TableHead>
-                <TableHead>SoH Trend</TableHead>
-                <TableHead className="text-center">Issues</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
+                <TableHead className="text-slate-300">Battery ID</TableHead>
+                <TableHead className="text-center text-slate-300">Grade</TableHead>
+                <TableHead className="text-slate-300">Status</TableHead>
+                <TableHead className="text-right text-slate-300">SoH (%)</TableHead>
+                <TableHead className="text-right text-slate-300">RUL (cycles)</TableHead>
+                <TableHead className="text-right text-slate-300">Total Cycles</TableHead>
+                <TableHead className="text-slate-300">SoH Trend</TableHead>
+                <TableHead className="text-center text-slate-300">Issues</TableHead>
+                <TableHead className="text-center text-slate-300">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {batteries.map((battery) => (
-                <TableRow key={battery.id}>
-                  <TableCell className="font-medium">{battery.id}</TableCell>
+                <TableRow key={battery.id} className="border-white/10 hover:bg-white/5">
+                  <TableCell className="font-medium text-white">{battery.id}</TableCell>
                   <TableCell className="text-center">
                     <Badge className={cn("text-white", gradeColor[battery.grade])}>{battery.grade}</Badge>
                   </TableCell>
@@ -180,9 +196,9 @@ export default function BatteryTable() {
                           {battery.status}
                       </span>
                   </TableCell>
-                  <TableCell className="text-right">{battery.soh.toFixed(1)}</TableCell>
-                  <TableCell className="text-right">{battery.rul}</TableCell>
-                  <TableCell className="text-right">{battery.cycles}</TableCell>
+                  <TableCell className="text-right text-slate-300">{battery.soh.toFixed(1)}</TableCell>
+                  <TableCell className="text-right text-slate-300">{battery.rul}</TableCell>
+                  <TableCell className="text-right text-slate-300">{battery.cycles}</TableCell>
                   <TableCell>
                     <div className="h-10 w-32">
                       <ResponsiveContainer width="100%" height="100%">
@@ -204,29 +220,41 @@ export default function BatteryTable() {
                         variant="ghost" 
                         size="sm"
                         onClick={() => setViewingIssues(battery)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                       >
                         <AlertTriangle className="h-4 w-4 mr-1" />
                         {battery.issues.length}
                       </Button>
                     ) : (
-                      <span className="text-green-500 text-sm">None</span>
+                      <span className="text-green-400 text-sm">None</span>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Button 
                         variant="ghost" 
                         size="sm"
                         onClick={() => handleViewPassport(battery)}
+                        className="text-slate-300 hover:text-white hover:bg-white/10"
+                        title="View Battery Passport"
                       >
                         <FileText className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        onClick={() => setViewingRootCause(battery)}
+                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                        title="Root Cause Analysis"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
                         onClick={() => handleDeleteBattery(battery.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        title="Delete Battery"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
