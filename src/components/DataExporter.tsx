@@ -4,286 +4,298 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Download, FileSpreadsheet, FileJson, Database } from "lucide-react";
 import { Battery } from "@/types";
-import { Download, FileText, FileSpreadsheet, Database } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
 
 interface DataExporterProps {
   batteries: Battery[];
 }
 
 export default function DataExporter({ batteries }: DataExporterProps) {
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'xlsx'>('json');
-  const [selectedFields, setSelectedFields] = useState<string[]>(['id', 'soh', 'rul', 'grade', 'status']);
+  const [selectedBatteries, setSelectedBatteries] = useState<string[]>([]);
+  const [exportFormat, setExportFormat] = useState<string>("csv");
   const [includeRawData, setIncludeRawData] = useState(false);
-  const [includeIssues, setIncludeIssues] = useState(true);
+  const [includeAnalytics, setIncludeAnalytics] = useState(true);
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
-  const availableFields = [
-    { id: 'id', label: 'Battery ID' },
-    { id: 'grade', label: 'Grade' },
-    { id: 'status', label: 'Status' },
-    { id: 'soh', label: 'State of Health' },
-    { id: 'rul', label: 'Remaining Useful Life' },
-    { id: 'cycles', label: 'Total Cycles' },
-    { id: 'chemistry', label: 'Chemistry' },
-    { id: 'uploadDate', label: 'Upload Date' },
-    { id: 'sohHistory', label: 'SoH History' }
-  ];
-
-  const handleFieldToggle = (fieldId: string) => {
-    setSelectedFields(prev => 
-      prev.includes(fieldId) 
-        ? prev.filter(id => id !== fieldId)
-        : [...prev, fieldId]
-    );
+  const handleBatterySelect = (batteryId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedBatteries(prev => [...prev, batteryId]);
+    } else {
+      setSelectedBatteries(prev => prev.filter(id => id !== batteryId));
+    }
   };
 
-  const generateReport = () => {
-    const data = batteries.map(battery => {
-      const exportData: any = {};
-      
-      selectedFields.forEach(field => {
-        exportData[field] = battery[field as keyof Battery];
-      });
-
-      if (includeIssues && battery.issues) {
-        exportData.issues = battery.issues.map(issue => ({
-          severity: issue.severity,
-          category: issue.category,
-          title: issue.title,
-          description: issue.description
-        }));
-      }
-
-      if (includeRawData && battery.rawData) {
-        exportData.rawData = battery.rawData;
-      }
-
-      return exportData;
-    });
-
-    return data;
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedBatteries(batteries.map(b => b.id));
+    } else {
+      setSelectedBatteries([]);
+    }
   };
 
   const exportData = () => {
-    const data = generateReport();
-    const timestamp = new Date().toISOString().split('T')[0];
+    const selectedData = batteries.filter(b => selectedBatteries.includes(b.id));
+    
+    let exportContent = "";
+    let filename = "";
+    let mimeType = "";
 
     switch (exportFormat) {
-      case 'json':
-        exportAsJSON(data, timestamp);
+      case "json":
+        exportContent = JSON.stringify(selectedData, null, 2);
+        filename = `battery-export-${new Date().toISOString().split('T')[0]}.json`;
+        mimeType = "application/json";
         break;
-      case 'csv':
-        exportAsCSV(data, timestamp);
+      
+      case "xlsx":
+        // For now, export as CSV with .xlsx extension
+        exportContent = generateCSV(selectedData);
+        filename = `battery-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+        mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         break;
-      case 'xlsx':
-        // For now, we'll export as CSV with XLSX naming
-        exportAsCSV(data, timestamp, 'xlsx');
+      
+      default: // csv
+        exportContent = generateCSV(selectedData);
+        filename = `battery-export-${new Date().toISOString().split('T')[0]}.csv`;
+        mimeType = "text/csv";
         break;
     }
 
-    toast({
-      title: "Export Complete",
-      description: `Battery data exported successfully as ${exportFormat.toUpperCase()}`,
-    });
-  };
-
-  const exportAsJSON = (data: any[], timestamp: string) => {
-    const report = {
-      exportDate: new Date().toISOString(),
-      totalBatteries: batteries.length,
-      exportSettings: {
-        format: exportFormat,
-        fields: selectedFields,
-        includeRawData,
-        includeIssues
-      },
-      data
-    };
-
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    downloadFile(blob, `battery-report-${timestamp}.json`);
-  };
-
-  const exportAsCSV = (data: any[], timestamp: string, extension = 'csv') => {
-    if (data.length === 0) return;
-
-    // Flatten the data for CSV
-    const flattenedData = data.map(item => {
-      const flattened: any = {};
-      
-      Object.entries(item).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          if (key === 'sohHistory') {
-            // Convert SoH history to summary stats
-            flattened[`${key}_points`] = value.length;
-            flattened[`${key}_latest_soh`] = value[value.length - 1]?.soh || 'N/A';
-          } else if (key === 'issues') {
-            flattened[`${key}_count`] = value.length;
-            flattened[`${key}_critical`] = value.filter((i: any) => i.severity === 'Critical').length;
-          } else {
-            flattened[key] = JSON.stringify(value);
-          }
-        } else {
-          flattened[key] = value;
-        }
-      });
-      
-      return flattened;
-    });
-
-    const headers = Object.keys(flattenedData[0] || {});
-    const csvContent = [
-      headers.join(','),
-      ...flattenedData.map(row => 
-        headers.map(header => {
-          const value = row[header];
-          return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
-        }).join(',')
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    downloadFile(blob, `battery-report-${timestamp}.${extension}`);
-  };
-
-  const downloadFile = (blob: Blob, filename: string) => {
+    // Create and download file
+    const blob = new Blob([exportContent], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const getFormatIcon = (format: string) => {
-    switch (format) {
-      case 'json': return Database;
-      case 'csv': return FileSpreadsheet;
-      case 'xlsx': return FileSpreadsheet;
-      default: return FileText;
+  const generateCSV = (data: Battery[]) => {
+    const headers = [
+      "Battery ID",
+      "Grade",
+      "Status", 
+      "SoH (%)",
+      "RUL (cycles)",
+      "Total Cycles",
+      "Chemistry",
+      "Upload Date",
+      "Issues Count"
+    ];
+
+    if (includeAnalytics) {
+      headers.push("Degradation Rate", "Efficiency Score", "Risk Level");
+    }
+
+    let csvContent = headers.join(",") + "\n";
+
+    data.forEach(battery => {
+      const row = [
+        battery.id,
+        battery.grade,
+        battery.status,
+        battery.soh.toString(),
+        battery.rul.toString(),
+        battery.cycles.toString(),
+        battery.chemistry,
+        battery.uploadDate,
+        (battery.issues?.length || 0).toString()
+      ];
+
+      if (includeAnalytics) {
+        const degradationRate = battery.cycles > 0 ? (100 - battery.soh) / battery.cycles : 0;
+        const efficiencyScore = (battery.soh * 0.4) + (battery.rul / 50 * 0.3) + ((2000 - battery.cycles) / 20 * 0.3);
+        const riskLevel = battery.soh < 80 ? "High" : battery.soh < 90 ? "Medium" : "Low";
+        
+        row.push(
+          degradationRate.toFixed(4),
+          efficiencyScore.toFixed(2),
+          riskLevel
+        );
+      }
+
+      csvContent += row.map(field => `"${field}"`).join(",") + "\n";
+    });
+
+    if (includeRawData) {
+      csvContent += "\n\nRaw Cycle Data:\n";
+      csvContent += "Battery ID,Cycle,Step,Voltage (V),Current (A),Capacity (mAh),Temperature (°C)\n";
+      
+      data.forEach(battery => {
+        if (battery.rawData) {
+          battery.rawData.forEach(dataPoint => {
+            csvContent += [
+              battery.id,
+              dataPoint.cycle_number,
+              dataPoint.step_index,
+              dataPoint.voltage_V,
+              dataPoint.current_A,
+              dataPoint.capacity_mAh,
+              dataPoint.temperature_C || ""
+            ].map(field => `"${field}"`).join(",") + "\n";
+          });
+        }
+      });
+    }
+
+    return csvContent;
+  };
+
+  const getFileIcon = () => {
+    switch (exportFormat) {
+      case "json": return <FileJson className="h-4 w-4" />;
+      case "xlsx": return <FileSpreadsheet className="h-4 w-4" />;
+      default: return <Database className="h-4 w-4" />;
     }
   };
 
   return (
-    <Card className="enhanced-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Download className="h-5 w-5 text-blue-400" />
-          Data Export Center
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Export Format Selection */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">Export Format</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['json', 'csv', 'xlsx'].map((format) => {
-                const Icon = getFormatIcon(format);
-                return (
-                  <Button
-                    key={format}
-                    variant={exportFormat === format ? "default" : "outline"}
-                    className="flex flex-col items-center gap-1 h-auto py-3"
-                    onClick={() => setExportFormat(format as any)}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-xs">{format.toUpperCase()}</span>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Additional Options */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">Additional Data</label>
-            <div className="space-y-2">
+    <div className="space-y-6">
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Download className="h-5 w-5 text-blue-400" />
+            Data Export Center
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Battery Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <Label className="text-base font-semibold text-slate-300">
+                Select Batteries ({selectedBatteries.length}/{batteries.length})
+              </Label>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="include-raw-data"
-                  checked={includeRawData}
-                  onCheckedChange={setIncludeRawData}
+                  id="select-all"
+                  checked={selectedBatteries.length === batteries.length}
+                  onCheckedChange={(checked) => handleSelectAll(checked === true)}
                 />
-                <label htmlFor="include-raw-data" className="text-sm text-slate-300">
-                  Include Raw Cycle Data
-                </label>
+                <Label htmlFor="select-all" className="text-sm text-slate-400">
+                  Select All
+                </Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="include-issues"
-                  checked={includeIssues}
-                  onCheckedChange={setIncludeIssues}
-                />
-                <label htmlFor="include-issues" className="text-sm text-slate-300">
-                  Include Issue Analysis
-                </label>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto">
+              {batteries.map(battery => (
+                <div key={battery.id} className="flex items-center space-x-2 p-2 border border-white/10 rounded bg-black/20">
+                  <Checkbox
+                    id={battery.id}
+                    checked={selectedBatteries.includes(battery.id)}
+                    onCheckedChange={(checked) => handleBatterySelect(battery.id, checked === true)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor={battery.id} className="text-xs font-medium text-white truncate block">
+                      {battery.id}
+                    </Label>
+                    <Badge variant="outline" className="text-xs">
+                      {battery.grade}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Export Options */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Label className="text-base font-semibold text-slate-300">Export Format</Label>
+              <Select value={exportFormat} onValueChange={setExportFormat}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">CSV (Comma Separated)</SelectItem>
+                  <SelectItem value="xlsx">Excel Spreadsheet</SelectItem>
+                  <SelectItem value="json">JSON Data</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-base font-semibold text-slate-300">Include Options</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="include-analytics"
+                    checked={includeAnalytics}
+                    onCheckedChange={(checked) => setIncludeAnalytics(checked === true)}
+                  />
+                  <Label htmlFor="include-analytics" className="text-sm text-slate-400">
+                    Analytics & Calculations
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="include-raw"
+                    checked={includeRawData}
+                    onCheckedChange={(checked) => setIncludeRawData(checked === true)}
+                  />
+                  <Label htmlFor="include-raw" className="text-sm text-slate-400">
+                    Raw Cycle Data
+                  </Label>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Field Selection */}
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-slate-300">Fields to Export</label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {availableFields.map((field) => (
-              <div key={field.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={field.id}
-                  checked={selectedFields.includes(field.id)}
-                  onCheckedChange={() => handleFieldToggle(field.id)}
+          {/* Date Range Filter */}
+          <div>
+            <Label className="text-base font-semibold text-slate-300 mb-3 block">Date Range Filter</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="start-date" className="text-sm text-slate-400">Start Date</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
                 />
-                <label htmlFor={field.id} className="text-sm text-slate-300">
-                  {field.label}
-                </label>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Export Summary */}
-        <div className="p-4 border border-white/10 rounded-lg bg-black/20">
-          <h4 className="font-semibold text-white mb-2">Export Summary</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-slate-400">Batteries:</span>
-              <Badge variant="outline" className="ml-2 text-slate-300 border-white/20">
-                {batteries.length}
-              </Badge>
-            </div>
-            <div>
-              <span className="text-slate-400">Fields:</span>
-              <Badge variant="outline" className="ml-2 text-slate-300 border-white/20">
-                {selectedFields.length}
-              </Badge>
-            </div>
-            <div>
-              <span className="text-slate-400">Format:</span>
-              <Badge variant="outline" className="ml-2 text-slate-300 border-white/20">
-                {exportFormat.toUpperCase()}
-              </Badge>
-            </div>
-            <div>
-              <span className="text-slate-400">Estimated Size:</span>
-              <Badge variant="outline" className="ml-2 text-slate-300 border-white/20">
-                {((batteries.length * selectedFields.length * 50 + (includeRawData ? batteries.length * 10000 : 0)) / 1024).toFixed(1)}KB
-              </Badge>
+              <div>
+                <Label htmlFor="end-date" className="text-sm text-slate-400">End Date</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <Button 
-          onClick={exportData} 
-          className="w-full glass-button"
-          disabled={selectedFields.length === 0}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export Battery Data
-        </Button>
-      </CardContent>
-    </Card>
+          {/* Export Summary */}
+          <div className="p-4 border border-blue-500/40 rounded-lg bg-blue-500/5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-white">Export Summary</p>
+                <p className="text-xs text-slate-400">
+                  {selectedBatteries.length} batteries • {exportFormat.toUpperCase()} format
+                  {includeRawData && " • Raw data included"}
+                  {includeAnalytics && " • Analytics included"}
+                </p>
+              </div>
+              <Button 
+                onClick={exportData} 
+                disabled={selectedBatteries.length === 0}
+                className="glass-button border-blue-500/40 hover:border-blue-400"
+              >
+                {getFileIcon()}
+                <span className="ml-2">Export Data</span>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
