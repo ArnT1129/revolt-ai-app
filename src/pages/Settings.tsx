@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,64 +9,219 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 
-export default function Settings() {
-  const [settings, setSettings] = useState({
-    // Analysis Settings
-    defaultChemistry: "auto",
-    voltageThreshold: 2.5,
-    capacityThreshold: 80,
-    temperatureUnit: "celsius",
-    
-    // Data Processing
-    autoDetectFormat: true,
-    smoothingEnabled: true,
-    outlierRemoval: true,
-    interpolationMethod: "linear",
-    
-    // Display Settings
-    darkMode: false,
-    animationsEnabled: true,
-    compactView: false,
-    defaultView: "table",
-    
-    // Export Settings
-    exportFormat: "csv",
-    includeMetadata: true,
-    decimalPlaces: 3,
-    
-    // Notifications
-    analysisComplete: true,
-    errorAlerts: true,
-    emailNotifications: false,
-    
-    // Performance
-    maxFileSize: 100, // MB
-    parallelProcessing: true,
-    cacheResults: true,
-  });
+interface AppSettings {
+  // Analysis Settings
+  defaultChemistry: string;
+  voltageThreshold: number;
+  capacityThreshold: number;
+  temperatureUnit: string;
+  
+  // Data Processing
+  autoDetectFormat: boolean;
+  smoothingEnabled: boolean;
+  outlierRemoval: boolean;
+  interpolationMethod: string;
+  
+  // Display Settings
+  darkMode: boolean;
+  animationsEnabled: boolean;
+  compactView: boolean;
+  defaultView: string;
+  
+  // Export Settings
+  exportFormat: string;
+  includeMetadata: boolean;
+  decimalPlaces: number;
+  
+  // Notifications
+  analysisComplete: boolean;
+  errorAlerts: boolean;
+  emailNotifications: boolean;
+  
+  // Performance
+  maxFileSize: number;
+  parallelProcessing: boolean;
+  cacheResults: boolean;
+}
 
-  const updateSetting = (key: string, value: any) => {
+const defaultSettings: AppSettings = {
+  defaultChemistry: "auto",
+  voltageThreshold: 2.5,
+  capacityThreshold: 80,
+  temperatureUnit: "celsius",
+  autoDetectFormat: true,
+  smoothingEnabled: true,
+  outlierRemoval: true,
+  interpolationMethod: "linear",
+  darkMode: false,
+  animationsEnabled: true,
+  compactView: false,
+  defaultView: "table",
+  exportFormat: "csv",
+  includeMetadata: true,
+  decimalPlaces: 3,
+  analysisComplete: true,
+  errorAlerts: true,
+  emailNotifications: false,
+  maxFileSize: 100,
+  parallelProcessing: true,
+  cacheResults: true,
+};
+
+export default function Settings() {
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load settings from localStorage on component mount
+  useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const savedSettings = localStorage.getItem('batteryAnalysisSettings');
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          setSettings({ ...defaultSettings, ...parsed });
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        toast({
+          title: "Settings Load Error",
+          description: "Failed to load saved settings. Using defaults.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  // Apply settings globally
+  useEffect(() => {
+    // Apply dark mode
+    if (settings.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    // Apply animations
+    if (!settings.animationsEnabled) {
+      document.documentElement.classList.add('no-animations');
+    } else {
+      document.documentElement.classList.remove('no-animations');
+    }
+
+    // Store settings in global state for other components to access
+    window.batteryAnalysisSettings = settings;
+  }, [settings]);
+
+  const updateSetting = (key: keyof AppSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const saveSettings = () => {
-    // In a real app, this would save to localStorage or backend
-    localStorage.setItem('batteryAnalysisSettings', JSON.stringify(settings));
-    toast({
-      title: "Settings Saved",
-      description: "Your preferences have been updated successfully.",
-    });
+    try {
+      localStorage.setItem('batteryAnalysisSettings', JSON.stringify(settings));
+      
+      // Apply settings immediately
+      window.batteryAnalysisSettings = settings;
+      
+      toast({
+        title: "Settings Saved",
+        description: "Your preferences have been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Save Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const resetSettings = () => {
-    localStorage.removeItem('batteryAnalysisSettings');
-    toast({
-      title: "Settings Reset",
-      description: "All settings have been reset to defaults.",
-    });
-    // Reset to default values
-    window.location.reload();
+    try {
+      localStorage.removeItem('batteryAnalysisSettings');
+      setSettings(defaultSettings);
+      
+      toast({
+        title: "Settings Reset",
+        description: "All settings have been reset to defaults.",
+      });
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+      toast({
+        title: "Reset Error",
+        description: "Failed to reset settings. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
+
+  const exportSettings = () => {
+    try {
+      const dataStr = JSON.stringify(settings, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'battery-analysis-settings.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Settings Exported",
+        description: "Settings have been exported to a JSON file.",
+      });
+    } catch (error) {
+      console.error('Error exporting settings:', error);
+      toast({
+        title: "Export Error",
+        description: "Failed to export settings.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const importSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedSettings = JSON.parse(e.target?.result as string);
+        setSettings({ ...defaultSettings, ...importedSettings });
+        
+        toast({
+          title: "Settings Imported",
+          description: "Settings have been imported successfully.",
+        });
+      } catch (error) {
+        console.error('Error importing settings:', error);
+        toast({
+          title: "Import Error",
+          description: "Failed to import settings. Invalid file format.",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  if (isLoading) {
+    return (
+      <main className="flex-1 p-4 md:p-8 animate-fade-in">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center">Loading settings...</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
@@ -109,7 +264,7 @@ export default function Settings() {
                   type="number"
                   step="0.1"
                   value={settings.voltageThreshold}
-                  onChange={(e) => updateSetting('voltageThreshold', parseFloat(e.target.value))}
+                  onChange={(e) => updateSetting('voltageThreshold', parseFloat(e.target.value) || 0)}
                 />
               </div>
               
@@ -119,7 +274,7 @@ export default function Settings() {
                   id="capacityThreshold"
                   type="number"
                   value={settings.capacityThreshold}
-                  onChange={(e) => updateSetting('capacityThreshold', parseInt(e.target.value))}
+                  onChange={(e) => updateSetting('capacityThreshold', parseInt(e.target.value) || 0)}
                 />
               </div>
               
@@ -284,7 +439,7 @@ export default function Settings() {
                   min="0"
                   max="6"
                   value={settings.decimalPlaces}
-                  onChange={(e) => updateSetting('decimalPlaces', parseInt(e.target.value))}
+                  onChange={(e) => updateSetting('decimalPlaces', parseInt(e.target.value) || 0)}
                 />
               </div>
             </div>
@@ -316,7 +471,7 @@ export default function Settings() {
                 min="1"
                 max="1000"
                 value={settings.maxFileSize}
-                onChange={(e) => updateSetting('maxFileSize', parseInt(e.target.value))}
+                onChange={(e) => updateSetting('maxFileSize', parseInt(e.target.value) || 100)}
               />
             </div>
             
@@ -345,7 +500,20 @@ export default function Settings() {
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
+        <div className="flex flex-wrap justify-end gap-4">
+          <input
+            type="file"
+            accept=".json"
+            onChange={importSettings}
+            style={{ display: 'none' }}
+            id="import-settings"
+          />
+          <Button variant="outline" onClick={() => document.getElementById('import-settings')?.click()}>
+            Import Settings
+          </Button>
+          <Button variant="outline" onClick={exportSettings}>
+            Export Settings
+          </Button>
           <Button variant="outline" onClick={resetSettings}>
             Reset to Defaults
           </Button>
