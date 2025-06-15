@@ -11,12 +11,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default function Dashboard() {
   const [recentUploads, setRecentUploads] = useState<Battery[]>([]);
 
-  useEffect(() => {
+  const updateRecentUploads = () => {
     const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
     const recent = uploadedBatteries
       .sort((a: Battery, b: Battery) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
       .slice(0, 3);
     setRecentUploads(recent);
+  };
+
+  useEffect(() => {
+    updateRecentUploads();
+
+    // Listen for battery data updates (including deletions)
+    const handleBatteryUpdate = () => {
+      updateRecentUploads();
+    };
+
+    window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+    
+    return () => {
+      window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+    };
   }, []);
 
   return (
