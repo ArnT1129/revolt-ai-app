@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Battery, BatteryGrade, BatteryStatus } from '@/types';
 import { batteryAnalytics } from './batteryAnalytics';
@@ -50,9 +51,9 @@ class BatteryService {
       else if (soh < 90) grade = 'B';
       
       // Determine status
-      let status: BatteryStatus = 'healthy';
-      if (soh < 70) status = 'degraded';
-      else if (soh < 50) status = 'critical';
+      let status: BatteryStatus = 'Healthy';
+      if (soh < 70) status = 'Degrading';
+      else if (soh < 50) status = 'Critical';
       
       // Calculate RUL (simplified)
       const rul = Math.max(0, Math.floor((soh - 70) * 10));
