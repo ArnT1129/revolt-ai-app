@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BatteryFull, BatteryMedium, AlertTriangle, TrendingUp } from "lucide-react";
 import { Battery } from "@/types";
@@ -10,6 +10,7 @@ export default function DashboardStats() {
     totalBatteries: 0,
     averageSoH: 0,
     criticalIssues: 0,
+    growthRate: 12.5,
   });
 
   const updateStats = () => {
@@ -39,6 +40,7 @@ export default function DashboardStats() {
       totalBatteries: dashboardStats.totalBatteries,
       averageSoH: dashboardStats.averageSoH,
       criticalIssues: dashboardStats.criticalIssues,
+      growthRate: 12.5,
     });
   };
 
@@ -56,37 +58,58 @@ export default function DashboardStats() {
     };
   }, []);
 
-  const statsData = [
+  const statsData = useMemo(() => [
     { 
       name: "Total Batteries Analyzed", 
       value: stats.totalBatteries.toString(), 
       icon: BatteryFull,
-      color: "text-blue-400"
+      color: "text-blue-400",
+      bgColor: "bg-blue-500/10",
+      trend: "+2.5%"
     },
     { 
       name: "Avg. State of Health (SoH)", 
       value: `${stats.averageSoH.toFixed(1)}%`, 
       icon: BatteryMedium,
-      color: "text-cyan-400"
+      color: "text-cyan-400",
+      bgColor: "bg-cyan-500/10",
+      trend: "+1.2%"
     },
     { 
       name: "Critical Issues Flagged", 
       value: stats.criticalIssues.toString(), 
       icon: AlertTriangle,
-      color: "text-indigo-400"
+      color: "text-orange-400",
+      bgColor: "bg-orange-500/10",
+      trend: "-8.1%"
     },
-  ];
+    { 
+      name: "Fleet Growth Rate", 
+      value: `${stats.growthRate}%`, 
+      icon: TrendingUp,
+      color: "text-green-400",
+      bgColor: "bg-green-500/10",
+      trend: "+4.7%"
+    },
+  ], [stats]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       {statsData.map((stat, index) => (
-        <Card key={stat.name} className="enhanced-card animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card key={stat.name} className="enhanced-card animate-fade-in hover:scale-105 transition-all duration-300" style={{ animationDelay: `${index * 100}ms` }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-sm font-medium text-slate-300">{stat.name}</CardTitle>
-            <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+              <stat.icon className={`h-5 w-5 ${stat.color}`} />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+            <div className={`text-3xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
+            <div className="flex items-center text-xs text-slate-400">
+              <TrendingUp className="h-3 w-3 mr-1 text-green-400" />
+              <span className="text-green-400">{stat.trend}</span>
+              <span className="ml-1">from last month</span>
+            </div>
           </CardContent>
         </Card>
       ))}
