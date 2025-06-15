@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -52,99 +51,196 @@ button, input, select, textarea {
   border-radius: 8px !important;
 }
 
-/* Card components with enhanced glass effect */
+/* Card components with enhanced glass effect - more subtle blues */
 .card, [data-component="card"] {
+  background: rgba(30, 58, 138, 0.15) !important;
+  backdrop-filter: blur(25px) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 15px 30px -8px rgba(59, 130, 246, 0.2) !important;
+  transition: all 0.3s ease !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.card:hover, [data-component="card"]:hover {
+  background: rgba(30, 58, 138, 0.25) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  box-shadow: 0 20px 40px -8px rgba(59, 130, 246, 0.3) !important;
+  transform: translateY(-2px) !important;
+}
+
+.glass-effect {
+  background: rgba(30, 58, 138, 0.15);
+  backdrop-filter: blur(25px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.glass-effect:hover {
+  background: rgba(30, 58, 138, 0.25);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
+  transform: translateY(-2px);
+}
+
+.enhanced-card {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.18), rgba(29, 78, 216, 0.15));
+  backdrop-filter: blur(25px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 15px 30px -8px rgba(59, 130, 246, 0.25);
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.enhanced-card:hover {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.28), rgba(29, 78, 216, 0.25));
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 20px 40px -8px rgba(59, 130, 246, 0.35);
+  transform: translateY(-3px);
+}
+
+.glass-button {
+  background: rgba(30, 58, 138, 0.2);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.glass-button:hover {
+  background: rgba(30, 58, 138, 0.3);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Button styling with glass effect - more subtle */
+button {
+  background: rgba(30, 58, 138, 0.2) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(59, 130, 246, 0.25) !important;
+  border-radius: 12px !important;
+  transition: all 0.3s ease !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+button:hover {
+  background: rgba(30, 58, 138, 0.3) !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Input styling with better visibility */
+input, textarea, select {
+  background: rgba(30, 58, 138, 0.12) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  border-radius: 10px !important;
+  transition: all 0.3s ease !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+input:focus, textarea:focus, select:focus {
+  background: rgba(30, 58, 138, 0.2) !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.25) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Ensure text visibility across components */
+h1, h2, h3, h4, h5, h6 {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+p, span, div {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Muted text should still be visible */
+.text-muted-foreground {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Specific color adjustments for dashboard stats */
+.text-blue-400 {
+  color: rgba(96, 165, 250, 0.9) !important;
+}
+
+.text-cyan-400 {
+  color: rgba(34, 211, 238, 0.9) !important;
+}
+
+.text-indigo-400 {
+  color: rgba(129, 140, 248, 0.9) !important;
+}
+
+/* Gradient text should be more subtle */
+.bg-gradient-to-r {
+  background: linear-gradient(to right, rgba(96, 165, 250, 0.9), rgba(34, 211, 238, 0.9)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+/* Tab styling - more subtle */
+.tabs-list {
+  background: rgba(30, 58, 138, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 15px;
+}
+
+.tabs-trigger {
+  background: transparent;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tabs-trigger[data-state="active"] {
+  background: rgba(30, 58, 138, 0.3);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Primary button styling - more subtle */
+.btn-primary {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(29, 78, 216, 0.7));
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(29, 78, 216, 0.85));
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Sidebar specific styling */
+[data-component="sidebar"] {
+  background: rgba(30, 58, 138, 0.15) !important;
+  backdrop-filter: blur(25px) !important;
+  border-right: 2px solid rgba(59, 130, 246, 0.3) !important;
+  border-radius: 0 20px 20px 0 !important;
+}
+
+/* Modal and dialog styling */
+[role="dialog"], .dialog {
   background: rgba(30, 58, 138, 0.2) !important;
   backdrop-filter: blur(25px) !important;
   border: 2px solid rgba(59, 130, 246, 0.3) !important;
   border-radius: 20px !important;
-  box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.4) !important;
-  transition: all 0.3s ease !important;
-}
-
-.card:hover, [data-component="card"]:hover {
-  background: rgba(30, 58, 138, 0.3) !important;
-  border-color: rgba(59, 130, 246, 0.5) !important;
-  box-shadow: 0 35px 70px -12px rgba(59, 130, 246, 0.5) !important;
-  transform: translateY(-4px) !important;
-}
-
-.glass-effect {
-  background: rgba(30, 58, 138, 0.2);
-  backdrop-filter: blur(25px);
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-radius: 20px;
-  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.3);
-  transition: all 0.3s ease;
-}
-
-.glass-effect:hover {
-  background: rgba(30, 58, 138, 0.3);
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 20px 50px rgba(59, 130, 246, 0.4);
-  transform: translateY(-3px);
-}
-
-.enhanced-card {
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.25), rgba(29, 78, 216, 0.2));
-  backdrop-filter: blur(25px);
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-radius: 20px;
-  box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.4);
-  transition: all 0.3s ease;
-}
-
-.enhanced-card:hover {
-  background: linear-gradient(135deg, rgba(30, 58, 138, 0.35), rgba(29, 78, 216, 0.3));
-  border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: 0 35px 70px -12px rgba(59, 130, 246, 0.5);
-  transform: translateY(-4px);
-}
-
-.glass-button {
-  background: rgba(30, 58, 138, 0.25);
-  backdrop-filter: blur(15px);
-  border: 2px solid rgba(59, 130, 246, 0.4);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.glass-button:hover {
-  background: rgba(30, 58, 138, 0.4);
-  border-color: rgba(59, 130, 246, 0.6);
-  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.4);
-  transform: translateY(-2px);
-}
-
-/* Button styling with glass effect */
-button {
-  background: rgba(30, 58, 138, 0.25) !important;
-  backdrop-filter: blur(15px) !important;
-  border: 2px solid rgba(59, 130, 246, 0.4) !important;
-  border-radius: 12px !important;
-  transition: all 0.3s ease !important;
-}
-
-button:hover {
-  background: rgba(30, 58, 138, 0.4) !important;
-  border-color: rgba(59, 130, 246, 0.6) !important;
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4) !important;
-  transform: translateY(-1px) !important;
-}
-
-/* Input styling */
-input, textarea, select {
-  background: rgba(30, 58, 138, 0.15) !important;
-  backdrop-filter: blur(15px) !important;
-  border: 2px solid rgba(59, 130, 246, 0.3) !important;
-  border-radius: 10px !important;
-  transition: all 0.3s ease !important;
-}
-
-input:focus, textarea:focus, select:focus {
-  background: rgba(30, 58, 138, 0.25) !important;
-  border-color: rgba(59, 130, 246, 0.5) !important;
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3) !important;
+  box-shadow: 0 25px 50px rgba(59, 130, 246, 0.4) !important;
 }
 
 @keyframes fade-in {
@@ -289,54 +385,4 @@ input:focus, textarea:focus, select:focus {
 
 .compact-view .mb-8 {
   margin-bottom: calc(var(--spacing-unit) * 1.5);
-}
-
-/* Tab styling */
-.tabs-list {
-  background: rgba(30, 58, 138, 0.2);
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-radius: 15px;
-}
-
-.tabs-trigger {
-  background: transparent;
-  border-radius: 10px;
-  transition: all 0.3s ease;
-}
-
-.tabs-trigger[data-state="active"] {
-  background: rgba(30, 58, 138, 0.4);
-  border: 2px solid rgba(59, 130, 246, 0.5);
-  box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4);
-}
-
-/* Primary button styling */
-.btn-primary {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(29, 78, 216, 0.9));
-  border: 2px solid rgba(59, 130, 246, 0.5);
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(29, 78, 216, 1));
-  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.5);
-  transform: translateY(-2px);
-}
-
-/* Sidebar specific styling */
-[data-component="sidebar"] {
-  background: rgba(30, 58, 138, 0.15) !important;
-  backdrop-filter: blur(25px) !important;
-  border-right: 2px solid rgba(59, 130, 246, 0.3) !important;
-  border-radius: 0 20px 20px 0 !important;
-}
-
-/* Modal and dialog styling */
-[role="dialog"], .dialog {
-  background: rgba(30, 58, 138, 0.2) !important;
-  backdrop-filter: blur(25px) !important;
-  border: 2px solid rgba(59, 130, 246, 0.3) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 25px 50px rgba(59, 130, 246, 0.4) !important;
 }
