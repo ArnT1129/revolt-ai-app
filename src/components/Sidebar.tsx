@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   LogOut,
-  User
+  User,
+  FlaskConical
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -24,7 +25,7 @@ const navigation = [
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDemo } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
@@ -38,7 +39,7 @@ export default function Sidebar() {
           variant="ghost"
           size="icon"
           onClick={() => setIsOpen(!isOpen)}
-          className="text-white bg-black/20 backdrop-blur-sm"
+          className="text-slate-600 bg-white/80 backdrop-blur-sm border border-slate-200"
         >
           {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
@@ -49,14 +50,31 @@ export default function Sidebar() {
         "fixed lg:static inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:transform-none",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="flex flex-col h-full bg-black/20 backdrop-blur-lg border-r border-white/10">
+        <div className="flex flex-col h-full bg-white/90 backdrop-blur-lg border-r border-slate-200">
           {/* Logo */}
-          <div className="flex items-center px-6 py-4 border-b border-white/10">
-            <Battery className="h-8 w-8 text-blue-400 mr-3" />
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              ReVolt
+          <div className="flex items-center px-6 py-4 border-b border-slate-200">
+            <img 
+              src="/placeholder.svg" 
+              alt="Logo" 
+              className="h-8 w-8 mr-3"
+            />
+            <span className="text-xl font-bold text-slate-800">
+              Battery Analytics
             </span>
           </div>
+
+          {/* Demo Mode Banner */}
+          {isDemo && (
+            <div className="mx-4 mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center">
+                <FlaskConical className="h-4 w-4 text-orange-600 mr-2" />
+                <span className="text-sm font-medium text-orange-800">Demo Mode</span>
+              </div>
+              <p className="text-xs text-orange-600 mt-1">
+                You're viewing sample data
+              </p>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
@@ -70,8 +88,8 @@ export default function Sidebar() {
                   className={cn(
                     "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200",
                     isActive
-                      ? "bg-blue-500/20 text-blue-400 border border-blue-500/40"
-                      : "text-slate-300 hover:text-white hover:bg-white/10"
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"
                   )}
                 >
                   <item.icon className="mr-3 h-5 w-5" />
@@ -82,14 +100,14 @@ export default function Sidebar() {
           </nav>
 
           {/* User section */}
-          <div className="border-t border-white/10 p-4">
+          <div className="border-t border-slate-200 p-4">
             <div className="flex items-center mb-3 px-2">
               <User className="h-5 w-5 text-slate-400 mr-3" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-slate-700 truncate">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-slate-400 truncate">
+                <p className="text-xs text-slate-500 truncate">
                   {user?.email}
                 </p>
               </div>
@@ -97,10 +115,10 @@ export default function Sidebar() {
             <Button
               onClick={handleSignOut}
               variant="ghost"
-              className="w-full justify-start text-slate-300 hover:text-white hover:bg-white/10"
+              className="w-full justify-start text-slate-600 hover:text-slate-800 hover:bg-slate-50"
             >
               <LogOut className="mr-3 h-4 w-4" />
-              Sign Out
+              {isDemo ? 'Exit Demo' : 'Sign Out'}
             </Button>
           </div>
         </div>
@@ -109,7 +127,7 @@ export default function Sidebar() {
       {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/20 z-30 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}

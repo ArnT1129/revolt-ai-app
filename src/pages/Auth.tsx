@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Battery } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -15,6 +15,7 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const { enterDemoMode } = useAuth();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +27,7 @@ export default function Auth() {
           email,
           password,
           options: {
+            emailRedirectTo: `${window.location.origin}/`,
             data: {
               first_name: firstName,
               last_name: lastName,
@@ -63,89 +65,121 @@ export default function Auth() {
     }
   };
 
+  const handleDemoMode = () => {
+    enterDemoMode();
+    toast({
+      title: "Demo Mode",
+      description: "You're now using the app in demo mode with sample data.",
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-black/40 border-white/20">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <Battery className="h-8 w-8 text-blue-400 mr-2" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              ReVolt
-            </span>
-          </div>
-          <CardTitle className="text-white">
-            {isSignUp ? 'Create Account' : 'Sign In'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            {isSignUp && (
-              <>
-                <div>
-                  <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required={isSignUp}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lastName" className="text-slate-300">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required={isSignUp}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                </div>
-              </>
-            )}
-            <div>
-              <Label htmlFor="email" className="text-slate-300">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-white/10 border-white/20 text-white"
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex items-center justify-center">
+              <img 
+                src="/placeholder.svg" 
+                alt="Logo" 
+                className="h-12 w-12 mr-3"
               />
+              <span className="text-2xl font-bold text-slate-800">
+                Battery Analytics
+              </span>
             </div>
-            <div>
-              <Label htmlFor="password" className="text-slate-300">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-white/10 border-white/20 text-white"
-              />
+            <CardTitle className="text-slate-700">
+              {isSignUp ? 'Create Account' : 'Sign In'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <form onSubmit={handleAuth} className="space-y-4">
+              {isSignUp && (
+                <>
+                  <div>
+                    <Label htmlFor="firstName" className="text-slate-600">First Name</Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required={isSignUp}
+                      className="bg-white/50 border-slate-300 text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName" className="text-slate-600">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required={isSignUp}
+                      className="bg-white/50 border-slate-300 text-slate-800"
+                    />
+                  </div>
+                </>
+              )}
+              <div>
+                <Label htmlFor="email" className="text-slate-600">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="bg-white/50 border-slate-300 text-slate-800"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password" className="text-slate-600">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="bg-white/50 border-slate-300 text-slate-800"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+              </Button>
+            </form>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-300" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-slate-500">Or</span>
+              </div>
             </div>
+
             <Button
-              type="submit"
-              className="w-full glass-button border-blue-500/40 hover:border-blue-400"
-              disabled={loading}
+              onClick={handleDemoMode}
+              variant="outline"
+              className="w-full border-slate-300 text-slate-600 hover:bg-slate-50"
             >
-              {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+              Try Demo Mode
             </Button>
-          </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-blue-400 hover:text-blue-300 text-sm"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+              >
+                {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

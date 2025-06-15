@@ -12,11 +12,46 @@ export interface AuthUser {
   role?: string;
 }
 
+export interface DemoUser extends AuthUser {
+  isDemo: true;
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | DemoUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    // Check for demo mode first
+    const demoMode = localStorage.getItem('demo_mode');
+    if (demoMode === 'true') {
+      const demoUser: DemoUser = {
+        id: 'demo-user',
+        email: 'demo@example.com',
+        first_name: 'Demo',
+        last_name: 'User',
+        isDemo: true
+      };
+      setUser(demoUser);
+      setIsDemo(true);
+      setLoading(false);
+      return;
+    }
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        if (session?.user) {
+          await fetchUserProfile(session.user);
+        } else {
+          setUser(null);
+          setIsDemo(false);
+          setLoading(false);
+        }
+      }
+    );
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -25,18 +60,6 @@ export function useAuth() {
         setLoading(false);
       }
     });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          await fetchUserProfile(session.user);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    );
 
     return () => subscription.unsubscribe();
   }, []);
@@ -77,12 +100,33 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    if (isDemo) {
+      localStorage.removeItem('demo_mode');
+      setUser(null);
+      setIsDemo(false);
+      return;
+    }
     await supabase.auth.signOut();
+  };
+
+  const enterDemoMode = () => {
+    localStorage.setItem('demo_mode', 'true');
+    const demoUser: DemoUser = {
+      id: 'demo-user',
+      email: 'demo@example.com',
+      first_name: 'Demo',
+      last_name: 'User',
+      isDemo: true
+    };
+    setUser(demoUser);
+    setIsDemo(true);
   };
 
   return {
     user,
     loading,
     signOut,
+    isDemo,
+    enterDemoMode,
   };
 }

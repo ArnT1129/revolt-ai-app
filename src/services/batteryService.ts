@@ -8,8 +8,74 @@ export interface UploadResult {
   message: string;
 }
 
+// Demo data for when not authenticated
+const DEMO_BATTERIES: Battery[] = [
+  {
+    id: 'DEMO_BAT_001',
+    grade: 'A' as BatteryGrade,
+    status: 'Healthy' as BatteryStatus,
+    soh: 95.5,
+    rul: 800,
+    cycles: 200,
+    chemistry: 'Li-ion',
+    uploadDate: '2024-01-15T10:30:00Z',
+    sohHistory: [
+      { cycle: 50, soh: 98.2 },
+      { cycle: 100, soh: 97.1 },
+      { cycle: 150, soh: 96.3 },
+      { cycle: 200, soh: 95.5 },
+    ],
+    issues: [],
+    rawData: [],
+    notes: 'Demo battery with excellent performance',
+  },
+  {
+    id: 'DEMO_BAT_002',
+    grade: 'B' as BatteryGrade,
+    status: 'Degrading' as BatteryStatus,
+    soh: 82.3,
+    rul: 450,
+    cycles: 650,
+    chemistry: 'Li-ion',
+    uploadDate: '2024-01-10T14:20:00Z',
+    sohHistory: [
+      { cycle: 200, soh: 95.0 },
+      { cycle: 400, soh: 90.2 },
+      { cycle: 550, soh: 86.1 },
+      { cycle: 650, soh: 82.3 },
+    ],
+    issues: [
+      {
+        id: 'issue_1',
+        severity: 'Warning',
+        category: 'Performance',
+        title: 'Capacity Degradation',
+        description: 'Battery showing signs of capacity loss',
+        cause: 'Normal aging process',
+        solution: 'Monitor closely and consider replacement planning',
+        recommendation: 'Reduce charging rate to extend life',
+        affectedMetrics: ['soh', 'capacity'],
+      }
+    ],
+    rawData: [],
+    notes: 'Demo battery showing normal aging patterns',
+  },
+];
+
 class BatteryService {
   async uploadBatteryData(fileContent: string, userId: string): Promise<UploadResult> {
+    // If demo mode, simulate upload
+    if (userId === 'demo-user') {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            batteryId: `DEMO_BAT_${Date.now()}`,
+            message: 'Demo upload completed successfully! SoH: 94.2%, Grade: A',
+          });
+        }, 2000);
+      });
+    }
+
     try {
       // Parse the CSV/Excel data
       const lines = fileContent.split('\n');
@@ -144,6 +210,11 @@ class BatteryService {
   }
 
   async getUserBatteries(userId: string): Promise<Battery[]> {
+    // Return demo data for demo users
+    if (userId === 'demo-user') {
+      return Promise.resolve(DEMO_BATTERIES);
+    }
+
     try {
       const { data, error } = await supabase
         .from('batteries')
@@ -170,6 +241,12 @@ class BatteryService {
   }
 
   async getBattery(batteryId: string): Promise<Battery | null> {
+    // Handle demo batteries
+    if (batteryId.startsWith('DEMO_BAT_')) {
+      const demoBattery = DEMO_BATTERIES.find(b => b.id === batteryId);
+      return Promise.resolve(demoBattery || null);
+    }
+
     try {
       const { data, error } = await supabase
         .from('batteries')
@@ -196,6 +273,26 @@ class BatteryService {
   }
 
   async createBattery(batteryData: any): Promise<Battery> {
+    // Handle demo mode
+    if (batteryData.user_id === 'demo-user') {
+      const newDemoBattery: Battery = {
+        id: `DEMO_BAT_${Date.now()}`,
+        grade: batteryData.grade,
+        status: batteryData.status,
+        soh: batteryData.soh,
+        rul: batteryData.rul,
+        cycles: batteryData.cycles,
+        chemistry: batteryData.chemistry,
+        uploadDate: new Date().toISOString(),
+        sohHistory: [],
+        issues: [],
+        rawData: [],
+        notes: batteryData.notes,
+      };
+      DEMO_BATTERIES.push(newDemoBattery);
+      return Promise.resolve(newDemoBattery);
+    }
+
     try {
       const { data, error } = await supabase
         .from('batteries')
@@ -235,6 +332,16 @@ class BatteryService {
   }
 
   async updateBattery(batteryId: string, updates: Partial<Battery>): Promise<Battery> {
+    // Handle demo batteries
+    if (batteryId.startsWith('DEMO_BAT_')) {
+      const index = DEMO_BATTERIES.findIndex(b => b.id === batteryId);
+      if (index !== -1) {
+        DEMO_BATTERIES[index] = { ...DEMO_BATTERIES[index], ...updates };
+        return Promise.resolve(DEMO_BATTERIES[index]);
+      }
+      throw new Error('Demo battery not found');
+    }
+
     try {
       const { data, error } = await supabase
         .from('batteries')
@@ -263,6 +370,15 @@ class BatteryService {
   }
 
   async deleteBattery(batteryId: string): Promise<void> {
+    // Handle demo batteries
+    if (batteryId.startsWith('DEMO_BAT_')) {
+      const index = DEMO_BATTERIES.findIndex(b => b.id === batteryId);
+      if (index !== -1) {
+        DEMO_BATTERIES.splice(index, 1);
+      }
+      return Promise.resolve();
+    }
+
     try {
       const { error } = await supabase
         .from('batteries')
