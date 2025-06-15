@@ -1,0 +1,85 @@
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Battery, BatteryGrade, BatteryStatus } from "@/types";
+import { ResponsiveContainer, AreaChart, Area } from "recharts";
+import { cn } from "@/lib/utils";
+
+const mockData: Battery[] = [
+  // ... (mock data for several batteries)
+  { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 10, soh: 100 - i * 0.05 })) },
+  { id: "LFP-002B", grade: "B", status: "Degrading", soh: 92.5, rul: 820, cycles: 1180, chemistry: "LFP", uploadDate: "2025-06-12", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 50, soh: 98 - i * 0.3 })) },
+  { id: "NMC-003C", grade: "C", status: "Critical", soh: 84.3, rul: 210, cycles: 2400, chemistry: "NMC", uploadDate: "2025-06-10", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 100, soh: 95 - i * 0.6 })) },
+  { id: "LFP-004A", grade: "A", status: "Healthy", soh: 99.8, rul: 2800, cycles: 50, chemistry: "LFP", uploadDate: "2025-06-15", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 5, soh: 100 - i * 0.01 })) },
+  { id: "NMC-005D", grade: "D", status: "Critical", soh: 78.1, rul: 90, cycles: 3100, chemistry: "NMC", uploadDate: "2025-05-28", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 150, soh: 90 - i * 0.7 })) },
+];
+
+const gradeColor: Record<BatteryGrade, string> = {
+  A: "bg-green-500",
+  B: "bg-yellow-500",
+  C: "bg-orange-500",
+  D: "bg-red-500",
+};
+
+const statusColor: Record<BatteryStatus, string> = {
+    Healthy: "text-green-400",
+    Degrading: "text-yellow-400",
+    Critical: "text-red-400",
+    Unknown: "text-gray-400"
+}
+
+export default function BatteryTable() {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Battery ID</TableHead>
+              <TableHead className="text-center">Grade</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">SoH (%)</TableHead>
+              <TableHead className="text-right">RUL (cycles)</TableHead>
+              <TableHead className="text-right">Total Cycles</TableHead>
+              <TableHead>SoH Trend</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {mockData.map((battery) => (
+              <TableRow key={battery.id}>
+                <TableCell className="font-medium">{battery.id}</TableCell>
+                <TableCell className="text-center">
+                  <Badge className={cn("text-white", gradeColor[battery.grade])}>{battery.grade}</Badge>
+                </TableCell>
+                <TableCell>
+                    <span className={cn("font-semibold", statusColor[battery.status])}>
+                        {battery.status}
+                    </span>
+                </TableCell>
+                <TableCell className="text-right">{battery.soh.toFixed(1)}</TableCell>
+                <TableCell className="text-right">{battery.rul}</TableCell>
+                <TableCell className="text-right">{battery.cycles}</TableCell>
+                <TableCell>
+                  <div className="h-10 w-32">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={battery.sohHistory} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorSoh" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="soh" stroke="#8884d8" fillOpacity={1} fill="url(#colorSoh)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
