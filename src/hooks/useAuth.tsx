@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface AuthUser {
@@ -18,13 +18,17 @@ export interface DemoUser extends AuthUser {
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | DemoUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    console.log('useAuth: Initializing authentication...');
+    
     // Check for demo mode first
     const demoMode = localStorage.getItem('demo_mode');
     if (demoMode === 'true') {
+      console.log('useAuth: Demo mode detected');
       const demoUser: DemoUser = {
         id: 'demo-user',
         email: 'demo@example.com',
@@ -41,19 +45,33 @@ export function useAuth() {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
+        console.log('useAuth: Auth state changed:', event, session?.user?.id);
+        setSession(session);
+        
         if (session?.user) {
-          await fetchUserProfile(session.user);
+          // Defer profile fetching to avoid deadlock
+          setTimeout(() => {
+            fetchUserProfile(session.user);
+          }, 0);
         } else {
           setUser(null);
           setIsDemo(false);
-          setLoading(false);
         }
+        setLoading(false);
       }
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('useAuth: Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+      
+      console.log('useAuth: Initial session:', session?.user?.id);
+      setSession(session);
+      
       if (session?.user) {
         fetchUserProfile(session.user);
       } else {
@@ -61,11 +79,15 @@ export function useAuth() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('useAuth: Cleaning up subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (authUser: User) => {
     try {
+      console.log('useAuth: Fetching profile for user:', authUser.id);
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -73,12 +95,14 @@ export function useAuth() {
         .single();
 
       if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('useAuth: Error fetching profile:', error);
+        // Create basic user object if profile doesn't exist
         setUser({
           id: authUser.id,
           email: authUser.email || '',
         });
       } else {
+        console.log('useAuth: Profile fetched successfully:', profile);
         setUser({
           id: profile.id,
           email: profile.email,
@@ -89,7 +113,7 @@ export function useAuth() {
         });
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('useAuth: Error in fetchUserProfile:', error);
       setUser({
         id: authUser.id,
         email: authUser.email || '',
@@ -100,16 +124,26 @@ export function useAuth() {
   };
 
   const signOut = async () => {
-    if (isDemo) {
-      localStorage.removeItem('demo_mode');
-      setUser(null);
-      setIsDemo(false);
-      return;
+    try {
+      if (isDemo) {
+        localStorage.removeItem('demo_mode');
+        setUser(null);
+        setIsDemo(false);
+        return;
+      }
+      
+      console.log('useAuth: Signing out...');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('useAuth: Sign out error:', error);
+      }
+    } catch (error) {
+      console.error('useAuth: Error during sign out:', error);
     }
-    await supabase.auth.signOut();
   };
 
   const enterDemoMode = () => {
+    console.log('useAuth: Entering demo mode');
     localStorage.setItem('demo_mode', 'true');
     const demoUser: DemoUser = {
       id: 'demo-user',
@@ -120,10 +154,12 @@ export function useAuth() {
     };
     setUser(demoUser);
     setIsDemo(true);
+    setLoading(false);
   };
 
   return {
     user,
+    session,
     loading,
     signOut,
     isDemo,
