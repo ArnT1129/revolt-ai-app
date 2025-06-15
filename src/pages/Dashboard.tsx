@@ -4,16 +4,20 @@ import BatteryTable from "@/components/BatteryTable";
 import AdvancedAnalytics from "@/components/AdvancedAnalytics";
 import BatteryComparison from "@/components/BatteryComparison";
 import DataExporter from "@/components/DataExporter";
+import BatteryPassportModal from "@/components/BatteryPassportModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, BarChart3, GitCompare, Download } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
 
 export default function Dashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [allBatteries, setAllBatteries] = useState<Battery[]>([]);
   const [defaultView, setDefaultView] = useState("fleet");
+  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
 
   const updateBatteries = () => {
     // Mock data
@@ -37,10 +41,40 @@ export default function Dashboard() {
     });
 
     setAllBatteries(combined);
+    return combined;
+  };
+
+  const handleSaveBattery = (updatedBattery: Battery) => {
+    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+    const updatedBatteries = uploadedBatteries.map((battery: Battery) =>
+      battery.id === updatedBattery.id ? updatedBattery : battery
+    );
+    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedBatteries));
+
+    setSelectedBattery(updatedBattery);
+    setIsPassportOpen(false);
+    
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
   useEffect(() => {
-    updateBatteries();
+    const batteries = updateBatteries();
+
+    // Check if there's a battery ID in the URL
+    const batteryId = searchParams.get('battery');
+    if (batteryId) {
+      const battery = batteries.find(b => b.id === batteryId);
+      if (battery) {
+        setSelectedBattery(battery);
+        setIsPassportOpen(true);
+        // Remove the battery parameter from URL
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('battery');
+          return newParams;
+        });
+      }
+    }
 
     // Load default view from settings
     const savedSettings = localStorage.getItem('batteryAnalysisSettings');
@@ -65,7 +99,7 @@ export default function Dashboard() {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
       window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
     };
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
@@ -126,6 +160,16 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Battery Passport Modal */}
+      {selectedBattery && (
+        <BatteryPassportModal
+          battery={selectedBattery}
+          isOpen={isPassportOpen}
+          onClose={() => setIsPassportOpen(false)}
+          onSave={handleSaveBattery}
+        />
+      )}
     </main>
   );
 }

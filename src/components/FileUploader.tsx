@@ -1,18 +1,19 @@
-
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, Eye } from "lucide-react";
 import { Battery } from "@/types";
 import { BatteryDataParser } from "@/services/batteryDataParser";
 import BatteryPassportModal from "@/components/BatteryPassportModal";
 import { batteryAnalytics } from "@/services/batteryAnalytics";
 
 export default function FileUploader() {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<any[]>([]);
   const [metadata, setMetadata] = useState<any>(null);
@@ -194,6 +195,13 @@ export default function FileUploader() {
     window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
   };
 
+  const handleViewOnDashboard = () => {
+    if (batteryAnalysis) {
+      // Navigate to dashboard with battery ID to open passport
+      navigate(`/?battery=${batteryAnalysis.id}`);
+    }
+  };
+
   return (
     <div>
       <Card>
@@ -259,7 +267,13 @@ export default function FileUploader() {
               <CardTitle>Battery Analysis Result</CardTitle>
               <CardDescription>
                 Here are the key metrics and insights derived from the uploaded battery data.
-                <Button onClick={handleOpenModal} size="sm" className="ml-2">View Passport</Button>
+                <div className="flex gap-2 mt-2">
+                  <Button onClick={handleOpenModal} size="sm">View Passport</Button>
+                  <Button onClick={handleViewOnDashboard} size="sm" variant="outline">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View on Dashboard
+                  </Button>
+                </div>
               </CardDescription>
             </CardHeader>
             <CardContent>
