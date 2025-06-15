@@ -26,41 +26,61 @@ interface ParseResult {
 
 export class BatteryDataParser {
   private static CYCLE_PATTERNS = [
-    /cycle/i, /cyc/i, /loop/i, /count/i
+    /cycle/i, /cyc/i, /loop/i, /count/i, /nummer/i, /num/i, /^c$/i, /c_/i
   ];
 
   private static VOLTAGE_PATTERNS = [
-    /voltage/i, /volt/i, /^v$/i, /v_/i, /potential/i
+    /voltage/i, /volt/i, /^v$/i, /v_/i, /potential/i, /spannung/i, /tension/i
   ];
 
   private static CURRENT_PATTERNS = [
-    /current/i, /curr/i, /^i$/i, /i_/i, /amp/i
+    /current/i, /curr/i, /^i$/i, /i_/i, /amp/i, /strom/i, /courant/i
   ];
 
   private static CAPACITY_PATTERNS = [
-    /capacity/i, /cap/i, /^q$/i, /q_/i, /charge/i, /ah/i, /mah/i
+    /capacity/i, /cap/i, /^q$/i, /q_/i, /charge/i, /ah/i, /mah/i, /kapazit/i
   ];
 
   private static STEP_PATTERNS = [
-    /step/i, /stage/i, /phase/i, /mode/i
+    /step/i, /stage/i, /phase/i, /mode/i, /schritt/i, /etape/i
   ];
 
   static async parseFile(file: File): Promise<ParseResult> {
+    console.log(`Starting to parse file: ${file.name}`);
     const warnings: string[] = [];
     let rawData: any[] = [];
     
     try {
-      if (file.name.endsWith('.csv')) {
+      // Handle different file types
+      if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
         rawData = await this.parseCSV(file);
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        warnings.push('XLSX parsing not fully implemented - treating as CSV');
+        // For now, treat as CSV - in production you'd use a library like xlsx
         rawData = await this.parseCSV(file);
+        warnings.push('XLSX file treated as CSV - some formatting may be lost');
+      } else if (file.name.endsWith('.json')) {
+        rawData = await this.parseJSON(file);
       } else {
-        throw new Error(`Unsupported file format: ${file.name}`);
+        // Try to parse as text anyway
+        rawData = await this.parseCSV(file);
+        warnings.push(`Unknown file format ${file.name} - attempting CSV parsing`);
       }
 
+      if (rawData.length === 0) {
+        throw new Error('No data found in file');
+      }
+
+      console.log(`Parsed ${rawData.length} raw rows`);
+
+      // Auto-detect column mapping
       const columnMapping = this.detectColumns(rawData[0] || {});
-      const cleanedData = this.cleanAndNormalizeData(rawData, columnMapping);
+      console.log('Detected column mapping:', columnMapping);
+
+      // Clean and normalize data
+      const cleanedData = this.cleanAndNormalizeData(rawData, columnMapping, warnings);
+      console.log(`Cleaned data to ${cleanedData.length} valid rows`);
+
+      // Extract metadata
       const metadata = this.extractMetadata(file, cleanedData, warnings);
 
       return {
@@ -68,6 +88,7 @@ export class BatteryDataParser {
         metadata
       };
     } catch (error) {
+      console.error('Parse error:', error);
       warnings.push(`Parse error: ${error}`);
       return {
         data: [],
@@ -84,102 +105,176 @@ export class BatteryDataParser {
 
   private static async parseCSV(file: File): Promise<any[]> {
     const text = await file.text();
-    const lines = text.split('\n').filter(line => line.trim());
+    const lines = text.split(/\r?\n/).filter(line => line.trim());
     
     if (lines.length === 0) return [];
     
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    // Try different delimiters
+    let delimiter = ',';
+    const firstLine = lines[0];
+    if (firstLine.split(';').length > firstLine.split(',').length) {
+      delimiter = ';';
+    } else if (firstLine.split('\t').length > firstLine.split(',').length) {
+      delimiter = '\t';
+    }
+
+    const headers = this.parseCSVLine(lines[0], delimiter).map(h => h.trim().replace(/['"]/g, ''));
     const data = [];
     
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-      const row: any = {};
+      const values = this.parseCSVLine(lines[i], delimiter);
+      if (values.length === 0) continue;
       
+      const row: any = {};
       headers.forEach((header, index) => {
         row[header] = values[index] || '';
       });
       
-      data.push(row);
+      // Skip empty rows
+      if (Object.values(row).some(val => val && String(val).trim())) {
+        data.push(row);
+      }
     }
     
     return data;
   }
 
+  private static parseCSVLine(line: string, delimiter: string): string[] {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  }
+
+  private static async parseJSON(file: File): Promise<any[]> {
+    const text = await file.text();
+    const jsonData = JSON.parse(text);
+    
+    if (Array.isArray(jsonData)) {
+      return jsonData;
+    } else if (jsonData.data && Array.isArray(jsonData.data)) {
+      return jsonData.data;
+    } else {
+      return [jsonData];
+    }
+  }
+
   private static detectColumns(sampleRow: any): Record<string, string> {
     const mapping: Record<string, string> = {};
-    const headers = Object.keys(sampleRow);
+    const headers = Object.keys(sampleRow).map(h => h.toLowerCase());
 
-    // Detect cycle column
-    const cycleCol = headers.find(h => 
-      this.CYCLE_PATTERNS.some(pattern => pattern.test(h))
-    );
-    if (cycleCol) mapping.cycle_number = cycleCol;
-
-    // Detect voltage column
-    const voltageCol = headers.find(h => 
-      this.VOLTAGE_PATTERNS.some(pattern => pattern.test(h))
-    );
-    if (voltageCol) mapping.voltage_V = voltageCol;
-
-    // Detect current column
-    const currentCol = headers.find(h => 
-      this.CURRENT_PATTERNS.some(pattern => pattern.test(h))
-    );
-    if (currentCol) mapping.current_A = currentCol;
-
-    // Detect capacity column
-    const capacityCol = headers.find(h => 
-      this.CAPACITY_PATTERNS.some(pattern => pattern.test(h))
-    );
-    if (capacityCol) mapping.capacity_mAh = capacityCol;
-
-    // Detect step column
-    const stepCol = headers.find(h => 
-      this.STEP_PATTERNS.some(pattern => pattern.test(h))
-    );
-    if (stepCol) mapping.step_index = stepCol;
+    // More comprehensive column detection
+    for (const header of Object.keys(sampleRow)) {
+      const lowerHeader = header.toLowerCase();
+      
+      // Detect cycle column
+      if (this.CYCLE_PATTERNS.some(pattern => pattern.test(lowerHeader)) && !mapping.cycle_number) {
+        mapping.cycle_number = header;
+      }
+      
+      // Detect voltage column
+      if (this.VOLTAGE_PATTERNS.some(pattern => pattern.test(lowerHeader)) && !mapping.voltage_V) {
+        mapping.voltage_V = header;
+      }
+      
+      // Detect current column
+      if (this.CURRENT_PATTERNS.some(pattern => pattern.test(lowerHeader)) && !mapping.current_A) {
+        mapping.current_A = header;
+      }
+      
+      // Detect capacity column
+      if (this.CAPACITY_PATTERNS.some(pattern => pattern.test(lowerHeader)) && !mapping.capacity_mAh) {
+        mapping.capacity_mAh = header;
+      }
+      
+      // Detect step column
+      if (this.STEP_PATTERNS.some(pattern => pattern.test(lowerHeader)) && !mapping.step_index) {
+        mapping.step_index = header;
+      }
+    }
 
     return mapping;
   }
 
-  private static cleanAndNormalizeData(rawData: any[], mapping: Record<string, string>): ParsedBatteryData[] {
-    return rawData.map((row, index) => {
-      const cleaned: ParsedBatteryData = {
-        cycle_number: this.parseNumber(row[mapping.cycle_number] || index + 1),
-        step_index: this.parseNumber(row[mapping.step_index] || 1),
-        step_type: this.normalizeStepType(row[mapping.step_index] || 'unknown'),
-        voltage_V: this.parseNumber(row[mapping.voltage_V] || 0),
-        current_A: this.normalizeCurrentToAmps(row[mapping.current_A] || 0),
-        capacity_mAh: this.normalizeCapacityToMAh(row[mapping.capacity_mAh] || 0),
-      };
+  private static cleanAndNormalizeData(rawData: any[], mapping: Record<string, string>, warnings: string[]): ParsedBatteryData[] {
+    const cleanedData: ParsedBatteryData[] = [];
+    let cycleCounter = 1;
+    
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i];
+      
+      try {
+        const voltage = this.parseNumber(row[mapping.voltage_V]);
+        const current = this.parseNumber(row[mapping.current_A]);
+        const capacity = this.parseNumber(row[mapping.capacity_mAh]);
+        
+        // Skip rows with no meaningful data
+        if (voltage === 0 && current === 0 && capacity === 0) continue;
+        
+        const cleaned: ParsedBatteryData = {
+          cycle_number: this.parseNumber(row[mapping.cycle_number]) || cycleCounter,
+          step_index: this.parseNumber(row[mapping.step_index]) || 1,
+          step_type: this.normalizeStepType(row[mapping.step_index] || row[mapping.step_type] || 'unknown'),
+          voltage_V: voltage,
+          current_A: this.normalizeCurrentToAmps(current),
+          capacity_mAh: this.normalizeCapacityToMAh(capacity),
+        };
 
-      return cleaned;
-    }).filter(row => row.voltage_V > 0); // Filter out invalid rows
+        // Update cycle counter for next row if needed
+        if (cleaned.cycle_number > cycleCounter) {
+          cycleCounter = cleaned.cycle_number;
+        }
+
+        cleanedData.push(cleaned);
+      } catch (error) {
+        warnings.push(`Skipped invalid row ${i + 1}: ${error}`);
+      }
+    }
+
+    return cleanedData;
   }
 
   private static parseNumber(value: any): number {
-    if (typeof value === 'number') return value;
-    const parsed = parseFloat(String(value).replace(/[^\d.-]/g, ''));
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    if (value === null || value === undefined || value === '') return 0;
+    
+    const str = String(value).replace(/[^\d.-]/g, '');
+    const parsed = parseFloat(str);
     return isNaN(parsed) ? 0 : parsed;
   }
 
   private static normalizeCurrentToAmps(value: any): number {
-    const num = this.parseNumber(value);
+    const num = Math.abs(this.parseNumber(value));
     // If value is very large, assume it's in mA
-    return Math.abs(num) > 10 ? num / 1000 : num;
+    return num > 10 ? num / 1000 : num;
   }
 
   private static normalizeCapacityToMAh(value: any): number {
     const num = this.parseNumber(value);
     // If value is very small, assume it's in Ah
-    return num < 10 ? num * 1000 : num;
+    return Math.abs(num) < 10 ? Math.abs(num) * 1000 : Math.abs(num);
   }
 
   private static normalizeStepType(value: any): string {
     const str = String(value).toLowerCase();
-    if (str.includes('charge') || str.includes('chg')) return 'charge';
-    if (str.includes('discharge') || str.includes('dchg')) return 'discharge';
-    if (str.includes('rest') || str.includes('pause')) return 'rest';
+    if (str.includes('charge') || str.includes('chg') || str.includes('cc') || str.includes('cv')) return 'charge';
+    if (str.includes('discharge') || str.includes('dchg') || str.includes('disch')) return 'discharge';
+    if (str.includes('rest') || str.includes('pause') || str.includes('relax')) return 'rest';
     return 'unknown';
   }
 
@@ -188,15 +283,22 @@ export class BatteryDataParser {
     
     // Try to detect equipment from filename
     let equipment = 'Unknown';
-    if (file.name.toLowerCase().includes('maccor')) equipment = 'Maccor';
-    else if (file.name.toLowerCase().includes('arbin')) equipment = 'Arbin';
-    else if (file.name.toLowerCase().includes('neware')) equipment = 'Neware';
+    const filename = file.name.toLowerCase();
+    if (filename.includes('maccor')) equipment = 'Maccor';
+    else if (filename.includes('arbin')) equipment = 'Arbin';
+    else if (filename.includes('neware')) equipment = 'Neware';
+    else if (filename.includes('biologic')) equipment = 'BioLogic';
 
     // Try to detect chemistry from voltage ranges
     let chemistry = 'Unknown';
-    const maxVoltage = Math.max(...data.map(d => d.voltage_V));
-    if (maxVoltage > 4.1 && maxVoltage < 4.3) chemistry = 'NMC';
-    else if (maxVoltage > 3.5 && maxVoltage < 3.8) chemistry = 'LFP';
+    if (data.length > 0) {
+      const maxVoltage = Math.max(...data.map(d => d.voltage_V));
+      const minVoltage = Math.min(...data.filter(d => d.voltage_V > 0).map(d => d.voltage_V));
+      
+      if (maxVoltage > 4.1 && maxVoltage < 4.3) chemistry = 'NMC';
+      else if (maxVoltage > 3.5 && maxVoltage < 3.8) chemistry = 'LFP';
+      else if (maxVoltage > 2.0 && maxVoltage < 2.8) chemistry = 'LTO';
+    }
 
     return {
       equipment,

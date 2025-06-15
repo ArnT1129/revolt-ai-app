@@ -1,21 +1,22 @@
 
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Battery, BatteryGrade, BatteryStatus } from "@/types";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
-import { FileText } from "lucide-react";
+import { FileText, Trash2, Plus } from "lucide-react";
 import BatteryPassportModal from "./BatteryPassportModal";
+import ManualBatteryModal from "./ManualBatteryModal";
+import { toast } from "@/hooks/use-toast";
 
 const mockData: Battery[] = [
   { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 10, soh: 100 - i * 0.05 })) },
   { id: "LFP-002B", grade: "B", status: "Degrading", soh: 92.5, rul: 820, cycles: 1180, chemistry: "LFP", uploadDate: "2025-06-12", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 50, soh: 98 - i * 0.3 })) },
   { id: "NMC-003C", grade: "C", status: "Critical", soh: 84.3, rul: 210, cycles: 2400, chemistry: "NMC", uploadDate: "2025-06-10", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 100, soh: 95 - i * 0.6 })) },
   { id: "LFP-004A", grade: "A", status: "Healthy", soh: 99.8, rul: 2800, cycles: 50, chemistry: "LFP", uploadDate: "2025-06-15", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 5, soh: 100 - i * 0.01 })) },
-  { id: "NMC-005D", grade: "D", status: "Critical", soh: 78.1, rul: 90, cycles: 3100, chemistry: "NMC", uploadDate: "2025-05-28", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 150, soh: 90 - i * 0.7 })) },
 ];
 
 const gradeColor: Record<BatteryGrade, string> = {
@@ -35,6 +36,7 @@ const statusColor: Record<BatteryStatus, string> = {
 export default function BatteryTable() {
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [batteries, setBatteries] = useState<Battery[]>(mockData);
 
   useEffect(() => {
@@ -60,6 +62,36 @@ export default function BatteryTable() {
     setIsModalOpen(true);
   };
 
+  const handleDeleteBattery = (batteryId: string) => {
+    // Remove from local state
+    setBatteries(prev => prev.filter(battery => battery.id !== batteryId));
+    
+    // Remove from localStorage
+    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+    const updatedUploaded = uploadedBatteries.filter((b: Battery) => b.id !== batteryId);
+    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedUploaded));
+    
+    toast({
+      title: "Battery Deleted",
+      description: `Battery ${batteryId} has been removed from the system`,
+    });
+  };
+
+  const handleAddManualBattery = (newBattery: Battery) => {
+    // Add to local state
+    setBatteries(prev => [...prev, newBattery]);
+    
+    // Add to localStorage
+    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
+    uploadedBatteries.push(newBattery);
+    localStorage.setItem('uploadedBatteries', JSON.stringify(uploadedBatteries));
+    
+    toast({
+      title: "Battery Added",
+      description: `Battery ${newBattery.id} has been added to the system`,
+    });
+  };
+
   const handleSaveBattery = (updatedBattery: Battery) => {
     // Update local state
     setBatteries(prev => 
@@ -83,6 +115,15 @@ export default function BatteryTable() {
   return (
     <>
       <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Battery Fleet Overview</CardTitle>
+            <Button onClick={() => setIsManualModalOpen(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Battery
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -128,14 +169,23 @@ export default function BatteryTable() {
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleViewPassport(battery)}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      View Passport
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleViewPassport(battery)}
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDeleteBattery(battery.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -149,6 +199,12 @@ export default function BatteryTable() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveBattery}
+      />
+
+      <ManualBatteryModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        onSave={handleAddManualBattery}
       />
     </>
   );
