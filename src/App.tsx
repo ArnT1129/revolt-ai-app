@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Sidebar from "./components/Sidebar";
 
@@ -24,6 +25,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/upload" element={<Upload />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
