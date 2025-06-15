@@ -1,5 +1,6 @@
 import { Battery, SoHDataPoint } from "@/types";
 import { BatteryIssue, IssueAnalysisService } from "./issueAnalysis";
+import { predictiveAnalysis, PredictiveModel } from "./predictiveAnalysis";
 
 export interface BatteryAnalytics {
   calculateSoH: (cycleData: any[]) => number;
@@ -10,6 +11,9 @@ export interface BatteryAnalytics {
   calculateDegradationRate: (sohHistory: SoHDataPoint[]) => number;
   analyzeIssues: (battery: Battery, rawData: any[]) => BatteryIssue[];
   calculateAdvancedMetrics: (battery: Battery, rawData: any[]) => BatteryMetrics;
+  getPredictiveInsights: (battery: Battery, rawData: any[]) => Promise<PredictiveModel>;
+  getAnomalyAnalysis: (battery: Battery, rawData: any[]) => Promise<any>;
+  getEnhancedAnalytics: (battery: Battery, rawData: any[]) => Promise<any>;
 }
 
 export interface BatteryMetrics {
@@ -271,6 +275,52 @@ export class BatteryAnalyticsService implements BatteryAnalytics {
       thermalStability: temperatureRange.max - temperatureRange.min < 20 ? "Excellent" : 
                       temperatureRange.max - temperatureRange.min < 30 ? "Good" : "Poor"
     };
+  }
+
+  async getPredictiveInsights(battery: Battery, rawData: any[]): Promise<PredictiveModel> {
+    const sohHistory = this.generateSoHHistory(rawData);
+    return await predictiveAnalysis.generatePredictions(battery, sohHistory);
+  }
+
+  async getAnomalyAnalysis(battery: Battery, rawData: any[]) {
+    return await predictiveAnalysis.detectAnomalies(battery, rawData);
+  }
+
+  async getEnhancedAnalytics(battery: Battery, rawData: any[]) {
+    const [basicMetrics, predictiveModel, anomalies] = await Promise.all([
+      this.calculateAdvancedMetrics(battery, rawData),
+      this.getPredictiveInsights(battery, rawData),
+      this.getAnomalyAnalysis(battery, rawData)
+    ]);
+
+    return {
+      basicMetrics,
+      predictiveModel,
+      anomalies,
+      recommendations: this.generateActionableRecommendations(battery, basicMetrics, anomalies)
+    };
+  }
+
+  private generateActionableRecommendations(battery: Battery, metrics: any, anomalies: any): string[] {
+    const recommendations: string[] = [];
+
+    if (battery.soh < 85) {
+      recommendations.push("Consider battery replacement or reconditioning within next 50 cycles");
+    }
+
+    if (metrics.internalResistance > 80) {
+      recommendations.push("Monitor internal resistance - may indicate aging or thermal issues");
+    }
+
+    if (anomalies.anomalies.length > 5) {
+      recommendations.push("High anomaly count detected - recommend detailed diagnostic");
+    }
+
+    if (metrics.thermalStability === "Poor") {
+      recommendations.push("Improve thermal management to extend battery life");
+    }
+
+    return recommendations;
   }
 }
 

@@ -49,12 +49,13 @@ function AppContent() {
         <div className="aurora three"></div>
       </div>
       
-      {/* Liquid Glass AI Background */}
+      {/* Liquid Glass AI Background - improved z-index management */}
       <div className="fixed inset-0 z-[1] pointer-events-none">
-        <LiquidGlassAI isActive={true} />
+        <LiquidGlassAI isActive={settings.animationsEnabled} />
       </div>
       
-      <div className="content-wrapper flex min-h-screen w-full">
+      {/* Main content with higher z-index */}
+      <div className="content-wrapper flex min-h-screen w-full relative z-[2]">
         <Sidebar />
         <div className="flex-1 flex flex-col">
           <Routes>
@@ -66,6 +67,7 @@ function AppContent() {
         </div>
       </div>
 
+      {/* Modal with highest z-index */}
       <LandingPageModal 
         isOpen={showLandingModal} 
         onClose={() => setShowLandingModal(false)} 
