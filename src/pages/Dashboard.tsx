@@ -13,6 +13,7 @@ import { Battery } from "@/types";
 
 export default function Dashboard() {
   const [allBatteries, setAllBatteries] = useState<Battery[]>([]);
+  const [defaultView, setDefaultView] = useState("fleet");
 
   const updateBatteries = () => {
     // Mock data
@@ -41,14 +42,28 @@ export default function Dashboard() {
   useEffect(() => {
     updateBatteries();
 
+    // Load default view from settings
+    const savedSettings = localStorage.getItem('batteryAnalysisSettings');
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings);
+      setDefaultView(settings.defaultView || "fleet");
+    }
+
     const handleBatteryUpdate = () => {
       updateBatteries();
     };
 
+    const handleSettingsChanged = (event: CustomEvent) => {
+      const settings = event.detail;
+      setDefaultView(settings.defaultView || "fleet");
+    };
+
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+    window.addEventListener('settingsChanged', handleSettingsChanged as EventListener);
     
     return () => {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+      window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
     };
   }, []);
 
@@ -72,7 +87,7 @@ export default function Dashboard() {
       <DashboardStats />
       
       <div className="mt-8">
-        <Tabs defaultValue="fleet" className="w-full">
+        <Tabs defaultValue={defaultView} className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10">
             <TabsTrigger value="fleet" className="flex items-center gap-2">
               Fleet

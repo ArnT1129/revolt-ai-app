@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,67 @@ export default function FileUploader() {
     }
   };
 
+  const applyDataProcessingSettings = (data: any[]): any[] => {
+    const settings = (window as any).batteryAnalysisSettings;
+    if (!settings) return data;
+
+    let processedData = [...data];
+
+    // Apply outlier removal
+    if (settings.outlierRemoval) {
+      processedData = removeOutliers(processedData);
+    }
+
+    // Apply data smoothing
+    if (settings.smoothingEnabled) {
+      processedData = applySmoothingFilter(processedData);
+    }
+
+    return processedData;
+  };
+
+  const removeOutliers = (data: any[]): any[] => {
+    // Simple outlier removal using IQR method for voltage and current
+    const voltages = data.map(d => d.voltage_V).filter(v => v != null);
+    const currents = data.map(d => d.current_A).filter(c => c != null);
+
+    const getIQRBounds = (values: number[]) => {
+      const sorted = [...values].sort((a, b) => a - b);
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = q3 - q1;
+      return {
+        lower: q1 - 1.5 * iqr,
+        upper: q3 + 1.5 * iqr
+      };
+    };
+
+    const voltageBounds = getIQRBounds(voltages);
+    const currentBounds = getIQRBounds(currents);
+
+    return data.filter(d => {
+      const voltageOk = d.voltage_V >= voltageBounds.lower && d.voltage_V <= voltageBounds.upper;
+      const currentOk = d.current_A >= currentBounds.lower && d.current_A <= currentBounds.upper;
+      return voltageOk && currentOk;
+    });
+  };
+
+  const applySmoothingFilter = (data: any[]): any[] => {
+    // Simple moving average smoothing for voltage and current
+    const windowSize = 5;
+    const smoothed = [...data];
+
+    for (let i = windowSize; i < data.length - windowSize; i++) {
+      const voltageWindow = data.slice(i - windowSize, i + windowSize + 1).map(d => d.voltage_V);
+      const currentWindow = data.slice(i - windowSize, i + windowSize + 1).map(d => d.current_A);
+      
+      smoothed[i].voltage_V = voltageWindow.reduce((a, b) => a + b, 0) / voltageWindow.length;
+      smoothed[i].current_A = currentWindow.reduce((a, b) => a + b, 0) / currentWindow.length;
+    }
+
+    return smoothed;
+  };
+
   const handleUpload = async () => {
     if (!file) {
       setError("Please select a file to upload.");
@@ -47,9 +109,13 @@ export default function FileUploader() {
 
     try {
       const { data, metadata } = await BatteryDataParser.parseFile(file);
-      setParsedData(data);
+      
+      // Apply data processing settings
+      const processedData = applyDataProcessingSettings(data);
+      
+      setParsedData(processedData);
       setMetadata(metadata);
-      const battery = analyzeBatteryData(data, metadata);
+      const battery = analyzeBatteryData(processedData, metadata);
       setBatteryAnalysis(battery);
 
       // Store the uploaded battery data in local storage
@@ -59,6 +125,9 @@ export default function FileUploader() {
 
       // Trigger dashboard update
       window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+
+      // Auto-open passport for manual editing
+      setIsModalOpen(true);
 
     } catch (e: any) {
       console.error("Upload Error:", e);
@@ -132,6 +201,7 @@ export default function FileUploader() {
           <CardTitle>Upload Battery Data</CardTitle>
           <CardDescription>
             Upload a CSV or XLSX file containing battery cycle data to analyze its health and performance.
+            Files of any size are supported.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -145,6 +215,7 @@ export default function FileUploader() {
                 <div className="text-center">
                   <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
                   <p className="text-muted-foreground">Select a file or drag and drop here</p>
+                  <p className="text-xs text-muted-foreground mt-1">No size limit - any file size supported</p>
                 </div>
               )}
             </div>
@@ -156,6 +227,9 @@ export default function FileUploader() {
                 <div>
                   <p className="text-sm font-medium">Selected File:</p>
                   <p className="text-sm text-muted-foreground">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
                 </div>
               </div>
             )}

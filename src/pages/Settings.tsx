@@ -37,11 +37,6 @@ interface AppSettings {
   analysisComplete: boolean;
   errorAlerts: boolean;
   emailNotifications: boolean;
-  
-  // Performance
-  maxFileSize: number;
-  parallelProcessing: boolean;
-  cacheResults: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -56,16 +51,13 @@ const defaultSettings: AppSettings = {
   darkMode: false,
   animationsEnabled: true,
   compactView: false,
-  defaultView: "table",
+  defaultView: "fleet",
   exportFormat: "csv",
   includeMetadata: true,
   decimalPlaces: 3,
   analysisComplete: true,
   errorAlerts: true,
   emailNotifications: false,
-  maxFileSize: 100,
-  parallelProcessing: true,
-  cacheResults: true,
 };
 
 export default function Settings() {
@@ -98,7 +90,7 @@ export default function Settings() {
 
   // Apply settings globally
   useEffect(() => {
-    // Apply dark mode by toggling the dark class on document element
+    // Apply dark mode
     const htmlElement = document.documentElement;
     if (settings.darkMode) {
       htmlElement.classList.add('dark');
@@ -117,19 +109,21 @@ export default function Settings() {
       htmlElement.classList.remove('no-animations');
     }
 
-    // Apply compact view by adjusting CSS variables
+    // Apply compact view
     if (settings.compactView) {
-      htmlElement.style.setProperty('--spacing-unit', '0.75rem');
-      htmlElement.style.setProperty('--card-padding', '1rem');
+      htmlElement.style.setProperty('--spacing-unit', '0.5rem');
+      htmlElement.style.setProperty('--card-padding', '0.75rem');
+      htmlElement.classList.add('compact-view');
     } else {
       htmlElement.style.setProperty('--spacing-unit', '1rem');
       htmlElement.style.setProperty('--card-padding', '1.5rem');
+      htmlElement.classList.remove('compact-view');
     }
 
-    // Store settings in global state for other components to access
+    // Store settings globally
     (window as any).batteryAnalysisSettings = settings;
     
-    // Dispatch a custom event to notify other components
+    // Dispatch settings change event
     window.dispatchEvent(new CustomEvent('settingsChanged', { detail: settings }));
   }, [settings]);
 
@@ -140,8 +134,6 @@ export default function Settings() {
   const saveSettings = () => {
     try {
       localStorage.setItem('batteryAnalysisSettings', JSON.stringify(settings));
-      
-      // Apply settings immediately
       (window as any).batteryAnalysisSettings = settings;
       
       toast({
@@ -175,59 +167,6 @@ export default function Settings() {
         variant: "destructive"
       });
     }
-  };
-
-  const exportSettings = () => {
-    try {
-      const dataStr = JSON.stringify(settings, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'battery-analysis-settings.json';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Settings Exported",
-        description: "Settings have been exported to a JSON file.",
-      });
-    } catch (error) {
-      console.error('Error exporting settings:', error);
-      toast({
-        title: "Export Error",
-        description: "Failed to export settings.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const importSettings = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedSettings = JSON.parse(e.target?.result as string);
-        setSettings({ ...defaultSettings, ...importedSettings });
-        
-        toast({
-          title: "Settings Imported",
-          description: "Settings have been imported successfully.",
-        });
-      } catch (error) {
-        console.error('Error importing settings:', error);
-        toast({
-          title: "Import Error",
-          description: "Failed to import settings. Invalid file format.",
-          variant: "destructive"
-        });
-      }
-    };
-    reader.readAsText(file);
   };
 
   if (isLoading) {
@@ -417,9 +356,10 @@ export default function Settings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="table">Table View</SelectItem>
-                  <SelectItem value="cards">Card View</SelectItem>
-                  <SelectItem value="charts">Chart View</SelectItem>
+                  <SelectItem value="fleet">Fleet View</SelectItem>
+                  <SelectItem value="analytics">Analytics View</SelectItem>
+                  <SelectItem value="comparison">Comparison View</SelectItem>
+                  <SelectItem value="export">Export View</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -444,7 +384,6 @@ export default function Settings() {
                     <SelectItem value="csv">CSV</SelectItem>
                     <SelectItem value="xlsx">Excel (XLSX)</SelectItem>
                     <SelectItem value="json">JSON</SelectItem>
-                    <SelectItem value="pdf">PDF Report</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -469,48 +408,6 @@ export default function Settings() {
               <Switch
                 checked={settings.includeMetadata}
                 onCheckedChange={(checked) => updateSetting('includeMetadata', checked)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Performance</CardTitle>
-            <CardDescription>Optimize system performance</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Maximum File Size (MB)</Label>
-              <Input
-                type="number"
-                min="1"
-                max="1000"
-                value={settings.maxFileSize}
-                onChange={(e) => updateSetting('maxFileSize', parseInt(e.target.value) || 100)}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Parallel Processing</Label>
-                <p className="text-sm text-muted-foreground">Use multiple CPU cores for analysis</p>
-              </div>
-              <Switch
-                checked={settings.parallelProcessing}
-                onCheckedChange={(checked) => updateSetting('parallelProcessing', checked)}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Cache Results</Label>
-                <p className="text-sm text-muted-foreground">Store analysis results for faster access</p>
-              </div>
-              <Switch
-                checked={settings.cacheResults}
-                onCheckedChange={(checked) => updateSetting('cacheResults', checked)}
               />
             </div>
           </CardContent>

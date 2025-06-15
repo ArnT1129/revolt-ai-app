@@ -24,4 +24,5 @@ export interface Battery {
   issues?: BatteryIssue[];
   rawData?: any[];
   metrics?: BatteryMetrics;
+  notes?: string;
 }

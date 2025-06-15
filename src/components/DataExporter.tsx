@@ -52,8 +52,8 @@ export default function DataExporter({ batteries }: DataExporterProps) {
         break;
       
       case "xlsx":
-        // For now, export as CSV with .xlsx extension
-        exportContent = generateCSV(selectedData);
+        // Generate proper Excel format
+        exportContent = generateExcelContent(selectedData);
         filename = `battery-export-${new Date().toISOString().split('T')[0]}.xlsx`;
         mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         break;
@@ -77,47 +77,91 @@ export default function DataExporter({ batteries }: DataExporterProps) {
     URL.revokeObjectURL(url);
   };
 
-  const generateCSV = (data: Battery[]) => {
+  const generateExcelContent = (data: Battery[]) => {
+    // For proper Excel format, we'd use a library like SheetJS
+    // For now, generate XML format that Excel can read
+    let xmlContent = `<?xml version="1.0"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+<Worksheet ss:Name="Battery Data">
+<Table>`;
+
     const headers = [
-      "Battery ID",
-      "Grade",
-      "Status", 
-      "SoH (%)",
-      "RUL (cycles)",
-      "Total Cycles",
-      "Chemistry",
-      "Upload Date",
-      "Issues Count"
+      "Battery ID", "Grade", "Status", "SoH (%)", "RUL (cycles)", 
+      "Total Cycles", "Chemistry", "Upload Date", "Issues Count"
     ];
 
     if (includeAnalytics) {
-      headers.push("Degradation Rate", "Efficiency Score", "Risk Level");
+      headers.push("Energy Efficiency", "Power Fade Rate", "Internal Resistance", "Peak Power");
+    }
+
+    // Add header row
+    xmlContent += "<Row>";
+    headers.forEach(header => {
+      xmlContent += `<Cell><Data ss:Type="String">${header}</Data></Cell>`;
+    });
+    xmlContent += "</Row>";
+
+    // Add data rows
+    data.forEach(battery => {
+      xmlContent += "<Row>";
+      const row = [
+        battery.id, battery.grade, battery.status, battery.soh.toString(),
+        battery.rul.toString(), battery.cycles.toString(), battery.chemistry,
+        battery.uploadDate, (battery.issues?.length || 0).toString()
+      ];
+
+      if (includeAnalytics && battery.metrics) {
+        row.push(
+          battery.metrics.energyEfficiency.toFixed(1),
+          (battery.metrics.powerFadeRate * 100).toFixed(4),
+          battery.metrics.internalResistance.toFixed(1),
+          battery.metrics.peakPower.toFixed(0)
+        );
+      }
+
+      row.forEach(cell => {
+        xmlContent += `<Cell><Data ss:Type="String">${cell}</Data></Cell>`;
+      });
+      xmlContent += "</Row>";
+    });
+
+    xmlContent += "</Table></Worksheet></Workbook>";
+    return xmlContent;
+  };
+
+  const generateCSV = (data: Battery[]) => {
+    const settings = (window as any).batteryAnalysisSettings;
+    const decimalPlaces = settings?.decimalPlaces || 3;
+
+    const headers = [
+      "Battery ID", "Grade", "Status", "SoH (%)", "RUL (cycles)",
+      "Total Cycles", "Chemistry", "Upload Date", "Issues Count"
+    ];
+
+    if (includeAnalytics) {
+      headers.push("Energy Efficiency", "Power Fade Rate", "Internal Resistance", "Peak Power");
     }
 
     let csvContent = headers.join(",") + "\n";
 
     data.forEach(battery => {
       const row = [
-        battery.id,
-        battery.grade,
-        battery.status,
-        battery.soh.toString(),
-        battery.rul.toString(),
-        battery.cycles.toString(),
-        battery.chemistry,
-        battery.uploadDate,
+        battery.id, battery.grade, battery.status, 
+        battery.soh.toFixed(decimalPlaces), battery.rul.toString(),
+        battery.cycles.toString(), battery.chemistry, battery.uploadDate,
         (battery.issues?.length || 0).toString()
       ];
 
-      if (includeAnalytics) {
-        const degradationRate = battery.cycles > 0 ? (100 - battery.soh) / battery.cycles : 0;
-        const efficiencyScore = (battery.soh * 0.4) + (battery.rul / 50 * 0.3) + ((2000 - battery.cycles) / 20 * 0.3);
-        const riskLevel = battery.soh < 80 ? "High" : battery.soh < 90 ? "Medium" : "Low";
-        
+      if (includeAnalytics && battery.metrics) {
         row.push(
-          degradationRate.toFixed(4),
-          efficiencyScore.toFixed(2),
-          riskLevel
+          battery.metrics.energyEfficiency.toFixed(decimalPlaces),
+          (battery.metrics.powerFadeRate * 100).toFixed(decimalPlaces + 1),
+          battery.metrics.internalResistance.toFixed(decimalPlaces),
+          battery.metrics.peakPower.toFixed(0)
         );
       }
 
@@ -132,13 +176,11 @@ export default function DataExporter({ batteries }: DataExporterProps) {
         if (battery.rawData) {
           battery.rawData.forEach(dataPoint => {
             csvContent += [
-              battery.id,
-              dataPoint.cycle_number,
-              dataPoint.step_index,
-              dataPoint.voltage_V,
-              dataPoint.current_A,
-              dataPoint.capacity_mAh,
-              dataPoint.temperature_C || ""
+              battery.id, dataPoint.cycle_number, dataPoint.step_index,
+              dataPoint.voltage_V.toFixed(decimalPlaces), 
+              dataPoint.current_A.toFixed(decimalPlaces),
+              dataPoint.capacity_mAh.toFixed(decimalPlaces), 
+              dataPoint.temperature_C?.toFixed(decimalPlaces) || ""
             ].map(field => `"${field}"`).join(",") + "\n";
           });
         }

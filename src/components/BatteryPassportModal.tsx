@@ -35,17 +35,20 @@ const statusColor: Record<string, string> = {
 export default function BatteryPassportModal({ battery, isOpen, onClose, onSave }: BatteryPassportModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedBattery, setEditedBattery] = useState<Battery | null>(null);
+  const [notes, setNotes] = useState("");
 
   if (!battery) return null;
 
   const handleEdit = () => {
     setEditedBattery({ ...battery });
+    setNotes(battery.notes || "");
     setIsEditing(true);
   };
 
   const handleSave = () => {
     if (editedBattery) {
-      onSave(editedBattery);
+      const updatedBattery = { ...editedBattery, notes };
+      onSave(updatedBattery);
       setIsEditing(false);
       toast({
         title: "Battery Updated",
@@ -56,6 +59,7 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
 
   const handleCancel = () => {
     setEditedBattery(null);
+    setNotes("");
     setIsEditing(false);
   };
 
@@ -64,6 +68,21 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
       title: "Export Started",
       description: "Battery passport PDF is being generated...",
     });
+  };
+
+  const updateEditedBattery = (field: string, value: any) => {
+    if (editedBattery) {
+      setEditedBattery({ ...editedBattery, [field]: value });
+    }
+  };
+
+  const updateMetrics = (field: string, value: any) => {
+    if (editedBattery && editedBattery.metrics) {
+      setEditedBattery({
+        ...editedBattery,
+        metrics: { ...editedBattery.metrics, [field]: value }
+      });
+    }
   };
 
   const currentBattery = isEditing ? editedBattery! : battery;
@@ -113,7 +132,7 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
                   <Input
                     id="batteryId"
                     value={currentBattery.id}
-                    onChange={(e) => setEditedBattery({ ...currentBattery, id: e.target.value })}
+                    onChange={(e) => updateEditedBattery('id', e.target.value)}
                   />
                 ) : (
                   <p className="font-mono text-sm bg-muted p-2 rounded">{currentBattery.id}</p>
@@ -126,10 +145,12 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
                     id="chemistry"
                     className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
                     value={currentBattery.chemistry}
-                    onChange={(e) => setEditedBattery({ ...currentBattery, chemistry: e.target.value as "LFP" | "NMC" })}
+                    onChange={(e) => updateEditedBattery('chemistry', e.target.value)}
                   >
                     <option value="LFP">LFP</option>
                     <option value="NMC">NMC</option>
+                    <option value="LCO">LCO</option>
+                    <option value="NCA">NCA</option>
                   </select>
                 ) : (
                   <p className="font-semibold p-2">{currentBattery.chemistry}</p>
@@ -137,17 +158,43 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
               </div>
               <div>
                 <Label>Grade</Label>
-                <div className="mt-2">
-                  <Badge className={cn("text-white", gradeColor[currentBattery.grade])}>
-                    Grade {currentBattery.grade}
-                  </Badge>
-                </div>
+                {isEditing ? (
+                  <select
+                    className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
+                    value={currentBattery.grade}
+                    onChange={(e) => updateEditedBattery('grade', e.target.value)}
+                  >
+                    <option value="A">Grade A</option>
+                    <option value="B">Grade B</option>
+                    <option value="C">Grade C</option>
+                    <option value="D">Grade D</option>
+                  </select>
+                ) : (
+                  <div className="mt-2">
+                    <Badge className={cn("text-white", gradeColor[currentBattery.grade])}>
+                      Grade {currentBattery.grade}
+                    </Badge>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Status</Label>
-                <p className={cn("font-semibold mt-2", statusColor[currentBattery.status])}>
-                  {currentBattery.status}
-                </p>
+                {isEditing ? (
+                  <select
+                    className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
+                    value={currentBattery.status}
+                    onChange={(e) => updateEditedBattery('status', e.target.value)}
+                  >
+                    <option value="Healthy">Healthy</option>
+                    <option value="Degrading">Degrading</option>
+                    <option value="Critical">Critical</option>
+                    <option value="Unknown">Unknown</option>
+                  </select>
+                ) : (
+                  <p className={cn("font-semibold mt-2", statusColor[currentBattery.status])}>
+                    {currentBattery.status}
+                  </p>
+                )}
               </div>
             </div>
             <div>
@@ -165,20 +212,60 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-muted/50 p-4 rounded-lg">
                 <Label className="text-xs text-muted-foreground">State of Health</Label>
-                <p className="text-2xl font-bold">{currentBattery.soh.toFixed(1)}%</p>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={currentBattery.soh}
+                    onChange={(e) => updateEditedBattery('soh', parseFloat(e.target.value))}
+                    className="text-2xl font-bold h-auto p-1 mt-1"
+                  />
+                ) : (
+                  <p className="text-2xl font-bold">{currentBattery.soh.toFixed(1)}%</p>
+                )}
               </div>
               <div className="bg-muted/50 p-4 rounded-lg">
                 <Label className="text-xs text-muted-foreground">Remaining Useful Life</Label>
-                <p className="text-2xl font-bold">{currentBattery.rul}</p>
-                <p className="text-xs text-muted-foreground">cycles</p>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    value={currentBattery.rul}
+                    onChange={(e) => updateEditedBattery('rul', parseInt(e.target.value))}
+                    className="text-2xl font-bold h-auto p-1 mt-1"
+                  />
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold">{currentBattery.rul}</p>
+                    <p className="text-xs text-muted-foreground">cycles</p>
+                  </>
+                )}
               </div>
               <div className="bg-muted/50 p-4 rounded-lg">
                 <Label className="text-xs text-muted-foreground">Total Cycles</Label>
-                <p className="text-2xl font-bold">{currentBattery.cycles}</p>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    value={currentBattery.cycles}
+                    onChange={(e) => updateEditedBattery('cycles', parseInt(e.target.value))}
+                    className="text-2xl font-bold h-auto p-1 mt-1"
+                  />
+                ) : (
+                  <p className="text-2xl font-bold">{currentBattery.cycles}</p>
+                )}
               </div>
               <div className="bg-muted/50 p-4 rounded-lg">
                 <Label className="text-xs text-muted-foreground">Capacity Retention</Label>
-                <p className="text-2xl font-bold">{metrics?.capacityRetention?.toFixed(1) || 'N/A'}%</p>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={metrics?.capacityRetention || 0}
+                    onChange={(e) => updateMetrics('capacityRetention', parseFloat(e.target.value))}
+                    className="text-2xl font-bold h-auto p-1 mt-1"
+                  />
+                ) : (
+                  <p className="text-2xl font-bold">{metrics?.capacityRetention?.toFixed(1) || 'N/A'}%</p>
+                )}
               </div>
             </div>
           </div>
@@ -194,22 +281,67 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <Label className="text-xs text-muted-foreground">Energy Efficiency</Label>
-                  <p className="text-xl font-bold">{metrics.energyEfficiency.toFixed(1)}%</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={metrics.energyEfficiency}
+                      onChange={(e) => updateMetrics('energyEfficiency', parseFloat(e.target.value))}
+                      className="text-xl font-bold h-auto p-1 mt-1"
+                    />
+                  ) : (
+                    <p className="text-xl font-bold">{metrics.energyEfficiency.toFixed(1)}%</p>
+                  )}
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <Label className="text-xs text-muted-foreground">Power Fade Rate</Label>
-                  <p className="text-xl font-bold">{(metrics.powerFadeRate * 100).toFixed(2)}%</p>
-                  <p className="text-xs text-muted-foreground">per cycle</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      step="0.001"
+                      value={metrics.powerFadeRate}
+                      onChange={(e) => updateMetrics('powerFadeRate', parseFloat(e.target.value))}
+                      className="text-xl font-bold h-auto p-1 mt-1"
+                    />
+                  ) : (
+                    <>
+                      <p className="text-xl font-bold">{(metrics.powerFadeRate * 100).toFixed(2)}%</p>
+                      <p className="text-xs text-muted-foreground">per cycle</p>
+                    </>
+                  )}
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <Label className="text-xs text-muted-foreground">Internal Resistance</Label>
-                  <p className="text-xl font-bold">{metrics.internalResistance.toFixed(1)}</p>
-                  <p className="text-xs text-muted-foreground">mΩ</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={metrics.internalResistance}
+                      onChange={(e) => updateMetrics('internalResistance', parseFloat(e.target.value))}
+                      className="text-xl font-bold h-auto p-1 mt-1"
+                    />
+                  ) : (
+                    <>
+                      <p className="text-xl font-bold">{metrics.internalResistance.toFixed(1)}</p>
+                      <p className="text-xs text-muted-foreground">mΩ</p>
+                    </>
+                  )}
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <Label className="text-xs text-muted-foreground">Peak Power</Label>
-                  <p className="text-xl font-bold">{metrics.peakPower.toFixed(0)}</p>
-                  <p className="text-xs text-muted-foreground">W</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={metrics.peakPower}
+                      onChange={(e) => updateMetrics('peakPower', parseFloat(e.target.value))}
+                      className="text-xl font-bold h-auto p-1 mt-1"
+                    />
+                  ) : (
+                    <>
+                      <p className="text-xl font-bold">{metrics.peakPower.toFixed(0)}</p>
+                      <p className="text-xs text-muted-foreground">W</p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -320,10 +452,12 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
                 placeholder="Add any notes or observations about this battery..."
                 className="mt-2"
                 rows={4}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
               />
             ) : (
-              <div className="mt-2 p-3 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                No notes available. Click Edit to add observations.
+              <div className="mt-2 p-3 bg-muted/50 rounded-md text-sm">
+                {battery.notes || "No notes available. Click Edit to add observations."}
               </div>
             )}
           </div>
