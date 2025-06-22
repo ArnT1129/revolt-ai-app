@@ -2,22 +2,23 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Battery } from '@/types';
 
+// Update interface to match the actual database schema
 export interface UserBattery {
   id: string;
   user_id: string;
-  grade: 'A' | 'B' | 'C' | 'D';
-  status: 'Healthy' | 'Degrading' | 'Critical' | 'Unknown';
+  grade: string; // Changed from union type to string to match DB
+  status: string; // Changed from union type to string to match DB
   soh: number;
   rul: number;
   cycles: number;
-  chemistry: 'LFP' | 'NMC';
-  upload_date: string;
-  soh_history: any[];
-  issues: any[];
+  chemistry: string; // Changed from union type to string to match DB
+  upload_date: string | null;
+  soh_history: any;
+  issues: any;
   raw_data?: any;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
+  notes?: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export const batteryService = {
@@ -34,7 +35,7 @@ export const batteryService = {
       }
 
       // Transform database format to app format
-      return data.map(transformBatteryFromDB);
+      return (data || []).map(transformBatteryFromDB);
     } catch (error) {
       console.error('Error in getUserBatteries:', error);
       return [];
@@ -50,7 +51,7 @@ export const batteryService = {
 
       const { error } = await supabase
         .from('user_batteries')
-        .insert([dbBattery]);
+        .insert(dbBattery); // Insert single object, not array
 
       if (error) {
         console.error('Error adding battery:', error);
@@ -111,21 +112,21 @@ export const batteryService = {
 function transformBatteryFromDB(dbBattery: UserBattery): Battery {
   return {
     id: dbBattery.id,
-    grade: dbBattery.grade,
-    status: dbBattery.status,
+    grade: dbBattery.grade as 'A' | 'B' | 'C' | 'D', // Type assertion
+    status: dbBattery.status as 'Healthy' | 'Degrading' | 'Critical' | 'Unknown', // Type assertion
     soh: Number(dbBattery.soh),
     rul: dbBattery.rul,
     cycles: dbBattery.cycles,
-    chemistry: dbBattery.chemistry,
-    uploadDate: new Date(dbBattery.upload_date).toISOString().split('T')[0],
+    chemistry: dbBattery.chemistry as 'LFP' | 'NMC', // Type assertion
+    uploadDate: dbBattery.upload_date ? new Date(dbBattery.upload_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     sohHistory: dbBattery.soh_history || [],
     issues: dbBattery.issues || [],
     rawData: dbBattery.raw_data,
-    notes: dbBattery.notes
+    notes: dbBattery.notes || undefined
   };
 }
 
-function transformBatteryToDB(battery: Battery, userId: string): Partial<UserBattery> {
+function transformBatteryToDB(battery: Battery, userId: string): Omit<UserBattery, 'created_at' | 'updated_at'> {
   return {
     id: battery.id,
     user_id: userId,
@@ -135,9 +136,10 @@ function transformBatteryToDB(battery: Battery, userId: string): Partial<UserBat
     rul: battery.rul,
     cycles: battery.cycles,
     chemistry: battery.chemistry,
+    upload_date: battery.uploadDate,
     soh_history: battery.sohHistory || [],
     issues: battery.issues || [],
     raw_data: battery.rawData,
-    notes: battery.notes
+    notes: battery.notes || null
   };
 }
