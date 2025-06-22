@@ -8,11 +8,14 @@ import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom"
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Sidebar from "./components/Sidebar";
 import LiquidGlassAI from "./components/LiquidGlassAI";
 import LandingPageModal from "./components/LandingPageModal";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -56,15 +59,22 @@ function AppContent() {
       
       {/* Main content with higher z-index */}
       <div className="content-wrapper flex min-h-screen w-full relative z-[2]">
-        <Sidebar />
-        <div className="flex-1 flex flex-col">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <Sidebar />
+              <div className="flex-1 flex flex-col">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/upload" element={<Upload />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </div>
+            </ProtectedRoute>
+          } />
+        </Routes>
       </div>
 
       {/* Modal with highest z-index */}
@@ -79,13 +89,15 @@ function AppContent() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <SettingsProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppContent />
-        </BrowserRouter>
-      </SettingsProvider>
+      <AuthProvider>
+        <SettingsProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppContent />
+          </BrowserRouter>
+        </SettingsProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

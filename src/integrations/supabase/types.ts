@@ -402,6 +402,60 @@ export type Database = {
           },
         ]
       }
+      user_batteries: {
+        Row: {
+          chemistry: string
+          created_at: string | null
+          cycles: number
+          grade: string
+          id: string
+          issues: Json | null
+          notes: string | null
+          raw_data: Json | null
+          rul: number
+          soh: number
+          soh_history: Json | null
+          status: string
+          updated_at: string | null
+          upload_date: string | null
+          user_id: string
+        }
+        Insert: {
+          chemistry: string
+          created_at?: string | null
+          cycles: number
+          grade: string
+          id: string
+          issues?: Json | null
+          notes?: string | null
+          raw_data?: Json | null
+          rul: number
+          soh: number
+          soh_history?: Json | null
+          status: string
+          updated_at?: string | null
+          upload_date?: string | null
+          user_id: string
+        }
+        Update: {
+          chemistry?: string
+          created_at?: string | null
+          cycles?: number
+          grade?: string
+          id?: string
+          issues?: Json | null
+          notes?: string | null
+          raw_data?: Json | null
+          rul?: number
+          soh?: number
+          soh_history?: Json | null
+          status?: string
+          updated_at?: string | null
+          upload_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
