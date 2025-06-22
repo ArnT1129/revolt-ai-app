@@ -12,47 +12,6 @@ export default function Upload() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadedBatteries, setUploadedBatteries] = useState<Battery[]>([]);
 
-  const handleFileUpload = async (batteries: Battery[]) => {
-    setUploadStatus('uploading');
-    
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const battery of batteries) {
-        const success = await batteryService.addBattery(battery);
-        if (success) {
-          successCount++;
-        } else {
-          errorCount++;
-        }
-      }
-
-      if (errorCount === 0) {
-        setUploadStatus('success');
-        setUploadedBatteries(batteries);
-        toast({
-          title: "Upload successful!",
-          description: `Successfully uploaded ${successCount} batteries to your account.`,
-        });
-      } else {
-        setUploadStatus('error');
-        toast({
-          title: "Partial upload",
-          description: `${successCount} batteries uploaded successfully, ${errorCount} failed.`,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      setUploadStatus('error');
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload battery data. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const resetUpload = () => {
     setUploadStatus('idle');
     setUploadedBatteries([]);
@@ -84,10 +43,7 @@ export default function Upload() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <FileUploader
-                onUpload={handleFileUpload}
-                isUploading={uploadStatus === 'uploading'}
-              />
+              <FileUploader />
             </CardContent>
           </Card>
         ) : uploadStatus === 'success' ? (

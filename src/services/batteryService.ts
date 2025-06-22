@@ -41,7 +41,7 @@ export const batteryService = {
     }
   },
 
-  async addBattery(battery: Omit<Battery, 'uploadDate'>): Promise<boolean> {
+  async addBattery(battery: Battery): Promise<boolean> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
