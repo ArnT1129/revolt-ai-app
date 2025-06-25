@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Chrome, Battery } from 'lucide-react';
+import { Loader2, Battery } from 'lucide-react';
 
 export default function Auth() {
-  const { signIn, signUp, signInWithGoogle, user, loading } = useAuth();
+  const { signIn, signUp, user, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -76,32 +76,10 @@ export default function Auth() {
         });
       } else {
         toast({
-          title: "Account created!",
-          description: "You can now sign in with your credentials.",
+          title: "Account created successfully!",
+          description: "You are now signed in.",
         });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await signInWithGoogle();
-      
-      if (error) {
-        toast({
-          title: "Error with Google sign in",
-          description: error.message,
-          variant: "destructive",
-        });
+        // User will be automatically signed in due to the auth state change
       }
     } catch (error) {
       toast({
@@ -253,26 +231,6 @@ export default function Auth() {
               </form>
             </TabsContent>
           </Tabs>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-600" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-slate-400">Or continue with</span>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="w-full mt-4 glass-button"
-            >
-              <Chrome className="h-4 w-4 mr-2" />
-              Google
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
