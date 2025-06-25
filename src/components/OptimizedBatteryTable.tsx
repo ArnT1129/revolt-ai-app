@@ -14,15 +14,7 @@ import ManualBatteryModal from "./ManualBatteryModal";
 import IssueDetailViewer from "./IssueDetailViewer";
 import RootCauseAnalysis from "./RootCauseAnalysis";
 import { toast } from "@/hooks/use-toast";
-
-const mockData: Battery[] = [
-  { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 10, soh: 100 - i * 0.05 })) },
-  { id: "LFP-002B", grade: "B", status: "Degrading", soh: 92.5, rul: 820, cycles: 1180, chemistry: "LFP", uploadDate: "2025-06-12", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 50, soh: 98 - i * 0.3 })) },
-  { id: "NMC-003C", grade: "C", status: "Critical", soh: 84.3, rul: 210, cycles: 2400, chemistry: "NMC", uploadDate: "2025-06-10", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 100, soh: 95 - i * 0.6 })) },
-  { id: "LFP-004A", grade: "A", status: "Healthy", soh: 99.8, rul: 2800, cycles: 50, chemistry: "LFP", uploadDate: "2025-06-15", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 5, soh: 100 - i * 0.01 })) },
-  { id: "NMC-005B", grade: "B", status: "Healthy", soh: 95.2, rul: 1200, cycles: 800, chemistry: "NMC", uploadDate: "2025-06-13", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 40, soh: 99 - i * 0.2 })) },
-  { id: "LFP-006A", grade: "A", status: "Healthy", soh: 98.7, rul: 2100, cycles: 320, chemistry: "LFP", uploadDate: "2025-06-16", sohHistory: Array.from({ length: 20 }, (_, i) => ({ cycle: i * 16, soh: 100 - i * 0.08 })) },
-];
+import { batteryService } from "@/services/batteryService";
 
 const gradeColor: Record<BatteryGrade, string> = {
   A: "bg-green-500/80 hover:bg-green-500",
@@ -44,7 +36,8 @@ export default function OptimizedBatteryTable() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [viewingIssues, setViewingIssues] = useState<Battery | null>(null);
   const [viewingRootCause, setViewingRootCause] = useState<Battery | null>(null);
-  const [batteries, setBatteries] = useState<Battery[]>(mockData);
+  const [batteries, setBatteries] = useState<Battery[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
@@ -78,21 +71,18 @@ export default function OptimizedBatteryTable() {
     });
   }, [batteries, searchTerm, statusFilter, gradeFilter, sortBy, sortOrder]);
 
-  const updateBatteries = useCallback(() => {
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const combined = [...mockData];
-    
-    uploadedBatteries.forEach((uploadedBattery: Battery) => {
-      const existingIndex = combined.findIndex(b => b.id === uploadedBattery.id);
-      if (existingIndex >= 0) {
-        combined[existingIndex] = uploadedBattery;
-      } else {
-        combined.push(uploadedBattery);
-      }
-    });
-
-    setBatteries(combined);
-    return combined;
+  const updateBatteries = useCallback(async () => {
+    try {
+      setLoading(true);
+      const fetchedBatteries = await batteryService.getUserBatteries();
+      setBatteries(fetchedBatteries);
+      return fetchedBatteries;
+    } catch (error) {
+      console.error('Error fetching batteries:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -123,54 +113,59 @@ export default function OptimizedBatteryTable() {
     setIsModalOpen(true);
   }, []);
 
-  const handleDeleteBattery = useCallback((batteryId: string) => {
-    setBatteries(prev => prev.filter(battery => battery.id !== batteryId));
-    
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const updatedUploaded = uploadedBatteries.filter((b: Battery) => b.id !== batteryId);
-    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedUploaded));
-    
-    toast({
-      title: "Battery Deleted",
-      description: `Battery ${batteryId} has been removed from the system`,
-    });
-    
-    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-  }, []);
-
-  const handleAddManualBattery = useCallback((newBattery: Battery) => {
-    setBatteries(prev => [...prev, newBattery]);
-    
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    uploadedBatteries.push(newBattery);
-    localStorage.setItem('uploadedBatteries', JSON.stringify(uploadedBatteries));
-    
-    toast({
-      title: "Battery Added",
-      description: `Battery ${newBattery.id} has been added to the system`,
-    });
-    
-    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-  }, []);
-
-  const handleSaveBattery = useCallback((updatedBattery: Battery) => {
-    setBatteries(prev => 
-      prev.map(battery => 
-        battery.id === updatedBattery.id ? updatedBattery : battery
-      )
-    );
-    setSelectedBattery(updatedBattery);
-    
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const isUploaded = uploadedBatteries.some((b: Battery) => b.id === updatedBattery.id);
-    if (isUploaded) {
-      const updatedUploaded = uploadedBatteries.map((b: Battery) => 
-        b.id === updatedBattery.id ? updatedBattery : b
-      );
-      localStorage.setItem('uploadedBatteries', JSON.stringify(updatedUploaded));
+  const handleDeleteBattery = useCallback(async (batteryId: string) => {
+    const success = await batteryService.deleteBattery(batteryId);
+    if (success) {
+      setBatteries(prev => prev.filter(battery => battery.id !== batteryId));
+      toast({
+        title: "Battery Deleted",
+        description: `Battery ${batteryId} has been removed from the system`,
+      });
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete battery",
+        variant: "destructive"
+      });
     }
-    
-    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+  }, []);
+
+  const handleAddManualBattery = useCallback(async (newBattery: Battery) => {
+    const success = await batteryService.addBattery(newBattery);
+    if (success) {
+      setBatteries(prev => [...prev, newBattery]);
+      toast({
+        title: "Battery Added",
+        description: `Battery ${newBattery.id} has been added to the system`,
+      });
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to add battery",
+        variant: "destructive"
+      });
+    }
+  }, []);
+
+  const handleSaveBattery = useCallback(async (updatedBattery: Battery) => {
+    const success = await batteryService.updateBattery(updatedBattery);
+    if (success) {
+      setBatteries(prev => 
+        prev.map(battery => 
+          battery.id === updatedBattery.id ? updatedBattery : battery
+        )
+      );
+      setSelectedBattery(updatedBattery);
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to save battery",
+        variant: "destructive"
+      });
+    }
   }, []);
 
   const exportData = () => {
@@ -189,6 +184,19 @@ export default function OptimizedBatteryTable() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (loading) {
+    return (
+      <Card className="mb-6">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mr-3"></div>
+            <span className="text-white">Loading battery data...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (viewingRootCause) {
     return (

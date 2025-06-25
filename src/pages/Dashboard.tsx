@@ -7,10 +7,12 @@ import DataExporter from "@/components/DataExporter";
 import BatteryPassportModal from "@/components/BatteryPassportModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, BarChart3, GitCompare, Download, Activity, Zap } from "lucide-react";
+import { Upload, BarChart3, GitCompare, Download, Activity, Zap, LogOut } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
+import { batteryService } from "@/services/batteryService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,54 +20,43 @@ export default function Dashboard() {
   const [defaultView, setDefaultView] = useState("fleet");
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { user, signOut } = useAuth();
 
-  const updateBatteries = () => {
-    // Mock data with enhanced entries
-    const mockData: Battery[] = [
-      { id: "NMC-001A", grade: "A", status: "Healthy", soh: 99.1, rul: 1850, cycles: 150, chemistry: "NMC", uploadDate: "2025-06-14", sohHistory: [] },
-      { id: "LFP-002B", grade: "B", status: "Degrading", soh: 92.5, rul: 820, cycles: 1180, chemistry: "LFP", uploadDate: "2025-06-12", sohHistory: [] },
-      { id: "NMC-003C", grade: "C", status: "Critical", soh: 84.3, rul: 210, cycles: 2400, chemistry: "NMC", uploadDate: "2025-06-10", sohHistory: [] },
-      { id: "LFP-004A", grade: "A", status: "Healthy", soh: 99.8, rul: 2800, cycles: 50, chemistry: "LFP", uploadDate: "2025-06-15", sohHistory: [] },
-      { id: "NMC-005B", grade: "B", status: "Healthy", soh: 95.2, rul: 1200, cycles: 800, chemistry: "NMC", uploadDate: "2025-06-13", sohHistory: [] },
-      { id: "LFP-006A", grade: "A", status: "Healthy", soh: 98.7, rul: 2100, cycles: 320, chemistry: "LFP", uploadDate: "2025-06-16", sohHistory: [] },
-    ];
-
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const combined = [...mockData];
-    
-    uploadedBatteries.forEach((uploadedBattery: Battery) => {
-      const existingIndex = combined.findIndex(b => b.id === uploadedBattery.id);
-      if (existingIndex >= 0) {
-        combined[existingIndex] = uploadedBattery;
-      } else {
-        combined.push(uploadedBattery);
-      }
-    });
-
-    setAllBatteries(combined);
-    return combined;
+  const updateBatteries = async () => {
+    try {
+      setLoading(true);
+      const batteries = await batteryService.getUserBatteries();
+      setAllBatteries(batteries);
+      return batteries;
+    } catch (error) {
+      console.error('Error fetching batteries:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveBattery = (updatedBattery: Battery) => {
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const updatedBatteries = uploadedBatteries.map((battery: Battery) =>
-      battery.id === updatedBattery.id ? updatedBattery : battery
-    );
-    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedBatteries));
+  const handleSaveBattery = async (updatedBattery: Battery) => {
+    const success = await batteryService.updateBattery(updatedBattery);
+    if (success) {
+      setSelectedBattery(updatedBattery);
+      setIsPassportOpen(false);
+      await updateBatteries();
+    }
+  };
 
-    setSelectedBattery(updatedBattery);
-    setIsPassportOpen(false);
-    
-    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   useEffect(() => {
-    const batteries = updateBatteries();
+    updateBatteries();
 
     // Check if there's a battery ID in the URL
     const batteryId = searchParams.get('battery');
-    if (batteryId) {
-      const battery = batteries.find(b => b.id === batteryId);
+    if (batteryId && allBatteries.length > 0) {
+      const battery = allBatteries.find(b => b.id === batteryId);
       if (battery) {
         setSelectedBattery(battery);
         setIsPassportOpen(true);
@@ -103,6 +94,17 @@ export default function Dashboard() {
     };
   }, [searchParams, setSearchParams]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white">Loading your battery data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -120,14 +122,27 @@ export default function Dashboard() {
               <Zap className="h-4 w-4 text-blue-400" />
               <span>AI-Powered Analytics</span>
             </div>
+            <div className="flex items-center gap-1">
+              <span className="text-slate-300">Welcome, {user?.email}</span>
+            </div>
           </div>
         </div>
-        <Link to="/upload">
-          <Button className="glass-button border-blue-500/40 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Data
+        <div className="flex items-center gap-3">
+          <Link to="/upload">
+            <Button className="glass-button border-blue-500/40 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Data
+            </Button>
+          </Link>
+          <Button 
+            onClick={handleSignOut}
+            variant="outline" 
+            className="glass-button border-red-500/40 hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
           </Button>
-        </Link>
+        </div>
       </div>
       
       <DashboardStats />
@@ -137,7 +152,7 @@ export default function Dashboard() {
           <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10 mb-6">
             <TabsTrigger value="fleet" className="flex items-center gap-2 transition-all duration-200">
               <Activity className="h-4 w-4" />
-              Fleet
+              Fleet ({allBatteries.length})
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2 transition-all duration-200">
               <BarChart3 className="h-4 w-4" />

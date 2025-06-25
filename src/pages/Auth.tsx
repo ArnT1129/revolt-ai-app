@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Chrome } from 'lucide-react';
+import { Loader2, Chrome, Battery } from 'lucide-react';
 
 export default function Auth() {
   const { signIn, signUp, signInWithGoogle, user, loading } = useAuth();
@@ -77,7 +77,7 @@ export default function Auth() {
       } else {
         toast({
           title: "Account created!",
-          description: "Please check your email to verify your account.",
+          description: "You can now sign in with your credentials.",
         });
       }
     } catch (error) {
@@ -116,14 +116,22 @@ export default function Auth() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background relative">
+        {/* Aurora Background */}
+        <div className="aurora-background">
+          <div className="aurora one"></div>
+          <div className="aurora two"></div>
+          <div className="aurora three"></div>
+        </div>
+        <div className="relative z-10">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background relative px-4">
       {/* Aurora Background */}
       <div className="aurora-background">
         <div className="aurora one"></div>
@@ -131,10 +139,22 @@ export default function Auth() {
         <div className="aurora three"></div>
       </div>
 
-      <Card className="w-full max-w-md mx-4 enhanced-card relative z-10">
+      {/* Brand Header */}
+      <div className="text-center mb-8 relative z-10">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <Battery className="h-12 w-12 text-blue-400" />
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+            ReVolt
+          </h1>
+        </div>
+        <p className="text-slate-300 text-lg">Universal Battery Intelligence Platform</p>
+        <p className="text-slate-400 text-sm mt-2">Advanced Analytics & Diagnostics for Battery Management</p>
+      </div>
+
+      <Card className="w-full max-w-md mx-auto enhanced-card relative z-10">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-white">Battery Analytics Platform</CardTitle>
-          <p className="text-slate-400">Sign in to manage your battery fleet</p>
+          <CardTitle className="text-2xl font-bold text-white">Welcome</CardTitle>
+          <p className="text-slate-400">Sign in to access your battery fleet</p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
@@ -255,6 +275,12 @@ export default function Auth() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Footer */}
+      <div className="mt-8 text-center text-slate-400 text-sm relative z-10">
+        <p>© 2025 ReVolt - Battery Intelligence Platform</p>
+        <p className="mt-1">Powered by Advanced Analytics & AI</p>
+      </div>
     </div>
   );
 }

@@ -1,342 +1,305 @@
-import { useState, useCallback } from 'react';
+
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, CheckCircle2, AlertCircle, Eye } from "lucide-react";
-import { Battery } from "@/types";
-import { BatteryDataParser } from "@/services/batteryDataParser";
-import BatteryPassportModal from "@/components/BatteryPassportModal";
-import { batteryAnalytics } from "@/services/batteryAnalytics";
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { ImprovedBatteryDataParser } from '@/services/improvedBatteryDataParser';
+import { batteryService } from '@/services/batteryService';
+
+interface UploadResult {
+  fileName: string;
+  batteriesCount: number;
+  errors: string[];
+  status: 'success' | 'error' | 'partial';
+}
 
 export default function FileUploader() {
-  const navigate = useNavigate();
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<any[]>([]);
-  const [metadata, setMetadata] = useState<any>(null);
-  const [batteryAnalysis, setBatteryAnalysis] = useState<Battery | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [results, setResults] = useState<UploadResult[]>([]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    setFile(file);
-    setError(null);
-  }, []);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+    setUploading(true);
+    setUploadProgress(0);
+    setResults([]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFile(file);
-      setError(null);
+    const totalFiles = acceptedFiles.length;
+    let processedFiles = 0;
+
+    for (const file of acceptedFiles) {
+      try {
+        console.log(`Processing file: ${file.name}`);
+        
+        // Parse the file
+        const { batteries, errors } = await ImprovedBatteryDataParser.parseFile(file);
+        
+        let successCount = 0;
+        const uploadErrors: string[] = [...errors];
+
+        // Upload batteries to database
+        if (batteries.length > 0) {
+          for (const battery of batteries) {
+            try {
+              const success = await batteryService.addBattery(battery);
+              if (success) {
+                successCount++;
+              } else {
+                uploadErrors.push(`Failed to save battery ${battery.id}`);
+              }
+            } catch (error) {
+              uploadErrors.push(`Error saving battery ${battery.id}: ${error}`);
+            }
+          }
+        }
+
+        // Determine result status
+        let status: 'success' | 'error' | 'partial' = 'error';
+        if (successCount === batteries.length && uploadErrors.length === 0) {
+          status = 'success';
+        } else if (successCount > 0) {
+          status = 'partial';
+        }
+
+        setResults(prev => [...prev, {
+          fileName: file.name,
+          batteriesCount: successCount,
+          errors: uploadErrors,
+          status
+        }]);
+
+        if (status === 'success') {
+          toast({
+            title: "File processed successfully",
+            description: `${successCount} batteries uploaded from ${file.name}`,
+          });
+        } else if (status === 'partial') {
+          toast({
+            title: "File partially processed",
+            description: `${successCount} of ${batteries.length} batteries uploaded from ${file.name}`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "File processing failed",
+            description: `Failed to process ${file.name}`,
+            variant: "destructive"
+          });
+        }
+
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        setResults(prev => [...prev, {
+          fileName: file.name,
+          batteriesCount: 0,
+          errors: [`Failed to process file: ${error}`],
+          status: 'error'
+        }]);
+        
+        toast({
+          title: "File processing error",
+          description: `Error processing ${file.name}: ${error}`,
+          variant: "destructive"
+        });
+      }
+
+      processedFiles++;
+      setUploadProgress((processedFiles / totalFiles) * 100);
     }
-  };
 
-  const applyDataProcessingSettings = (data: any[]): any[] => {
-    const settings = (window as any).batteryAnalysisSettings;
-    if (!settings) return data;
-
-    let processedData = [...data];
-
-    // Apply outlier removal
-    if (settings.outlierRemoval) {
-      processedData = removeOutliers(processedData);
-    }
-
-    // Apply data smoothing
-    if (settings.smoothingEnabled) {
-      processedData = applySmoothingFilter(processedData);
-    }
-
-    return processedData;
-  };
-
-  const removeOutliers = (data: any[]): any[] => {
-    // Simple outlier removal using IQR method for voltage and current
-    const voltages = data.map(d => d.voltage_V).filter(v => v != null);
-    const currents = data.map(d => d.current_A).filter(c => c != null);
-
-    const getIQRBounds = (values: number[]) => {
-      const sorted = [...values].sort((a, b) => a - b);
-      const q1 = sorted[Math.floor(sorted.length * 0.25)];
-      const q3 = sorted[Math.floor(sorted.length * 0.75)];
-      const iqr = q3 - q1;
-      return {
-        lower: q1 - 1.5 * iqr,
-        upper: q3 + 1.5 * iqr
-      };
-    };
-
-    const voltageBounds = getIQRBounds(voltages);
-    const currentBounds = getIQRBounds(currents);
-
-    return data.filter(d => {
-      const voltageOk = d.voltage_V >= voltageBounds.lower && d.voltage_V <= voltageBounds.upper;
-      const currentOk = d.current_A >= currentBounds.lower && d.current_A <= currentBounds.upper;
-      return voltageOk && currentOk;
-    });
-  };
-
-  const applySmoothingFilter = (data: any[]): any[] => {
-    // Simple moving average smoothing for voltage and current
-    const windowSize = 5;
-    const smoothed = [...data];
-
-    for (let i = windowSize; i < data.length - windowSize; i++) {
-      const voltageWindow = data.slice(i - windowSize, i + windowSize + 1).map(d => d.voltage_V);
-      const currentWindow = data.slice(i - windowSize, i + windowSize + 1).map(d => d.current_A);
-      
-      smoothed[i].voltage_V = voltageWindow.reduce((a, b) => a + b, 0) / voltageWindow.length;
-      smoothed[i].current_A = currentWindow.reduce((a, b) => a + b, 0) / currentWindow.length;
-    }
-
-    return smoothed;
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      setError("Please select a file to upload.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, metadata } = await BatteryDataParser.parseFile(file);
-      
-      // Apply data processing settings
-      const processedData = applyDataProcessingSettings(data);
-      
-      setParsedData(processedData);
-      setMetadata(metadata);
-      const battery = analyzeBatteryData(processedData, metadata);
-      setBatteryAnalysis(battery);
-
-      // Store the uploaded battery data in local storage
-      const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-      uploadedBatteries.push(battery);
-      localStorage.setItem('uploadedBatteries', JSON.stringify(uploadedBatteries));
-
-      // Trigger dashboard update
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-
-      // Auto-open passport for manual editing
-      setIsModalOpen(true);
-
-    } catch (e: any) {
-      console.error("Upload Error:", e);
-      setError(e.message || "An error occurred during file processing.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const analyzeBatteryData = (parsedData: any[], metadata: any): Battery => {
-    console.log('Analyzing battery data with', parsedData.length, 'data points');
-    
-    // Use analytics service for accurate calculations
-    const sohHistory = batteryAnalytics.generateSoHHistory(parsedData);
-    const currentSoH = batteryAnalytics.calculateSoH(parsedData);
-    const degradationRate = batteryAnalytics.calculateDegradationRate(sohHistory);
-    const rul = batteryAnalytics.calculateRUL(sohHistory, currentSoH);
-    const totalCycles = metadata.totalCycles || Math.max(...parsedData.map(d => d.cycle_number));
-    const grade = batteryAnalytics.calculateGrade(currentSoH, rul, totalCycles);
-    const status = batteryAnalytics.calculateStatus(currentSoH, degradationRate);
-
-    const battery: Battery = {
-      id: `BAT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      grade,
-      status,
-      soh: Math.round(currentSoH * 10) / 10,
-      rul,
-      cycles: totalCycles,
-      chemistry: metadata.chemistry === 'LFP' ? 'LFP' : 'NMC',
-      uploadDate: new Date().toLocaleDateString(),
-      sohHistory: sohHistory.map(point => ({
-        ...point,
-        soh: Math.round(point.soh * 10) / 10
-      })),
-      rawData: parsedData
-    };
-
-    // Analyze issues and calculate advanced metrics
-    battery.issues = batteryAnalytics.analyzeIssues(battery, parsedData);
-    battery.metrics = batteryAnalytics.calculateAdvancedMetrics(battery, parsedData);
-
-    console.log('Generated battery analysis:', battery);
-    return battery;
-  };
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleSaveBattery = (updatedBattery: Battery) => {
-    const uploadedBatteries = JSON.parse(localStorage.getItem('uploadedBatteries') || '[]');
-    const updatedBatteries = uploadedBatteries.map((battery: Battery) =>
-      battery.id === updatedBattery.id ? updatedBattery : battery
-    );
-    localStorage.setItem('uploadedBatteries', JSON.stringify(updatedBatteries));
-
-    setBatteryAnalysis(updatedBattery);
-    setIsModalOpen(false);
-    
+    // Trigger data refresh
     window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-  };
-
-  const handleViewOnDashboard = () => {
-    if (batteryAnalysis) {
-      // Navigate to dashboard with battery ID to open passport
-      navigate(`/?battery=${batteryAnalysis.id}`);
+    
+    setUploading(false);
+    
+    const totalSuccess = results.reduce((sum, r) => sum + r.batteriesCount, 0);
+    if (totalSuccess > 0) {
+      toast({
+        title: "Upload completed",
+        description: `Successfully uploaded ${totalSuccess} batteries total`,
+      });
     }
+  }, [results]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'text/csv': ['.csv'],
+      'application/json': ['.json'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'text/plain': ['.txt']
+    },
+    maxSize: 500 * 1024 * 1024, // 500MB limit
+    disabled: uploading
+  });
+
+  const clearResults = () => {
+    setResults([]);
+    setUploadProgress(0);
   };
 
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Battery Data</CardTitle>
-          <CardDescription>
-            Upload a CSV or XLSX file containing battery cycle data to analyze its health and performance.
-            Files of any size are supported.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {/* File Uploader */}
-            <div {...getRootProps()} className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-md cursor-pointer">
-              <input {...getInputProps()} onChange={handleFileChange} />
+    <div className="space-y-6">
+      {/* Drag and Drop Area */}
+      <Card className="border-dashed border-2 border-slate-600 hover:border-slate-500 transition-colors">
+        <CardContent className="p-8">
+          <div
+            {...getRootProps()}
+            className={`text-center cursor-pointer transition-all duration-200 ${
+              isDragActive ? 'scale-105' : ''
+            } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <input {...getInputProps()} />
+            <div className="flex flex-col items-center gap-4">
+              <div className="p-4 rounded-full bg-blue-500/20 border border-blue-500/30">
+                <Upload className="h-8 w-8 text-blue-400" />
+              </div>
+              
               {isDragActive ? (
-                <p className="text-center">Drop the files here ...</p>
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Drop files here</h3>
+                  <p className="text-slate-400">Release to upload your battery data files</p>
+                </div>
               ) : (
-                <div className="text-center">
-                  <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">Select a file or drag and drop here</p>
-                  <p className="text-xs text-muted-foreground mt-1">No size limit - any file size supported</p>
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Upload Battery Data Files</h3>
+                  <p className="text-slate-400 mb-4">
+                    Drag & drop files here, or click to select files
+                  </p>
+                  <Button variant="outline" className="glass-button" disabled={uploading}>
+                    Select Files
+                  </Button>
                 </div>
               )}
             </div>
-
-            {/* Selected File */}
-            {file && (
-              <div className="flex items-center space-x-4">
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
-                <div>
-                  <p className="text-sm font-medium">Selected File:</p>
-                  <p className="text-sm text-muted-foreground">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Upload Button */}
-            <Button onClick={handleUpload} disabled={isLoading}>
-              {isLoading ? "Analyzing..." : "Analyze Battery Data"}
-            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Battery Analysis Result */}
-      {batteryAnalysis && (
-        <div className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Battery Analysis Result</CardTitle>
-              <CardDescription>
-                Here are the key metrics and insights derived from the uploaded battery data.
-                <div className="flex gap-2 mt-2">
-                  <Button onClick={handleOpenModal} size="sm">View Passport</Button>
-                  <Button onClick={handleViewOnDashboard} size="sm" variant="outline">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View on Dashboard
-                  </Button>
-                </div>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Battery ID</Label>
-                  <Input type="text" value={batteryAnalysis.id} readOnly />
-                </div>
-                <div>
-                  <Label>Grade</Label>
-                  <Input type="text" value={batteryAnalysis.grade} readOnly />
-                </div>
-                <div>
-                  <Label>State of Health (SoH)</Label>
-                  <Input type="text" value={`${batteryAnalysis.soh}%`} readOnly />
-                </div>
-                <div>
-                  <Label>Remaining Useful Life (RUL)</Label>
-                  <Input type="text" value={batteryAnalysis.rul} readOnly />
-                </div>
-                <div>
-                  <Label>Total Cycles</Label>
-                  <Input type="text" value={batteryAnalysis.cycles} readOnly />
-                </div>
-                <div>
-                  <Label>Chemistry</Label>
-                  <Input type="text" value={batteryAnalysis.chemistry} readOnly />
-                </div>
+      {/* Upload Progress */}
+      {uploading && (
+        <Card className="enhanced-card">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-white">Processing Files...</h4>
+                <span className="text-sm text-slate-400">{Math.round(uploadProgress)}%</span>
               </div>
-              
-              {batteryAnalysis.issues && batteryAnalysis.issues.length > 0 && (
-                <div className="mt-4">
-                  <Label className="text-base font-semibold">Issues Detected: {batteryAnalysis.issues.length}</Label>
-                  <div className="grid gap-2 mt-2">
-                    {batteryAnalysis.issues.slice(0, 3).map((issue) => (
-                      <Alert key={issue.id} variant={issue.severity === 'Critical' ? 'destructive' : 'default'}>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>{issue.title}</AlertTitle>
-                        <AlertDescription>{issue.description}</AlertDescription>
-                      </Alert>
-                    ))}
-                    {batteryAnalysis.issues.length > 3 && (
-                      <p className="text-sm text-muted-foreground">
-                        +{batteryAnalysis.issues.length - 3} more issues. View full details in Battery Passport.
-                      </p>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Results */}
+      {results.length > 0 && (
+        <Card className="enhanced-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-medium text-white">Upload Results</h4>
+              <Button variant="ghost" size="sm" onClick={clearResults}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {results.map((result, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                  <div className="flex-shrink-0 mt-0.5">
+                    {result.status === 'success' ? (
+                      <CheckCircle className="h-5 w-5 text-green-400" />
+                    ) : result.status === 'partial' ? (
+                      <AlertCircle className="h-5 w-5 text-yellow-400" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-red-400" />
+                    )}
+                  </div>
+                  
+                  <div className="flex-grow min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText className="h-4 w-4 text-slate-400" />
+                      <span className="font-medium text-white truncate">{result.fileName}</span>
+                    </div>
+                    
+                    <p className="text-sm text-slate-300 mb-2">
+                      {result.batteriesCount > 0 
+                        ? `${result.batteriesCount} batteries uploaded successfully`
+                        : 'No batteries uploaded'
+                      }
+                    </p>
+                    
+                    {result.errors.length > 0 && (
+                      <div className="text-sm text-red-400">
+                        <p className="font-medium mb-1">{result.errors.length} error(s):</p>
+                        <ul className="list-disc list-inside space-y-1 max-h-24 overflow-y-auto">
+                          {result.errors.slice(0, 5).map((error, i) => (
+                            <li key={i} className="text-xs">{error}</li>
+                          ))}
+                          {result.errors.length > 5 && (
+                            <li className="text-xs">... and {result.errors.length - 5} more</li>
+                          )}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              ))}
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">
+                  Total batteries uploaded: {results.reduce((sum, r) => sum + r.batteriesCount, 0)}
+                </span>
+                <span className="text-slate-400">
+                  Files processed: {results.length}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Battery Passport Modal */}
-      {batteryAnalysis && (
-        <BatteryPassportModal
-          battery={batteryAnalysis}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onSave={handleSaveBattery}
-        />
-      )}
+      {/* Supported Formats Info */}
+      <Card className="enhanced-card">
+        <CardContent className="p-6">
+          <h4 className="font-medium text-white mb-3">Supported File Formats</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <h5 className="font-medium text-slate-300 mb-2">File Types</h5>
+              <ul className="space-y-1 text-slate-400">
+                <li>• CSV files (.csv)</li>
+                <li>• JSON files (.json)</li>
+                <li>• Excel files (.xlsx, .xls)</li>
+                <li>• Text files (.txt)</li>
+              </ul>
+            </div>
+            <div>
+              <h5 className="font-medium text-slate-300 mb-2">Data Fields</h5>
+              <ul className="space-y-1 text-slate-400">
+                <li>• Battery ID/Identifier</li>
+                <li>• State of Health (SoH)</li>
+                <li>• Remaining Useful Life (RUL)</li>
+                <li>• Cycle Count</li>
+                <li>• Voltage, Current, Temperature</li>
+                <li>• Chemistry (LFP, NMC)</li>
+              </ul>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <p className="text-sm text-blue-300">
+              <strong>Large File Support:</strong> The parser can handle files up to 500MB with advanced 
+              chunking and auto-detection of data formats. Missing fields will be automatically calculated 
+              or estimated based on available data.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
