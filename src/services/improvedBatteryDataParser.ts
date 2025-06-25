@@ -1,6 +1,6 @@
-
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { BatteryIssue } from '@/services/issueAnalysis';
 
 export interface ParsedBatteryData {
   id: string;
@@ -12,11 +12,7 @@ export interface ParsedBatteryData {
   status: 'Healthy' | 'Degrading' | 'Critical' | 'Unknown';
   uploadDate: string; // Changed to string to match Battery interface
   sohHistory: Array<{ cycle: number; soh: number }>;
-  issues: Array<{ 
-    type: 'Safety' | 'Performance' | 'Maintenance';
-    description: string;
-    severity: 'Low' | 'Medium' | 'High' | 'Critical';
-  }>;
+  issues: BatteryIssue[]; // Updated to use proper BatteryIssue type
   rawData: any[];
   notes?: string;
 }
@@ -267,34 +263,51 @@ export class ImprovedBatteryDataParser {
     return history.length > 0 ? history : [{ cycle: 0, soh: finalSoH }];
   }
 
-  private static analyzeIssues(soh: number, rul: number, cycles: number) {
-    const issues: Array<{ 
-      type: 'Safety' | 'Performance' | 'Maintenance';
-      description: string;
-      severity: 'Low' | 'Medium' | 'High' | 'Critical';
-    }> = [];
+  private static analyzeIssues(soh: number, rul: number, cycles: number): BatteryIssue[] {
+    const issues: BatteryIssue[] = [];
 
     if (soh < 75) {
       issues.push({
-        type: 'Safety',
+        id: `issue-${Date.now()}-1`,
+        category: 'Safety',
+        title: 'Low State of Health',
         description: 'Low State of Health detected - battery approaching end of life',
-        severity: 'Critical'
+        severity: 'Critical',
+        cause: 'Battery degradation due to aging and cycling',
+        recommendation: 'Replace battery soon to avoid safety risks',
+        solution: 'Battery replacement recommended',
+        resolved: false,
+        affectedMetrics: ['soh']
       });
     }
 
     if (rul < 200) {
       issues.push({
-        type: 'Performance',
+        id: `issue-${Date.now()}-2`,
+        category: 'Performance',
+        title: 'Critical RUL',
         description: 'Remaining Useful Life is critically low',
-        severity: 'Critical'
+        severity: 'Critical',
+        cause: 'Advanced battery degradation',
+        recommendation: 'Plan for immediate replacement',
+        solution: 'Schedule battery replacement',
+        resolved: false,
+        affectedMetrics: ['rul']
       });
     }
 
     if (cycles > 2000) {
       issues.push({
-        type: 'Maintenance',
+        id: `issue-${Date.now()}-3`,
+        category: 'Maintenance',
+        title: 'High Cycle Count',
         description: 'High cycle count - monitor for accelerated degradation',
-        severity: 'Medium'
+        severity: 'Warning',
+        cause: 'Extensive battery usage over time',
+        recommendation: 'Increase monitoring frequency',
+        solution: 'Enhanced monitoring protocol',
+        resolved: false,
+        affectedMetrics: ['cycles']
       });
     }
 
