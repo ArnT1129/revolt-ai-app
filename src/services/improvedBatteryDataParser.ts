@@ -20,6 +20,11 @@ export interface ParsedBatteryData {
   notes?: string;
 }
 
+export interface ParseResult {
+  batteries: ParsedBatteryData[];
+  errors: string[];
+}
+
 interface RawDataPoint {
   cycle?: number;
   voltage?: number;
@@ -42,7 +47,7 @@ export class ImprovedBatteryDataParser {
     soh: ['soh', 'state_of_health', 'health', 'capacity_retention', 'soh_percent']
   };
 
-  static async parseFile(file: File): Promise<ParsedBatteryData> {
+  static async parseFile(file: File): Promise<ParseResult> {
     try {
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
       let rawData: RawDataPoint[] = [];
@@ -64,10 +69,18 @@ export class ImprovedBatteryDataParser {
           rawData = await this.parseCSV(file);
       }
 
-      return this.processBatteryData(rawData, file.name);
+      const batteryData = this.processBatteryData(rawData, file.name);
+      
+      return {
+        batteries: [batteryData], // Return as array
+        errors: []
+      };
     } catch (error) {
       console.error('Error parsing file:', error);
-      throw new Error(`Failed to parse file: ${error}`);
+      return {
+        batteries: [],
+        errors: [`Failed to parse file: ${error}`]
+      };
     }
   }
 
@@ -77,12 +90,6 @@ export class ImprovedBatteryDataParser {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
-        chunk: (results) => {
-          // Process in chunks for large files
-          if (results.errors.length > 0) {
-            console.warn('CSV parsing warnings:', results.errors);
-          }
-        },
         complete: (results) => {
           if (results.errors.length > 0) {
             console.warn('CSV parsing completed with errors:', results.errors);
@@ -116,19 +123,21 @@ export class ImprovedBatteryDataParser {
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     
-    return XLSX.utils.sheet_to_json(worksheet, { 
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
       header: 1,
       defval: null
-    }).slice(1).map((row: any[]) => {
+    });
+    
+    if (jsonData.length === 0) return [];
+    
+    const headers = jsonData[0] as string[];
+    return jsonData.slice(1).map((row: any[]) => {
       const obj: RawDataPoint = {};
-      const headers = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as string[];
-      
       headers.forEach((header, index) => {
         if (row[index] !== null && row[index] !== undefined) {
           obj[header.toLowerCase().replace(/\s+/g, '_')] = row[index];
         }
       });
-      
       return obj;
     });
   }
@@ -147,7 +156,7 @@ export class ImprovedBatteryDataParser {
         
         if (matchingKey) {
           const originalKey = Object.keys(item).find(k => k.toLowerCase() === matchingKey);
-          if (originalKey && typeof item[originalKey] === 'number') {
+          if (originalKey && typeof item[originalKey] === 'number' && !isNaN(item[originalKey])) {
             values.push(item[originalKey]);
             break;
           }
@@ -246,7 +255,7 @@ export class ImprovedBatteryDataParser {
     const history: Array<{ cycle: number; soh: number }> = [];
     const maxCapacity = Math.max(...capacityData);
     
-    for (let i = 0; i < Math.min(cycleData.length, capacityData.length); i += Math.floor(cycleData.length / 20) || 1) {
+    for (let i = 0; i < Math.min(cycleData.length, capacityData.length); i += Math.floor(cycleData.length / 50) || 1) {
       const soh = (capacityData[i] / maxCapacity) * 100;
       history.push({
         cycle: cycleData[i],
@@ -295,7 +304,6 @@ export class ImprovedBatteryDataParser {
     // Extract key metrics from raw data
     const capacityData = this.mapField(rawData, 'capacity');
     const cycleData = this.mapField(rawData, 'cycle');
-    const voltageData = this.mapField(rawData, 'voltage');
     
     // Calculate metrics
     const soh = this.calculateSoH(capacityData);
