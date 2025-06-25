@@ -1,3 +1,4 @@
+
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -9,7 +10,7 @@ export interface ParsedBatteryData {
   chemistry: 'LFP' | 'NMC';
   grade: 'A' | 'B' | 'C' | 'D';
   status: 'Healthy' | 'Degrading' | 'Critical' | 'Unknown';
-  uploadDate: Date; // Added this to match Battery interface
+  uploadDate: string; // Changed to string to match Battery interface
   sohHistory: Array<{ cycle: number; soh: number }>;
   issues: Array<{ 
     type: 'Safety' | 'Performance' | 'Maintenance';
@@ -326,7 +327,7 @@ export class ImprovedBatteryDataParser {
       chemistry,
       grade,
       status,
-      uploadDate: new Date(), // Added uploadDate property
+      uploadDate: new Date().toISOString().split('T')[0], // Convert to string format
       sohHistory,
       issues,
       rawData: rawData.slice(0, 1000), // Limit stored raw data for performance
