@@ -1,249 +1,221 @@
+import { Battery, BatteryGrade, BatteryStatus, BatteryIssue } from "@/types";
 
-import { supabase } from '@/integrations/supabase/client';
-import { Battery } from '@/types';
+const MOCK_BATTERIES: Battery[] = [
+  {
+    id: "NMC-001A",
+    grade: "A",
+    status: "Healthy",
+    soh: 99.1,
+    rul: 1850,
+    cycles: 150,
+    chemistry: "NMC",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 50, soh: 99.8 },
+      { cycle: 100, soh: 99.5 },
+      { cycle: 150, soh: 99.1 }
+    ],
+    issues: [],
+    notes: "New high-performance NMC battery with excellent health metrics"
+  },
+  {
+    id: "LFP-002B",
+    grade: "B",
+    status: "Degrading",
+    soh: 92.5,
+    rul: 820,
+    cycles: 1180,
+    chemistry: "LFP",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 500, soh: 97.2 },
+      { cycle: 1000, soh: 94.1 },
+      { cycle: 1180, soh: 92.5 }
+    ],
+    issues: [
+      {
+        id: "issue-1",
+        category: "Performance",
+        title: "Gradual Capacity Loss",
+        description: "Battery showing signs of gradual capacity degradation",
+        severity: "Warning",
+        cause: "Normal aging process accelerated by frequent deep cycles",
+        recommendation: "Monitor closely and consider replacement planning",
+        solution: "Implement gentler charging profile",
+        affectedMetrics: ["soh", "rul"]
+      }
+    ],
+    notes: "LFP battery with moderate degradation - monitor performance"
+  },
+  {
+    id: "NMC-003C",
+    grade: "C",
+    status: "Critical",
+    soh: 84.3,
+    rul: 210,
+    cycles: 2400,
+    chemistry: "NMC",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 800, soh: 95.2 },
+      { cycle: 1600, soh: 89.8 },
+      { cycle: 2400, soh: 84.3 }
+    ],
+    issues: [
+      {
+        id: "issue-2",
+        category: "Safety",
+        title: "Critical SoH Level",
+        description: "State of Health has dropped below safe operational threshold",
+        severity: "Critical",
+        cause: "Extensive cycling and aging beyond recommended limits",
+        recommendation: "Replace immediately to avoid safety risks",
+        solution: "Battery replacement required",
+        affectedMetrics: ["soh", "rul", "cycles"]
+      },
+      {
+        id: "issue-3",
+        category: "Performance",
+        title: "High Cycle Count",
+        description: "Battery has exceeded recommended cycle life",
+        severity: "High",
+        cause: "Extended use beyond typical lifecycle",
+        recommendation: "Schedule replacement and review usage patterns",
+        solution: "Replacement and usage optimization",
+        affectedMetrics: ["cycles"]
+      }
+    ],
+    notes: "Critical battery requiring immediate attention and replacement"
+  },
+  {
+    id: "LFP-004A",
+    grade: "A",
+    status: "Healthy",
+    soh: 99.8,
+    rul: 2800,
+    cycles: 50,
+    chemistry: "LFP",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 25, soh: 99.9 },
+      { cycle: 50, soh: 99.8 }
+    ],
+    issues: [],
+    notes: "Excellent condition LFP battery with minimal usage"
+  }
+];
 
-// Update interface to match the actual database schema
-export interface UserBattery {
-  id: string;
-  user_id: string;
-  grade: string; // Changed from union type to string to match DB
-  status: string; // Changed from union type to string to match DB
-  soh: number;
-  rul: number;
-  cycles: number;
-  chemistry: string; // Changed from union type to string to match DB
-  upload_date: string | null;
-  soh_history: any;
-  issues: any;
-  raw_data?: any;
-  notes?: string | null;
-  created_at: string | null;
-  updated_at: string | null;
+interface BatteryUpdate {
+  grade?: BatteryGrade;
+  status?: BatteryStatus;
+  soh?: number;
+  rul?: number;
+  cycles?: number;
+  chemistry?: string;
+  uploadDate?: string;
+  sohHistory?: { cycle: number; soh: number }[];
+  issues?: BatteryIssue[];
+  notes?: string;
 }
 
-export const batteryService = {
+class BatteryService {
   async getUserBatteries(): Promise<Battery[]> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+    return new Promise((resolve) => {
+      const storedBatteries = localStorage.getItem('uploadedBatteries');
+      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
 
-      const { data, error } = await supabase
-        .from('user_batteries')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching batteries:', error);
-        return [];
+      if (batteries.length === 0) {
+        // If no batteries in local storage, initialize with mock batteries
+        batteries = MOCK_BATTERIES;
+        localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
       }
 
-      // If no batteries exist, seed with mock data for this user
-      if (!data || data.length === 0) {
-        await this.seedMockBatteries(user.id);
-        // Re-fetch after seeding
-        const { data: newData } = await supabase
-          .from('user_batteries')
-          .select('*')
-          .order('created_at', { ascending: false });
-        return (newData || []).map(transformBatteryFromDB);
+      setTimeout(() => {
+        resolve(batteries);
+      }, 500);
+    });
+  }
+
+  async addBattery(newBattery: Battery): Promise<boolean> {
+    return new Promise((resolve) => {
+      const storedBatteries = localStorage.getItem('uploadedBatteries');
+      const batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
+
+      // Check if the battery ID already exists
+      if (batteries.find(battery => battery.id === newBattery.id)) {
+        console.error('Battery with this ID already exists.');
+        resolve(false);
+        return;
       }
 
-      // Transform database format to app format
-      return (data || []).map(transformBatteryFromDB);
-    } catch (error) {
-      console.error('Error in getUserBatteries:', error);
-      return [];
-    }
-  },
+      batteries.push(newBattery);
+      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
 
-  async seedMockBatteries(userId: string): Promise<void> {
-    const mockBatteries = [
-      {
-        id: `MOCK-${userId.slice(0, 8)}-001`,
-        user_id: userId,
-        grade: 'A',
-        status: 'Healthy',
-        soh: 98.5,
-        rul: 1800,
-        cycles: 150,
-        chemistry: 'NMC',
-        upload_date: new Date().toISOString(),
-        soh_history: JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ cycle: i * 10, soh: 100 - i * 0.1 }))),
-        issues: JSON.stringify([]),
-        notes: 'High-performance NMC battery - Excellent condition'
-      },
-      {
-        id: `MOCK-${userId.slice(0, 8)}-002`,
-        user_id: userId,
-        grade: 'B',
-        status: 'Degrading',
-        soh: 85.2,
-        rul: 650,
-        cycles: 1200,
-        chemistry: 'LFP',
-        upload_date: new Date().toISOString(),
-        soh_history: JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ cycle: i * 60, soh: 98 - i * 0.7 }))),
-        issues: JSON.stringify([{ type: 'Performance', description: 'Slight capacity degradation observed' }]),
-        notes: 'LFP battery showing gradual degradation'
-      },
-      {
-        id: `MOCK-${userId.slice(0, 8)}-003`,
-        user_id: userId,
-        grade: 'C',
-        status: 'Critical',
-        soh: 72.1,
-        rul: 180,
-        cycles: 2800,
-        chemistry: 'NMC',
-        upload_date: new Date().toISOString(),
-        soh_history: JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ cycle: i * 140, soh: 95 - i * 1.2 }))),
-        issues: JSON.stringify([
-          { type: 'Safety', description: 'Low SoH threshold reached' },
-          { type: 'Performance', description: 'Significant capacity loss' }
-        ]),
-        notes: 'Critical battery - Requires immediate attention'
-      },
-      {
-        id: `MOCK-${userId.slice(0, 8)}-004`,
-        user_id: userId,
-        grade: 'A',
-        status: 'Healthy',
-        soh: 99.2,
-        rul: 2100,
-        cycles: 80,
-        chemistry: 'LFP',
-        upload_date: new Date().toISOString(),
-        soh_history: JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ cycle: i * 4, soh: 100 - i * 0.04 }))),
-        issues: JSON.stringify([]),
-        notes: 'New LFP battery - Prime condition'
-      },
-      {
-        id: `MOCK-${userId.slice(0, 8)}-005`,
-        user_id: userId,
-        grade: 'B',
-        status: 'Healthy',
-        soh: 91.8,
-        rul: 1400,
-        cycles: 600,
-        chemistry: 'NMC',
-        upload_date: new Date().toISOString(),
-        soh_history: JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ cycle: i * 30, soh: 98 - i * 0.3 }))),
-        issues: JSON.stringify([]),
-        notes: 'Stable NMC battery - Good performance'
-      }
-    ];
+      setTimeout(() => {
+        resolve(true);
+      }, 500);
+    });
+  }
 
-    try {
-      const { error } = await supabase
-        .from('user_batteries')
-        .insert(mockBatteries);
+  async updateBattery(updatedBattery: Battery): Promise<boolean> {
+    return new Promise((resolve) => {
+      const storedBatteries = localStorage.getItem('uploadedBatteries');
+      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
 
-      if (error) {
-        console.error('Error seeding mock batteries:', error);
-      }
-    } catch (error) {
-      console.error('Error in seedMockBatteries:', error);
-    }
-  },
-
-  async addBattery(battery: Battery): Promise<boolean> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const dbBattery = transformBatteryToDB(battery, user.id);
-
-      const { error } = await supabase
-        .from('user_batteries')
-        .insert(dbBattery);
-
-      if (error) {
-        console.error('Error adding battery:', error);
-        return false;
+      const index = batteries.findIndex(battery => battery.id === updatedBattery.id);
+      if (index === -1) {
+        console.error('Battery not found.');
+        resolve(false);
+        return;
       }
 
-      return true;
-    } catch (error) {
-      console.error('Error in addBattery:', error);
-      return false;
-    }
-  },
+      batteries[index] = { ...batteries[index], ...updatedBattery };
+      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
 
-  async updateBattery(battery: Battery): Promise<boolean> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const dbBattery = transformBatteryToDB(battery, user.id);
-
-      const { error } = await supabase
-        .from('user_batteries')
-        .update(dbBattery)
-        .eq('id', battery.id);
-
-      if (error) {
-        console.error('Error updating battery:', error);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error in updateBattery:', error);
-      return false;
-    }
-  },
+      setTimeout(() => {
+        resolve(true);
+      }, 500);
+    });
+  }
 
   async deleteBattery(batteryId: string): Promise<boolean> {
-    try {
-      const { error } = await supabase
-        .from('user_batteries')
-        .delete()
-        .eq('id', batteryId);
+    return new Promise((resolve) => {
+      const storedBatteries = localStorage.getItem('uploadedBatteries');
+      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
 
-      if (error) {
-        console.error('Error deleting battery:', error);
-        return false;
+      batteries = batteries.filter(battery => battery.id !== batteryId);
+      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+
+      setTimeout(() => {
+        resolve(true);
+      }, 500);
+    });
+  }
+
+  async updateBatteryFields(batteryId: string, updates: BatteryUpdate): Promise<boolean> {
+    return new Promise((resolve) => {
+      const storedBatteries = localStorage.getItem('uploadedBatteries');
+      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
+
+      const index = batteries.findIndex(battery => battery.id === batteryId);
+      if (index === -1) {
+        console.error('Battery not found.');
+        resolve(false);
+        return;
       }
 
-      return true;
-    } catch (error) {
-      console.error('Error in deleteBattery:', error);
-      return false;
-    }
+      batteries[index] = { ...batteries[index], ...updates };
+      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+
+      setTimeout(() => {
+        resolve(true);
+      }, 500);
+    });
   }
-};
-
-function transformBatteryFromDB(dbBattery: UserBattery): Battery {
-  return {
-    id: dbBattery.id,
-    grade: dbBattery.grade as 'A' | 'B' | 'C' | 'D',
-    status: dbBattery.status as 'Healthy' | 'Degrading' | 'Critical' | 'Unknown',
-    soh: Number(dbBattery.soh),
-    rul: dbBattery.rul,
-    cycles: dbBattery.cycles,
-    chemistry: dbBattery.chemistry as 'LFP' | 'NMC',
-    uploadDate: dbBattery.upload_date ? new Date(dbBattery.upload_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    sohHistory: dbBattery.soh_history ? (typeof dbBattery.soh_history === 'string' ? JSON.parse(dbBattery.soh_history) : dbBattery.soh_history) : [],
-    issues: dbBattery.issues ? (typeof dbBattery.issues === 'string' ? JSON.parse(dbBattery.issues) : dbBattery.issues) : [],
-    rawData: dbBattery.raw_data,
-    notes: dbBattery.notes || undefined
-  };
 }
 
-function transformBatteryToDB(battery: Battery, userId: string): Omit<UserBattery, 'created_at' | 'updated_at'> {
-  return {
-    id: battery.id,
-    user_id: userId,
-    grade: battery.grade,
-    status: battery.status,
-    soh: battery.soh,
-    rul: battery.rul,
-    cycles: battery.cycles,
-    chemistry: battery.chemistry,
-    upload_date: battery.uploadDate,
-    soh_history: battery.sohHistory || [],
-    issues: battery.issues || [],
-    raw_data: battery.rawData,
-    notes: battery.notes || null
-  };
-}
+export const batteryService = new BatteryService();

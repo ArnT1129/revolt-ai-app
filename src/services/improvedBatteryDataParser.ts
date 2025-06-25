@@ -276,7 +276,6 @@ export class ImprovedBatteryDataParser {
         cause: 'Battery degradation due to aging and cycling',
         recommendation: 'Replace battery soon to avoid safety risks',
         solution: 'Battery replacement recommended',
-        resolved: false,
         affectedMetrics: ['soh']
       });
     }
@@ -291,7 +290,6 @@ export class ImprovedBatteryDataParser {
         cause: 'Advanced battery degradation',
         recommendation: 'Plan for immediate replacement',
         solution: 'Schedule battery replacement',
-        resolved: false,
         affectedMetrics: ['rul']
       });
     }
@@ -306,7 +304,6 @@ export class ImprovedBatteryDataParser {
         cause: 'Extensive battery usage over time',
         recommendation: 'Increase monitoring frequency',
         solution: 'Enhanced monitoring protocol',
-        resolved: false,
         affectedMetrics: ['cycles']
       });
     }

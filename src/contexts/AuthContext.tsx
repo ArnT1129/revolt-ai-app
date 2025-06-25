@@ -35,6 +35,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Initialize mock batteries when user signs in
+        if (session?.user && event === 'SIGNED_IN') {
+          initializeMockBatteries();
+        }
       }
     );
 
@@ -44,10 +49,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Initialize mock batteries for existing session
+      if (session?.user) {
+        initializeMockBatteries();
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const initializeMockBatteries = () => {
+    // Clear any existing batteries and set fresh mock data
+    localStorage.removeItem('uploadedBatteries');
+    
+    // Dispatch event to update dashboard
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+    }, 100);
+  };
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -58,21 +78,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
+    // Sign up without email confirmation
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
         }
       }
     });
 
-    // If signup is successful and email confirmation is disabled,
-    // the user will be automatically signed in
+    // Note: With email confirmation disabled in Supabase settings,
+    // the user will be automatically signed in after signup
     if (data.user && !error) {
       console.log('User signed up successfully:', data.user.email);
     }
@@ -81,7 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Clear local storage
+    localStorage.removeItem('uploadedBatteries');
+    
+    // Sign out from Supabase
     await supabase.auth.signOut();
+    
+    // Clear state
+    setUser(null);
+    setSession(null);
   };
 
   const value = {
