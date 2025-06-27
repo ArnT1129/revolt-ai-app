@@ -21,19 +21,19 @@ export default function Dashboard() {
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const { user, signOut } = useAuth();
 
   const updateBatteries = async () => {
     try {
-      setLoading(true);
+      console.log('Fetching batteries...');
       const batteries = await batteryService.getUserBatteries();
+      console.log('Fetched batteries:', batteries.length);
       setAllBatteries(batteries);
       return batteries;
     } catch (error) {
       console.error('Error fetching batteries:', error);
       return [];
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -50,37 +50,61 @@ export default function Dashboard() {
     await signOut();
   };
 
+  // Initial data load
   useEffect(() => {
-    updateBatteries();
+    const loadInitialData = async () => {
+      setLoading(true);
+      console.log('Loading initial battery data...');
+      
+      try {
+        const batteries = await updateBatteries();
+        
+        // Handle URL parameters after data is loaded
+        const tabParam = searchParams.get('tab');
+        const batteryId = searchParams.get('battery');
 
-    // Check URL parameters for tab and battery
-    const tabParam = searchParams.get('tab');
-    const batteryId = searchParams.get('battery');
+        // Set active tab from URL or default to fleet
+        if (tabParam && ['fleet', 'analytics', 'comparison', 'export'].includes(tabParam)) {
+          setActiveTab(tabParam);
+        } else {
+          setActiveTab('fleet');
+        }
 
-    // Set active tab from URL or default to fleet
-    if (tabParam && ['fleet', 'analytics', 'comparison', 'export'].includes(tabParam)) {
-      setActiveTab(tabParam);
-    } else {
-      setActiveTab('fleet');
-    }
-
-    // Handle battery passport from URL
-    if (batteryId && allBatteries.length > 0) {
-      const battery = allBatteries.find(b => b.id === batteryId);
-      if (battery) {
-        setSelectedBattery(battery);
-        setIsPassportOpen(true);
-        // Clean up URL
-        setSearchParams(prev => {
-          const newParams = new URLSearchParams(prev);
-          newParams.delete('battery');
-          return newParams;
-        });
+        // Handle battery passport from URL
+        if (batteryId && batteries.length > 0) {
+          const battery = batteries.find(b => b.id === batteryId);
+          if (battery) {
+            setSelectedBattery(battery);
+            setIsPassportOpen(true);
+            // Clean up URL
+            setSearchParams(prev => {
+              const newParams = new URLSearchParams(prev);
+              newParams.delete('battery');
+              return newParams;
+            });
+          }
+        }
+        
+        setInitialLoadComplete(true);
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    const handleBatteryUpdate = () => {
-      updateBatteries();
+    if (!initialLoadComplete) {
+      loadInitialData();
+    }
+  }, [initialLoadComplete, searchParams, setSearchParams]);
+
+  // Event listeners for updates
+  useEffect(() => {
+    const handleBatteryUpdate = async () => {
+      if (initialLoadComplete) {
+        console.log('Battery data updated, refreshing...');
+        await updateBatteries();
+      }
     };
 
     const handleSettingsChanged = (event: CustomEvent) => {
@@ -97,7 +121,7 @@ export default function Dashboard() {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
       window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
     };
-  }, [searchParams, setSearchParams, allBatteries]);
+  }, [initialLoadComplete]);
 
   if (loading) {
     return (
@@ -105,6 +129,7 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
           <p className="text-white">Loading your battery data...</p>
+          <p className="text-slate-400 text-sm mt-2">This may take a moment...</p>
         </div>
       </div>
     );
