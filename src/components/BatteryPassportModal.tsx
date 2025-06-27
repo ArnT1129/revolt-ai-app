@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -279,7 +280,9 @@ export default function BatteryPassportModal({
                     className="text-2xl font-bold h-auto p-1 mt-1"
                   />
                 ) : (
-                  <p className="text-2xl font-bold">{metrics?.capacityRetention?.toFixed(1) || 'N/A'}%</p>
+                  <p className="text-2xl font-bold">
+                    {metrics?.capacityRetention ? metrics.capacityRetention.toFixed(1) : 'N/A'}%
+                  </p>
                 )}
               </div>
             </div>
@@ -300,12 +303,14 @@ export default function BatteryPassportModal({
                     <Input
                       type="number"
                       step="0.1"
-                      value={metrics.energyEfficiency}
+                      value={metrics.energyEfficiency || 0}
                       onChange={(e) => updateMetrics('energyEfficiency', parseFloat(e.target.value))}
                       className="text-xl font-bold h-auto p-1 mt-1"
                     />
                   ) : (
-                    <p className="text-xl font-bold">{metrics.energyEfficiency.toFixed(1)}%</p>
+                    <p className="text-xl font-bold">
+                      {metrics.energyEfficiency ? metrics.energyEfficiency.toFixed(1) : 'N/A'}%
+                    </p>
                   )}
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg">
@@ -314,13 +319,15 @@ export default function BatteryPassportModal({
                     <Input
                       type="number"
                       step="0.001"
-                      value={metrics.powerFadeRate}
+                      value={metrics.powerFadeRate || 0}
                       onChange={(e) => updateMetrics('powerFadeRate', parseFloat(e.target.value))}
                       className="text-xl font-bold h-auto p-1 mt-1"
                     />
                   ) : (
                     <>
-                      <p className="text-xl font-bold">{(metrics.powerFadeRate * 100).toFixed(2)}%</p>
+                      <p className="text-xl font-bold">
+                        {metrics.powerFadeRate ? (metrics.powerFadeRate * 100).toFixed(2) : 'N/A'}%
+                      </p>
                       <p className="text-xs text-muted-foreground">per cycle</p>
                     </>
                   )}
@@ -331,13 +338,15 @@ export default function BatteryPassportModal({
                     <Input
                       type="number"
                       step="0.1"
-                      value={metrics.internalResistance}
+                      value={metrics.internalResistance || 0}
                       onChange={(e) => updateMetrics('internalResistance', parseFloat(e.target.value))}
                       className="text-xl font-bold h-auto p-1 mt-1"
                     />
                   ) : (
                     <>
-                      <p className="text-xl font-bold">{metrics.internalResistance.toFixed(1)}</p>
+                      <p className="text-xl font-bold">
+                        {metrics.internalResistance ? metrics.internalResistance.toFixed(1) : 'N/A'}
+                      </p>
                       <p className="text-xs text-muted-foreground">mΩ</p>
                     </>
                   )}
@@ -347,13 +356,15 @@ export default function BatteryPassportModal({
                   {isEditing ? (
                     <Input
                       type="number"
-                      value={metrics.peakPower}
+                      value={metrics.peakPower || 0}
                       onChange={(e) => updateMetrics('peakPower', parseFloat(e.target.value))}
                       className="text-xl font-bold h-auto p-1 mt-1"
                     />
                   ) : (
                     <>
-                      <p className="text-xl font-bold">{metrics.peakPower.toFixed(0)}</p>
+                      <p className="text-xl font-bold">
+                        {metrics.peakPower ? metrics.peakPower.toFixed(0) : 'N/A'}
+                      </p>
                       <p className="text-xs text-muted-foreground">W</p>
                     </>
                   )}
@@ -370,20 +381,28 @@ export default function BatteryPassportModal({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Charging Efficiency</Label>
-                      <p className="text-lg font-semibold">{metrics.chargingEfficiency.toFixed(1)}%</p>
+                      <p className="text-lg font-semibold">
+                        {metrics.chargingEfficiency ? metrics.chargingEfficiency.toFixed(1) : 'N/A'}%
+                      </p>
                     </div>
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Discharging Efficiency</Label>
-                      <p className="text-lg font-semibold">{metrics.dischargingEfficiency.toFixed(1)}%</p>
+                      <p className="text-lg font-semibold">
+                        {metrics.dischargingEfficiency ? metrics.dischargingEfficiency.toFixed(1) : 'N/A'}%
+                      </p>
                     </div>
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Energy Density</Label>
-                      <p className="text-lg font-semibold">{metrics.energyDensity.toFixed(0)}</p>
+                      <p className="text-lg font-semibold">
+                        {metrics.energyDensity ? metrics.energyDensity.toFixed(0) : 'N/A'}
+                      </p>
                       <p className="text-xs text-muted-foreground">Wh/kg</p>
                     </div>
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Self-Discharge Rate</Label>
-                      <p className="text-lg font-semibold">{metrics.selfDischargeRate.toFixed(1)}%</p>
+                      <p className="text-lg font-semibold">
+                        {metrics.selfDischargeRate ? metrics.selfDischargeRate.toFixed(1) : 'N/A'}%
+                      </p>
                       <p className="text-xs text-muted-foreground">per month</p>
                     </div>
                   </div>
@@ -399,31 +418,41 @@ export default function BatteryPassportModal({
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Temperature Range</Label>
                       <p className="text-sm font-semibold">
-                        {metrics.temperatureRange.min.toFixed(1)}°C - {metrics.temperatureRange.max.toFixed(1)}°C
+                        {metrics.temperatureRange ? 
+                          `${metrics.temperatureRange.min?.toFixed(1) || 'N/A'}°C - ${metrics.temperatureRange.max?.toFixed(1) || 'N/A'}°C` 
+                          : 'N/A'
+                        }
                       </p>
-                      <p className="text-xs text-muted-foreground">Avg: {metrics.temperatureRange.avg.toFixed(1)}°C</p>
+                      <p className="text-xs text-muted-foreground">
+                        Avg: {metrics.temperatureRange?.avg ? metrics.temperatureRange.avg.toFixed(1) : 'N/A'}°C
+                      </p>
                     </div>
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Voltage Range</Label>
                       <p className="text-sm font-semibold">
-                        {metrics.voltageRange.min.toFixed(2)}V - {metrics.voltageRange.max.toFixed(2)}V
+                        {metrics.voltageRange ? 
+                          `${metrics.voltageRange.min?.toFixed(2) || 'N/A'}V - ${metrics.voltageRange.max?.toFixed(2) || 'N/A'}V` 
+                          : 'N/A'
+                        }
                       </p>
-                      <p className="text-xs text-muted-foreground">Avg: {metrics.voltageRange.avg.toFixed(2)}V</p>
+                      <p className="text-xs text-muted-foreground">
+                        Avg: {metrics.voltageRange?.avg ? metrics.voltageRange.avg.toFixed(2) : 'N/A'}V
+                      </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-muted/30 p-3 rounded">
                         <Label className="text-xs text-muted-foreground">Cycle Life</Label>
-                        <p className="text-lg font-semibold">{metrics.cycleLife}</p>
+                        <p className="text-lg font-semibold">{metrics.cycleLife || 'N/A'}</p>
                       </div>
                       <div className="bg-muted/30 p-3 rounded">
                         <Label className="text-xs text-muted-foreground">Calendar Life</Label>
-                        <p className="text-lg font-semibold">{metrics.calendarLife}</p>
+                        <p className="text-lg font-semibold">{metrics.calendarLife || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">days</p>
                       </div>
                     </div>
                     <div className="bg-muted/30 p-3 rounded">
                       <Label className="text-xs text-muted-foreground">Thermal Stability</Label>
-                      <p className="text-lg font-semibold">{metrics.thermalStability}</p>
+                      <p className="text-lg font-semibold">{metrics.thermalStability || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -436,7 +465,7 @@ export default function BatteryPassportModal({
             <h3 className="text-lg font-semibold mb-4">State of Health History</h3>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={currentBattery.sohHistory}>
+                <AreaChart data={currentBattery.sohHistory || []}>
                   <defs>
                     <linearGradient id="colorSoh" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
