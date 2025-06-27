@@ -27,5 +27,5 @@ export interface Battery {
   notes?: string;
 }
 
-// Export BatteryIssue type
-export { BatteryIssue } from "@/services/issueAnalysis";
+// Export BatteryIssue type using proper syntax for isolated modules
+export type { BatteryIssue } from "@/services/issueAnalysis";

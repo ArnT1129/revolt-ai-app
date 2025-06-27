@@ -116,7 +116,7 @@ interface BatteryUpdate {
   soh?: number;
   rul?: number;
   cycles?: number;
-  chemistry?: string;
+  chemistry?: "LFP" | "NMC";
   uploadDate?: string;
   sohHistory?: { cycle: number; soh: number }[];
   issues?: BatteryIssue[];
