@@ -33,15 +33,13 @@ export default function FileUploader() {
 
     for (const file of acceptedFiles) {
       try {
-        console.log(`Processing file: ${file.name}`);
+        console.log(`Processing: ${file.name}`);
         
-        // Parse the file
         const { batteries, errors } = await ImprovedBatteryDataParser.parseFile(file);
         
         let successCount = 0;
         const uploadErrors: string[] = [...errors];
 
-        // Upload batteries to database
         if (batteries.length > 0) {
           for (const battery of batteries) {
             try {
@@ -52,12 +50,11 @@ export default function FileUploader() {
                 uploadErrors.push(`Failed to save battery ${battery.id}`);
               }
             } catch (error) {
-              uploadErrors.push(`Error saving battery ${battery.id}: ${error}`);
+              uploadErrors.push(`Error saving battery: ${error}`);
             }
           }
         }
 
-        // Determine result status
         let status: 'success' | 'error' | 'partial' = 'error';
         if (successCount === batteries.length && uploadErrors.length === 0) {
           status = 'success';
@@ -74,53 +71,33 @@ export default function FileUploader() {
 
         if (status === 'success') {
           toast({
-            title: "File processed successfully",
+            title: "File Processed",
             description: `${successCount} batteries uploaded from ${file.name}`,
-          });
-        } else if (status === 'partial') {
-          toast({
-            title: "File partially processed",
-            description: `${successCount} of ${batteries.length} batteries uploaded from ${file.name}`,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "File processing failed",
-            description: `Failed to process ${file.name}`,
-            variant: "destructive"
           });
         }
 
       } catch (error) {
-        console.error(`Error processing file ${file.name}:`, error);
+        console.error(`Error processing ${file.name}:`, error);
         setResults(prev => [...prev, {
           fileName: file.name,
           batteriesCount: 0,
-          errors: [`Failed to process file: ${error}`],
+          errors: [`Processing failed: ${error}`],
           status: 'error'
         }]);
-        
-        toast({
-          title: "File processing error",
-          description: `Error processing ${file.name}: ${error}`,
-          variant: "destructive"
-        });
       }
 
       processedFiles++;
       setUploadProgress((processedFiles / totalFiles) * 100);
     }
 
-    // Trigger data refresh
     window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-    
     setUploading(false);
     
     const totalSuccess = results.reduce((sum, r) => sum + r.batteriesCount, 0);
     if (totalSuccess > 0) {
       toast({
-        title: "Upload completed",
-        description: `Successfully uploaded ${totalSuccess} batteries total`,
+        title: "Upload Complete",
+        description: `Successfully processed ${totalSuccess} batteries`,
       });
     }
   }, [results]);
@@ -134,18 +111,13 @@ export default function FileUploader() {
       'application/vnd.ms-excel': ['.xls'],
       'text/plain': ['.txt']
     },
-    maxSize: 500 * 1024 * 1024, // 500MB limit
+    maxSize: 500 * 1024 * 1024,
     disabled: uploading
   });
 
-  const clearResults = () => {
-    setResults([]);
-    setUploadProgress(0);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Drag and Drop Area */}
+      {/* Upload Area */}
       <Card className="border-dashed border-2 border-slate-600 hover:border-slate-500 transition-colors">
         <CardContent className="p-8">
           <div
@@ -160,35 +132,35 @@ export default function FileUploader() {
                 <Upload className="h-8 w-8 text-blue-400" />
               </div>
               
-              {isDragActive ? (
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Drop files here</h3>
-                  <p className="text-slate-400">Release to upload your battery data files</p>
-                </div>
-              ) : (
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Upload Battery Data Files</h3>
-                  <p className="text-slate-400 mb-4">
-                    Drag & drop files here, or click to select files
-                  </p>
+              <div>
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  {isDragActive ? 'Drop files here' : 'Upload Battery Data'}
+                </h3>
+                <p className="text-slate-400 mb-4">
+                  {isDragActive 
+                    ? 'Release to upload your files' 
+                    : 'Drag & drop files or click to browse'
+                  }
+                </p>
+                {!isDragActive && (
                   <Button variant="outline" className="glass-button" disabled={uploading}>
-                    Select Files
+                    Choose Files
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Upload Progress */}
+      {/* Progress */}
       {uploading && (
         <Card className="enhanced-card">
           <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-white">Processing Files...</h4>
-                <span className="text-sm text-slate-400">{Math.round(uploadProgress)}%</span>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-white font-medium">Processing Files...</span>
+                <span className="text-slate-400 text-sm">{Math.round(uploadProgress)}%</span>
               </div>
               <Progress value={uploadProgress} className="h-2" />
             </div>
@@ -196,107 +168,80 @@ export default function FileUploader() {
         </Card>
       )}
 
-      {/* Upload Results */}
+      {/* Results */}
       {results.length > 0 && (
         <Card className="enhanced-card">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-white">Upload Results</h4>
-              <Button variant="ghost" size="sm" onClick={clearResults}>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-medium text-white">Results</h4>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setResults([])}
+                className="text-slate-400 hover:text-white"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
             
             <div className="space-y-3">
               {results.map((result, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50">
                   <div className="flex-shrink-0 mt-0.5">
                     {result.status === 'success' ? (
                       <CheckCircle className="h-5 w-5 text-green-400" />
-                    ) : result.status === 'partial' ? (
-                      <AlertCircle className="h-5 w-5 text-yellow-400" />
                     ) : (
                       <AlertCircle className="h-5 w-5 text-red-400" />
                     )}
                   </div>
                   
-                  <div className="flex-grow min-w-0">
+                  <div className="flex-grow">
                     <div className="flex items-center gap-2 mb-1">
                       <FileText className="h-4 w-4 text-slate-400" />
-                      <span className="font-medium text-white truncate">{result.fileName}</span>
+                      <span className="font-medium text-white">{result.fileName}</span>
                     </div>
                     
-                    <p className="text-sm text-slate-300 mb-2">
+                    <p className="text-sm text-slate-300">
                       {result.batteriesCount > 0 
-                        ? `${result.batteriesCount} batteries uploaded successfully`
-                        : 'No batteries uploaded'
+                        ? `${result.batteriesCount} batteries processed`
+                        : 'Processing failed'
                       }
                     </p>
                     
                     {result.errors.length > 0 && (
-                      <div className="text-sm text-red-400">
-                        <p className="font-medium mb-1">{result.errors.length} error(s):</p>
-                        <ul className="list-disc list-inside space-y-1 max-h-24 overflow-y-auto">
-                          {result.errors.slice(0, 5).map((error, i) => (
-                            <li key={i} className="text-xs">{error}</li>
-                          ))}
-                          {result.errors.length > 5 && (
-                            <li className="text-xs">... and {result.errors.length - 5} more</li>
-                          )}
-                        </ul>
+                      <div className="mt-2 text-xs text-red-400">
+                        {result.errors.slice(0, 2).map((error, i) => (
+                          <div key={i}>• {error}</div>
+                        ))}
+                        {result.errors.length > 2 && (
+                          <div>• ... and {result.errors.length - 2} more errors</div>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
               ))}
             </div>
-            
-            <div className="mt-4 pt-4 border-t border-slate-700">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">
-                  Total batteries uploaded: {results.reduce((sum, r) => sum + r.batteriesCount, 0)}
-                </span>
-                <span className="text-slate-400">
-                  Files processed: {results.length}
-                </span>
-              </div>
-            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Supported Formats Info */}
+      {/* Info Card - Simplified */}
       <Card className="enhanced-card">
         <CardContent className="p-6">
-          <h4 className="font-medium text-white mb-3">Supported File Formats</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <h4 className="font-medium text-white mb-3">Supported Formats</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm text-slate-400">
             <div>
-              <h5 className="font-medium text-slate-300 mb-2">File Types</h5>
-              <ul className="space-y-1 text-slate-400">
-                <li>• CSV files (.csv)</li>
-                <li>• JSON files (.json)</li>
-                <li>• Excel files (.xlsx, .xls)</li>
-                <li>• Text files (.txt)</li>
-              </ul>
+              <div className="font-medium text-slate-300 mb-1">File Types</div>
+              <div>CSV, JSON, Excel, TXT</div>
             </div>
             <div>
-              <h5 className="font-medium text-slate-300 mb-2">Data Fields</h5>
-              <ul className="space-y-1 text-slate-400">
-                <li>• Battery ID/Identifier</li>
-                <li>• State of Health (SoH)</li>
-                <li>• Remaining Useful Life (RUL)</li>
-                <li>• Cycle Count</li>
-                <li>• Voltage, Current, Temperature</li>
-                <li>• Chemistry (LFP, NMC)</li>
-              </ul>
+              <div className="font-medium text-slate-300 mb-1">Data Fields</div>
+              <div>Cycle, Voltage, Current, Capacity</div>
             </div>
           </div>
-          <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-sm text-blue-300">
-              <strong>Large File Support:</strong> The parser can handle files up to 500MB with advanced 
-              chunking and auto-detection of data formats. Missing fields will be automatically calculated 
-              or estimated based on available data.
-            </p>
+          <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-sm text-blue-300">
+            Advanced parser with auto-detection and comprehensive battery analysis
           </div>
         </CardContent>
       </Card>
