@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Battery } from "@/types";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart } from "recharts";
-import { Edit, Save, X, Download, FileText, Thermometer, Zap, Activity, Battery as BatteryIcon } from "lucide-react";
+import { Edit, Save, X, Download, FileText, Thermometer, Zap, Activity, Battery as BatteryIcon, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -16,6 +16,8 @@ interface BatteryPassportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (updatedBattery: Battery) => void;
+  showDashboardButton?: boolean;
+  onNavigateToDashboard?: () => void;
 }
 
 const gradeColor: Record<string, string> = {
@@ -32,7 +34,14 @@ const statusColor: Record<string, string> = {
   Unknown: "text-gray-400"
 };
 
-export default function BatteryPassportModal({ battery, isOpen, onClose, onSave }: BatteryPassportModalProps) {
+export default function BatteryPassportModal({ 
+  battery, 
+  isOpen, 
+  onClose, 
+  onSave, 
+  showDashboardButton = false, 
+  onNavigateToDashboard 
+}: BatteryPassportModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedBattery, setEditedBattery] = useState<Battery | null>(null);
   const [notes, setNotes] = useState("");
@@ -94,6 +103,12 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-2xl font-bold">Digital Battery Passport</DialogTitle>
           <div className="flex gap-2">
+            {showDashboardButton && onNavigateToDashboard && (
+              <Button onClick={onNavigateToDashboard} className="glass-button">
+                <ArrowRight className="h-4 w-4 mr-2" />
+                View on Dashboard
+              </Button>
+            )}
             <Button onClick={handleExportPDF} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
               Export PDF
