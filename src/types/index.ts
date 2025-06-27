@@ -26,3 +26,6 @@ export interface Battery {
   metrics?: BatteryMetrics;
   notes?: string;
 }
+
+// Export BatteryIssue type
+export { BatteryIssue } from "@/services/issueAnalysis";

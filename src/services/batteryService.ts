@@ -1,3 +1,4 @@
+
 import { Battery, BatteryGrade, BatteryStatus, BatteryIssue } from "@/types";
 
 const MOCK_BATTERIES: Battery[] = [
@@ -81,7 +82,7 @@ const MOCK_BATTERIES: Battery[] = [
         category: "Performance",
         title: "High Cycle Count",
         description: "Battery has exceeded recommended cycle life",
-        severity: "High",
+        severity: "Warning",
         cause: "Extended use beyond typical lifecycle",
         recommendation: "Schedule replacement and review usage patterns",
         solution: "Replacement and usage optimization",
