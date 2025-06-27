@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [allBatteries, setAllBatteries] = useState<Battery[]>([]);
-  const [defaultView, setDefaultView] = useState("fleet");
+  const [activeTab, setActiveTab] = useState("fleet");
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -53,14 +53,24 @@ export default function Dashboard() {
   useEffect(() => {
     updateBatteries();
 
-    // Check if there's a battery ID in the URL
+    // Check URL parameters for tab and battery
+    const tabParam = searchParams.get('tab');
     const batteryId = searchParams.get('battery');
+
+    // Set active tab from URL or default to fleet
+    if (tabParam && ['fleet', 'analytics', 'comparison', 'export'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab('fleet');
+    }
+
+    // Handle battery passport from URL
     if (batteryId && allBatteries.length > 0) {
       const battery = allBatteries.find(b => b.id === batteryId);
       if (battery) {
         setSelectedBattery(battery);
         setIsPassportOpen(true);
-        // Remove the battery parameter from URL
+        // Clean up URL
         setSearchParams(prev => {
           const newParams = new URLSearchParams(prev);
           newParams.delete('battery');
@@ -69,20 +79,15 @@ export default function Dashboard() {
       }
     }
 
-    // Load default view from settings
-    const savedSettings = localStorage.getItem('batteryAnalysisSettings');
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      setDefaultView(settings.defaultView || "fleet");
-    }
-
     const handleBatteryUpdate = () => {
       updateBatteries();
     };
 
     const handleSettingsChanged = (event: CustomEvent) => {
       const settings = event.detail;
-      setDefaultView(settings.defaultView || "fleet");
+      if (settings.defaultView) {
+        setActiveTab(settings.defaultView);
+      }
     };
 
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
@@ -92,7 +97,7 @@ export default function Dashboard() {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
       window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
     };
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, allBatteries]);
 
   if (loading) {
     return (
@@ -148,7 +153,7 @@ export default function Dashboard() {
       <DashboardStats />
       
       <div className="mt-8">
-        <Tabs defaultValue={defaultView} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10 mb-6">
             <TabsTrigger value="fleet" className="flex items-center gap-2 transition-all duration-200">
               <Activity className="h-4 w-4" />

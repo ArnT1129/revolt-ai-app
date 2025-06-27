@@ -4,23 +4,29 @@ import { useDropzone } from 'react-dropzone';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, X, Eye } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { ImprovedBatteryDataParser } from '@/services/improvedBatteryDataParser';
 import { batteryService } from '@/services/batteryService';
 import { Battery } from '@/types';
+import BatteryPassportModal from './BatteryPassportModal';
+import { useNavigate } from 'react-router-dom';
 
 interface UploadResult {
   fileName: string;
   batteriesCount: number;
   errors: string[];
   status: 'success' | 'error' | 'partial';
+  batteries?: Battery[];
 }
 
 export default function FileUploader() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [results, setResults] = useState<UploadResult[]>([]);
+  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const navigate = useNavigate();
 
   const convertToCompatibleBattery = (parsedData: any): Battery => {
     // Convert the parser's metrics format to match BatteryMetrics interface
@@ -77,6 +83,7 @@ export default function FileUploader() {
         
         let successCount = 0;
         const uploadErrors: string[] = [...errors];
+        const processedBatteries: Battery[] = [];
 
         if (batteries.length > 0) {
           for (const parsedBattery of batteries) {
@@ -85,6 +92,7 @@ export default function FileUploader() {
               const success = await batteryService.addBattery(compatibleBattery);
               if (success) {
                 successCount++;
+                processedBatteries.push(compatibleBattery);
               } else {
                 uploadErrors.push(`Failed to save battery ${parsedBattery.id}`);
               }
@@ -105,7 +113,8 @@ export default function FileUploader() {
           fileName: file.name,
           batteriesCount: successCount,
           errors: uploadErrors,
-          status
+          status,
+          batteries: processedBatteries
         }]);
 
         if (status === 'success') {
@@ -153,6 +162,28 @@ export default function FileUploader() {
     maxSize: 500 * 1024 * 1024,
     disabled: uploading
   });
+
+  const handleViewPassport = (battery: Battery) => {
+    setSelectedBattery(battery);
+    setIsPassportOpen(true);
+  };
+
+  const handleNavigateToDashboard = () => {
+    setIsPassportOpen(false);
+    navigate('/?tab=fleet');
+  };
+
+  const handleSaveBattery = async (updatedBattery: Battery) => {
+    const success = await batteryService.updateBattery(updatedBattery);
+    if (success) {
+      setSelectedBattery(updatedBattery);
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+      toast({
+        title: "Battery Updated",
+        description: `Battery ${updatedBattery.id} has been updated successfully`,
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -225,38 +256,66 @@ export default function FileUploader() {
             
             <div className="space-y-3">
               {results.map((result, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {result.status === 'success' ? (
-                      <CheckCircle className="h-5 w-5 text-green-400" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 text-red-400" />
-                    )}
-                  </div>
-                  
-                  <div className="flex-grow">
-                    <div className="flex items-center gap-2 mb-1">
-                      <FileText className="h-4 w-4 text-slate-400" />
-                      <span className="font-medium text-white">{result.fileName}</span>
+                <div key={index} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      {result.status === 'success' ? (
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-red-400" />
+                      )}
                     </div>
                     
-                    <p className="text-sm text-slate-300">
-                      {result.batteriesCount > 0 
-                        ? `${result.batteriesCount} batteries processed`
-                        : 'Processing failed'
-                      }
-                    </p>
-                    
-                    {result.errors.length > 0 && (
-                      <div className="mt-2 text-xs text-red-400">
-                        {result.errors.slice(0, 2).map((error, i) => (
-                          <div key={i}>• {error}</div>
-                        ))}
-                        {result.errors.length > 2 && (
-                          <div>• ... and {result.errors.length - 2} more errors</div>
-                        )}
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        <span className="font-medium text-white">{result.fileName}</span>
                       </div>
-                    )}
+                      
+                      <p className="text-sm text-slate-300">
+                        {result.batteriesCount > 0 
+                          ? `${result.batteriesCount} batteries processed`
+                          : 'Processing failed'
+                        }
+                      </p>
+                      
+                      {result.errors.length > 0 && (
+                        <div className="mt-2 text-xs text-red-400">
+                          {result.errors.slice(0, 2).map((error, i) => (
+                            <div key={i}>• {error}</div>
+                          ))}
+                          {result.errors.length > 2 && (
+                            <div>• ... and {result.errors.length - 2} more errors</div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Show uploaded batteries with passport view option */}
+                      {result.batteries && result.batteries.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <div className="text-xs text-slate-400 font-medium">Uploaded Batteries:</div>
+                          <div className="space-y-1">
+                            {result.batteries.map((battery) => (
+                              <div key={battery.id} className="flex items-center justify-between bg-slate-700/50 rounded p-2">
+                                <div className="text-sm text-white">
+                                  <span className="font-medium">{battery.id}</span>
+                                  <span className="text-slate-400 ml-2">({battery.chemistry}, {battery.soh.toFixed(1)}% SoH)</span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleViewPassport(battery)}
+                                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View Passport
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -284,6 +343,18 @@ export default function FileUploader() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Battery Passport Modal */}
+      {selectedBattery && (
+        <BatteryPassportModal
+          battery={selectedBattery}
+          isOpen={isPassportOpen}
+          onClose={() => setIsPassportOpen(false)}
+          onSave={handleSaveBattery}
+          showDashboardButton={true}
+          onNavigateToDashboard={handleNavigateToDashboard}
+        />
+      )}
     </div>
   );
 }
