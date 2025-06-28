@@ -1,5 +1,6 @@
 
 import { Battery, BatteryGrade, BatteryStatus, BatteryIssue } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
 const MOCK_BATTERIES: Battery[] = [
   {
@@ -124,98 +125,215 @@ interface BatteryUpdate {
 }
 
 class BatteryService {
-  async getUserBatteries(): Promise<Battery[]> {
-    return new Promise((resolve) => {
-      const storedBatteries = localStorage.getItem('uploadedBatteries');
-      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
+  private async initializeMockDataIfNeeded(): Promise<void> {
+    try {
+      const { data: existingBatteries } = await supabase
+        .from('user_batteries')
+        .select('id')
+        .limit(1);
 
-      if (batteries.length === 0) {
-        // If no batteries in local storage, initialize with mock batteries
-        batteries = MOCK_BATTERIES;
-        localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+      if (!existingBatteries || existingBatteries.length === 0) {
+        // Insert mock batteries for new users
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const mockBatteriesForDb = MOCK_BATTERIES.map(battery => ({
+            id: battery.id,
+            user_id: user.id,
+            grade: battery.grade,
+            status: battery.status,
+            soh: battery.soh,
+            rul: battery.rul,
+            cycles: battery.cycles,
+            chemistry: battery.chemistry,
+            upload_date: battery.uploadDate,
+            soh_history: battery.sohHistory,
+            issues: battery.issues || [],
+            notes: battery.notes
+          }));
+
+          await supabase.from('user_batteries').insert(mockBatteriesForDb);
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing mock data:', error);
+    }
+  }
+
+  async getUserBatteries(): Promise<Battery[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return [];
       }
 
-      setTimeout(() => {
-        resolve(batteries);
-      }, 500);
-    });
+      // Initialize mock data for new users
+      await this.initializeMockDataIfNeeded();
+
+      const { data: batteries, error } = await supabase
+        .from('user_batteries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching batteries:', error);
+        return [];
+      }
+
+      return batteries.map(battery => ({
+        id: battery.id,
+        grade: battery.grade as BatteryGrade,
+        status: battery.status as BatteryStatus,
+        soh: battery.soh,
+        rul: battery.rul,
+        cycles: battery.cycles,
+        chemistry: battery.chemistry as "LFP" | "NMC",
+        uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
+        sohHistory: battery.soh_history || [],
+        issues: battery.issues || [],
+        notes: battery.notes
+      }));
+    } catch (error) {
+      console.error('Error in getUserBatteries:', error);
+      return [];
+    }
   }
 
   async addBattery(newBattery: Battery): Promise<boolean> {
-    return new Promise((resolve) => {
-      const storedBatteries = localStorage.getItem('uploadedBatteries');
-      const batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
-
-      // Check if the battery ID already exists
-      if (batteries.find(battery => battery.id === newBattery.id)) {
-        console.error('Battery with this ID already exists.');
-        resolve(false);
-        return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
       }
 
-      batteries.push(newBattery);
-      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+      const { error } = await supabase.from('user_batteries').insert({
+        id: newBattery.id,
+        user_id: user.id,
+        grade: newBattery.grade,
+        status: newBattery.status,
+        soh: newBattery.soh,
+        rul: newBattery.rul,
+        cycles: newBattery.cycles,
+        chemistry: newBattery.chemistry,
+        upload_date: newBattery.uploadDate,
+        soh_history: newBattery.sohHistory,
+        issues: newBattery.issues || [],
+        notes: newBattery.notes
+      });
 
-      setTimeout(() => {
-        resolve(true);
-      }, 500);
-    });
+      if (error) {
+        console.error('Error adding battery:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in addBattery:', error);
+      return false;
+    }
   }
 
   async updateBattery(updatedBattery: Battery): Promise<boolean> {
-    return new Promise((resolve) => {
-      const storedBatteries = localStorage.getItem('uploadedBatteries');
-      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
-
-      const index = batteries.findIndex(battery => battery.id === updatedBattery.id);
-      if (index === -1) {
-        console.error('Battery not found.');
-        resolve(false);
-        return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
       }
 
-      batteries[index] = { ...batteries[index], ...updatedBattery };
-      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+      const { error } = await supabase
+        .from('user_batteries')
+        .update({
+          grade: updatedBattery.grade,
+          status: updatedBattery.status,
+          soh: updatedBattery.soh,
+          rul: updatedBattery.rul,
+          cycles: updatedBattery.cycles,
+          chemistry: updatedBattery.chemistry,
+          upload_date: updatedBattery.uploadDate,
+          soh_history: updatedBattery.sohHistory,
+          issues: updatedBattery.issues || [],
+          notes: updatedBattery.notes
+        })
+        .eq('id', updatedBattery.id)
+        .eq('user_id', user.id);
 
-      setTimeout(() => {
-        resolve(true);
-      }, 500);
-    });
+      if (error) {
+        console.error('Error updating battery:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateBattery:', error);
+      return false;
+    }
   }
 
   async deleteBattery(batteryId: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      const storedBatteries = localStorage.getItem('uploadedBatteries');
-      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
+      }
 
-      batteries = batteries.filter(battery => battery.id !== batteryId);
-      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+      const { error } = await supabase
+        .from('user_batteries')
+        .delete()
+        .eq('id', batteryId)
+        .eq('user_id', user.id);
 
-      setTimeout(() => {
-        resolve(true);
-      }, 500);
-    });
+      if (error) {
+        console.error('Error deleting battery:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in deleteBattery:', error);
+      return false;
+    }
   }
 
   async updateBatteryFields(batteryId: string, updates: BatteryUpdate): Promise<boolean> {
-    return new Promise((resolve) => {
-      const storedBatteries = localStorage.getItem('uploadedBatteries');
-      let batteries: Battery[] = storedBatteries ? JSON.parse(storedBatteries) : [];
-
-      const index = batteries.findIndex(battery => battery.id === batteryId);
-      if (index === -1) {
-        console.error('Battery not found.');
-        resolve(false);
-        return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
       }
 
-      batteries[index] = { ...batteries[index], ...updates };
-      localStorage.setItem('uploadedBatteries', JSON.stringify(batteries));
+      const dbUpdates: any = {};
+      if (updates.grade !== undefined) dbUpdates.grade = updates.grade;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.soh !== undefined) dbUpdates.soh = updates.soh;
+      if (updates.rul !== undefined) dbUpdates.rul = updates.rul;
+      if (updates.cycles !== undefined) dbUpdates.cycles = updates.cycles;
+      if (updates.chemistry !== undefined) dbUpdates.chemistry = updates.chemistry;
+      if (updates.uploadDate !== undefined) dbUpdates.upload_date = updates.uploadDate;
+      if (updates.sohHistory !== undefined) dbUpdates.soh_history = updates.sohHistory;
+      if (updates.issues !== undefined) dbUpdates.issues = updates.issues;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
-      setTimeout(() => {
-        resolve(true);
-      }, 500);
-    });
+      const { error } = await supabase
+        .from('user_batteries')
+        .update(dbUpdates)
+        .eq('id', batteryId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error updating battery fields:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateBatteryFields:', error);
+      return false;
+    }
   }
 }
 
