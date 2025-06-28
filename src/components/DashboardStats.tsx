@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BatteryFull, BatteryMedium, AlertTriangle, TrendingUp } from "lucide-react";
+import { BatteryFull, BatteryMedium, AlertTriangle } from "lucide-react";
 import { Battery } from "@/types";
 import { DashboardStatsService } from "@/services/dashboardStats";
 import { batteryService } from "@/services/batteryService";
@@ -94,7 +94,6 @@ export default function DashboardStats() {
     totalBatteries: 0,
     averageSoH: 0,
     criticalIssues: 0,
-    growthRate: 12.5,
   });
   const [userBatteries, setUserBatteries] = useState<Battery[]>([]);
 
@@ -113,7 +112,6 @@ export default function DashboardStats() {
         totalBatteries: dashboardStats.totalBatteries,
         averageSoH: dashboardStats.averageSoH,
         criticalIssues: dashboardStats.criticalIssues,
-        growthRate: 12.5,
       });
     } catch (error) {
       console.error('Error calculating stats:', error);
@@ -123,7 +121,6 @@ export default function DashboardStats() {
         totalBatteries: dashboardStats.totalBatteries,
         averageSoH: dashboardStats.averageSoH,
         criticalIssues: dashboardStats.criticalIssues,
-        growthRate: 12.5,
       });
     }
   };
@@ -144,34 +141,27 @@ export default function DashboardStats() {
 
   const statsData = useMemo(() => [
     { 
-      name: "Total Batteries Analyzed", 
-      value: `${stats.totalBatteries} (${userBatteries.length} real + ${DEMO_MOCK_BATTERIES.length} demo)`, 
+      name: "Total Batteries", 
+      value: stats.totalBatteries.toString(), 
       icon: BatteryFull,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10"
     },
     { 
-      name: "Avg. State of Health (SoH)", 
+      name: "Avg. State of Health", 
       value: `${stats.averageSoH.toFixed(1)}%`, 
       icon: BatteryMedium,
       color: "text-cyan-400",
       bgColor: "bg-cyan-500/10"
     },
     { 
-      name: "Critical Issues Flagged", 
+      name: "Critical Issues", 
       value: stats.criticalIssues.toString(), 
       icon: AlertTriangle,
       color: "text-orange-400",
       bgColor: "bg-orange-500/10"
     },
-    { 
-      name: "Fleet Growth Rate", 
-      value: `${stats.growthRate}%`, 
-      icon: TrendingUp,
-      color: "text-green-400",
-      bgColor: "bg-green-500/10"
-    },
-  ], [stats, userBatteries.length]);
+  ], [stats]);
 
   return (
     <div className="space-y-4">
@@ -185,7 +175,7 @@ export default function DashboardStats() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
         {statsData.map((stat, index) => (
           <Card key={stat.name} className="enhanced-card animate-fade-in hover:scale-105 transition-all duration-300" style={{ animationDelay: `${index * 100}ms` }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">

@@ -1,4 +1,3 @@
-
 import DashboardStats from "@/components/DashboardStats";
 import OptimizedBatteryTable from "@/components/OptimizedBatteryTable";
 import AdvancedAnalytics from "@/components/AdvancedAnalytics";
@@ -7,7 +6,7 @@ import DataExporter from "@/components/DataExporter";
 import BatteryPassportModal from "@/components/BatteryPassportModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, BarChart3, GitCompare, Download, Activity, Zap, LogOut } from "lucide-react";
+import { Upload, BarChart3, GitCompare, Download, Activity, LogOut } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
@@ -142,20 +141,7 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent mb-2">
             ReVolt Dashboard
           </h1>
-          <p className="text-muted-foreground text-lg">Universal Battery Intelligence Platform - Advanced Analytics & Diagnostics</p>
-          <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
-            <div className="flex items-center gap-1">
-              <Activity className="h-4 w-4 text-green-400" />
-              <span>Real-time Monitoring</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Zap className="h-4 w-4 text-blue-400" />
-              <span>AI-Powered Analytics</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-slate-300">Welcome, {user?.email}</span>
-            </div>
-          </div>
+          <p className="text-muted-foreground text-lg">Battery Intelligence Platform</p>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/upload">
@@ -182,7 +168,7 @@ export default function Dashboard() {
           <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10 mb-6">
             <TabsTrigger value="fleet" className="flex items-center gap-2 transition-all duration-200">
               <Activity className="h-4 w-4" />
-              Fleet ({allBatteries.length})
+              Fleet
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2 transition-all duration-200">
               <BarChart3 className="h-4 w-4" />

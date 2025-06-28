@@ -119,6 +119,7 @@ export default function OptimizedBatteryTable() {
   const [viewingIssues, setViewingIssues] = useState<Battery | null>(null);
   const [viewingRootCause, setViewingRootCause] = useState<Battery | null>(null);
   const [userBatteries, setUserBatteries] = useState<Battery[]>([]);
+  const [mockBatteries, setMockBatteries] = useState<Battery[]>(DEMO_MOCK_BATTERIES);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -127,7 +128,7 @@ export default function OptimizedBatteryTable() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Combine user batteries with mock batteries
-  const allBatteries = useMemo(() => [...userBatteries, ...DEMO_MOCK_BATTERIES], [userBatteries]);
+  const allBatteries = useMemo(() => [...userBatteries, ...mockBatteries], [userBatteries, mockBatteries]);
 
   const filteredAndSortedBatteries = useMemo(() => {
     let filtered = allBatteries.filter(battery => {
@@ -199,16 +200,18 @@ export default function OptimizedBatteryTable() {
   }, []);
 
   const handleDeleteBattery = useCallback(async (batteryId: string) => {
-    // Prevent deletion of mock batteries
+    // Handle mock battery deletion
     if (batteryId.startsWith('MOCK-')) {
+      setMockBatteries(prev => prev.filter(battery => battery.id !== batteryId));
       toast({
-        title: "Cannot Delete Mock Battery",
-        description: "Mock batteries are for demonstration only and cannot be deleted",
-        variant: "destructive"
+        title: "Demo Battery Removed",
+        description: `Demo battery ${batteryId} has been removed from the display`,
       });
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
       return;
     }
 
+    // Handle real battery deletion
     const success = await batteryService.deleteBattery(batteryId);
     if (success) {
       setUserBatteries(prev => prev.filter(battery => battery.id !== batteryId));
@@ -341,7 +344,7 @@ export default function OptimizedBatteryTable() {
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4 text-blue-400" />
           <span className="text-blue-300 text-sm">
-            This table includes {DEMO_MOCK_BATTERIES.length} mock batteries (prefixed with "MOCK-") for demonstration purposes alongside your real data
+            This table includes mock batteries (marked with DEMO tags) for demonstration purposes
           </span>
         </div>
       </div>
@@ -401,8 +404,7 @@ export default function OptimizedBatteryTable() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="text-sm text-slate-400 px-6 pb-2">
-            Showing {filteredAndSortedBatteries.length} of {allBatteries.length} batteries 
-            ({userBatteries.length} real + {DEMO_MOCK_BATTERIES.length} mock)
+            Showing {filteredAndSortedBatteries.length} of {allBatteries.length} batteries
           </div>
           <Table>
             <TableHeader>
@@ -545,14 +547,8 @@ export default function OptimizedBatteryTable() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleDeleteBattery(battery.id)}
-                          className={cn(
-                            "transition-all duration-200",
-                            isMock 
-                              ? "text-slate-500 cursor-not-allowed" 
-                              : "text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          )}
-                          title={isMock ? "Cannot delete mock battery" : "Delete Battery"}
-                          disabled={isMock}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200"
+                          title={isMock ? "Remove demo battery" : "Delete Battery"}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
