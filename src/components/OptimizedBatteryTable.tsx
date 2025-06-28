@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +7,96 @@ import { Input } from "@/components/ui/input";
 import { Battery, BatteryGrade, BatteryStatus } from "@/types";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
-import { FileText, Trash2, Plus, AlertTriangle, Search, Filter, Download, RefreshCw } from "lucide-react";
+import { FileText, Trash2, Plus, AlertTriangle, Search, Filter, Download, RefreshCw, Info } from "lucide-react";
 import BatteryPassportModal from "./BatteryPassportModal";
 import ManualBatteryModal from "./ManualBatteryModal";
 import IssueDetailViewer from "./IssueDetailViewer";
 import RootCauseAnalysis from "./RootCauseAnalysis";
 import { toast } from "@/hooks/use-toast";
 import { batteryService } from "@/services/batteryService";
+
+// Mock batteries for demonstration - clearly labeled
+const DEMO_MOCK_BATTERIES: Battery[] = [
+  {
+    id: "MOCK-NMC-001",
+    grade: "A",
+    status: "Healthy",
+    soh: 98.5,
+    rul: 2100,
+    cycles: 200,
+    chemistry: "NMC",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 50, soh: 99.5 },
+      { cycle: 100, soh: 99.0 },
+      { cycle: 150, soh: 98.8 },
+      { cycle: 200, soh: 98.5 }
+    ],
+    issues: [],
+    notes: "Mock Battery - High-performance NMC demonstrating excellent health"
+  },
+  {
+    id: "MOCK-LFP-002",
+    grade: "B",
+    status: "Degrading",
+    soh: 89.2,
+    rul: 650,
+    cycles: 1500,
+    chemistry: "LFP",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 500, soh: 96.0 },
+      { cycle: 1000, soh: 92.5 },
+      { cycle: 1500, soh: 89.2 }
+    ],
+    issues: [
+      {
+        id: "mock-issue-1",
+        category: "Performance",
+        title: "Capacity Fade Detected",
+        description: "Mock issue showing gradual capacity degradation",
+        severity: "Warning",
+        cause: "Simulated aging process",
+        recommendation: "Monitor performance trends",
+        solution: "Consider replacement planning",
+        affectedMetrics: ["soh", "rul"]
+      }
+    ],
+    notes: "Mock Battery - LFP showing typical degradation patterns"
+  },
+  {
+    id: "MOCK-NMC-003",
+    grade: "C",
+    status: "Critical",
+    soh: 78.1,
+    rul: 150,
+    cycles: 2800,
+    chemistry: "NMC",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 1000, soh: 92.0 },
+      { cycle: 2000, soh: 84.5 },
+      { cycle: 2800, soh: 78.1 }
+    ],
+    issues: [
+      {
+        id: "mock-issue-2",
+        category: "Safety",
+        title: "Critical SoH Threshold",
+        description: "Mock critical battery requiring immediate attention",
+        severity: "Critical",
+        cause: "Extensive cycling simulation",
+        recommendation: "Replace immediately",
+        solution: "Battery replacement required",
+        affectedMetrics: ["soh", "rul", "cycles"]
+      }
+    ],
+    notes: "Mock Battery - Critical condition demonstration"
+  }
+];
 
 const gradeColor: Record<BatteryGrade, string> = {
   A: "bg-green-500/80 hover:bg-green-500",
@@ -36,7 +118,7 @@ export default function OptimizedBatteryTable() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [viewingIssues, setViewingIssues] = useState<Battery | null>(null);
   const [viewingRootCause, setViewingRootCause] = useState<Battery | null>(null);
-  const [batteries, setBatteries] = useState<Battery[]>([]);
+  const [userBatteries, setUserBatteries] = useState<Battery[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -44,8 +126,11 @@ export default function OptimizedBatteryTable() {
   const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
+  // Combine user batteries with mock batteries
+  const allBatteries = useMemo(() => [...userBatteries, ...DEMO_MOCK_BATTERIES], [userBatteries]);
+
   const filteredAndSortedBatteries = useMemo(() => {
-    let filtered = batteries.filter(battery => {
+    let filtered = allBatteries.filter(battery => {
       const matchesSearch = battery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            battery.chemistry.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || battery.status === statusFilter;
@@ -69,13 +154,13 @@ export default function OptimizedBatteryTable() {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
       }
     });
-  }, [batteries, searchTerm, statusFilter, gradeFilter, sortBy, sortOrder]);
+  }, [allBatteries, searchTerm, statusFilter, gradeFilter, sortBy, sortOrder]);
 
   const updateBatteries = useCallback(async () => {
     try {
       setLoading(true);
       const fetchedBatteries = await batteryService.getUserBatteries();
-      setBatteries(fetchedBatteries);
+      setUserBatteries(fetchedBatteries);
       return fetchedBatteries;
     } catch (error) {
       console.error('Error fetching batteries:', error);
@@ -114,9 +199,19 @@ export default function OptimizedBatteryTable() {
   }, []);
 
   const handleDeleteBattery = useCallback(async (batteryId: string) => {
+    // Prevent deletion of mock batteries
+    if (batteryId.startsWith('MOCK-')) {
+      toast({
+        title: "Cannot Delete Mock Battery",
+        description: "Mock batteries are for demonstration only and cannot be deleted",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const success = await batteryService.deleteBattery(batteryId);
     if (success) {
-      setBatteries(prev => prev.filter(battery => battery.id !== batteryId));
+      setUserBatteries(prev => prev.filter(battery => battery.id !== batteryId));
       toast({
         title: "Battery Deleted",
         description: `Battery ${batteryId} has been removed from the system`,
@@ -134,7 +229,7 @@ export default function OptimizedBatteryTable() {
   const handleAddManualBattery = useCallback(async (newBattery: Battery) => {
     const success = await batteryService.addBattery(newBattery);
     if (success) {
-      setBatteries(prev => [...prev, newBattery]);
+      setUserBatteries(prev => [...prev, newBattery]);
       toast({
         title: "Battery Added",
         description: `Battery ${newBattery.id} has been added to the system`,
@@ -150,9 +245,19 @@ export default function OptimizedBatteryTable() {
   }, []);
 
   const handleSaveBattery = useCallback(async (updatedBattery: Battery) => {
+    // Prevent editing of mock batteries
+    if (updatedBattery.id.startsWith('MOCK-')) {
+      toast({
+        title: "Cannot Edit Mock Battery",
+        description: "Mock batteries are for demonstration only and cannot be edited",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const success = await batteryService.updateBattery(updatedBattery);
     if (success) {
-      setBatteries(prev => 
+      setUserBatteries(prev => 
         prev.map(battery => 
           battery.id === updatedBattery.id ? updatedBattery : battery
         )
@@ -170,9 +275,9 @@ export default function OptimizedBatteryTable() {
 
   const exportData = () => {
     const csv = [
-      "ID,Grade,Status,SoH,RUL,Cycles,Chemistry,Upload Date",
+      "ID,Grade,Status,SoH,RUL,Cycles,Chemistry,Upload Date,Type",
       ...filteredAndSortedBatteries.map(b => 
-        `${b.id},${b.grade},${b.status},${b.soh},${b.rul},${b.cycles},${b.chemistry},${b.uploadDate}`
+        `${b.id},${b.grade},${b.status},${b.soh},${b.rul},${b.cycles},${b.chemistry},${b.uploadDate},${b.id.startsWith('MOCK-') ? 'Mock' : 'Real'}`
       )
     ].join('\n');
     
@@ -180,7 +285,7 @@ export default function OptimizedBatteryTable() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'battery-data.csv';
+    a.download = 'battery-data-with-mock.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -231,6 +336,16 @@ export default function OptimizedBatteryTable() {
 
   return (
     <>
+      {/* Mock Data Notice */}
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 text-blue-400" />
+          <span className="text-blue-300 text-sm">
+            This table includes {DEMO_MOCK_BATTERIES.length} mock batteries (prefixed with "MOCK-") for demonstration purposes alongside your real data
+          </span>
+        </div>
+      </div>
+
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -286,7 +401,8 @@ export default function OptimizedBatteryTable() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="text-sm text-slate-400 px-6 pb-2">
-            Showing {filteredAndSortedBatteries.length} of {batteries.length} batteries
+            Showing {filteredAndSortedBatteries.length} of {allBatteries.length} batteries 
+            ({userBatteries.length} real + {DEMO_MOCK_BATTERIES.length} mock)
           </div>
           <Table>
             <TableHeader>
@@ -333,95 +449,118 @@ export default function OptimizedBatteryTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAndSortedBatteries.map((battery, index) => (
-                <TableRow 
-                  key={battery.id} 
-                  className="border-white/10 hover:bg-white/5 transition-all duration-200 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <TableCell className="font-medium text-white">{battery.id}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge className={cn("text-white transition-all duration-200 cursor-pointer", gradeColor[battery.grade])}>
-                      {battery.grade}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                      <span className={cn("font-semibold", statusColor[battery.status])}>
-                          {battery.status}
-                      </span>
-                  </TableCell>
-                  <TableCell className="text-right text-slate-300">{battery.soh.toFixed(1)}</TableCell>
-                  <TableCell className="text-right text-slate-300">{battery.rul.toLocaleString()}</TableCell>
-                  <TableCell className="text-right text-slate-300">{battery.cycles.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <div className="h-10 w-32">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={battery.sohHistory} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id={`colorSoh-${battery.id}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                              <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <Area 
-                            type="monotone" 
-                            dataKey="soh" 
-                            stroke="#8884d8" 
-                            fillOpacity={1} 
-                            fill={`url(#colorSoh-${battery.id})`} 
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {battery.issues && battery.issues.length > 0 ? (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setViewingIssues(battery)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200"
-                      >
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        {battery.issues.length}
-                      </Button>
-                    ) : (
-                      <span className="text-green-400 text-sm">None</span>
+              {filteredAndSortedBatteries.map((battery, index) => {
+                const isMock = battery.id.startsWith('MOCK-');
+                return (
+                  <TableRow 
+                    key={battery.id} 
+                    className={cn(
+                      "border-white/10 hover:bg-white/5 transition-all duration-200 animate-fade-in",
+                      isMock && "bg-blue-500/5"
                     )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleViewPassport(battery)}
-                        className="text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200"
-                        title="View Battery Passport"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setViewingRootCause(battery)}
-                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-200"
-                        title="Root Cause Analysis"
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleDeleteBattery(battery.id)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200"
-                        title="Delete Battery"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("text-white", isMock && "text-blue-300")}>
+                          {battery.id}
+                        </span>
+                        {isMock && (
+                          <Badge variant="outline" className="text-xs border-blue-400 text-blue-300">
+                            DEMO
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className={cn("text-white transition-all duration-200 cursor-pointer", gradeColor[battery.grade])}>
+                        {battery.grade}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                        <span className={cn("font-semibold", statusColor[battery.status])}>
+                            {battery.status}
+                        </span>
+                    </TableCell>
+                    <TableCell className="text-right text-slate-300">{battery.soh.toFixed(1)}</TableCell>
+                    <TableCell className="text-right text-slate-300">{battery.rul.toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-slate-300">{battery.cycles.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="h-10 w-32">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={battery.sohHistory} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id={`colorSoh-${battery.id}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={isMock ? "#3b82f6" : "#8884d8"} stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor={isMock ? "#3b82f6" : "#8884d8"} stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <Area 
+                              type="monotone" 
+                              dataKey="soh" 
+                              stroke={isMock ? "#3b82f6" : "#8884d8"} 
+                              fillOpacity={1} 
+                              fill={`url(#colorSoh-${battery.id})`} 
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {battery.issues && battery.issues.length > 0 ? (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setViewingIssues(battery)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200"
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          {battery.issues.length}
+                        </Button>
+                      ) : (
+                        <span className="text-green-400 text-sm">None</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewPassport(battery)}
+                          className="text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+                          title="View Battery Passport"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setViewingRootCause(battery)}
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-200"
+                          title="Root Cause Analysis"
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteBattery(battery.id)}
+                          className={cn(
+                            "transition-all duration-200",
+                            isMock 
+                              ? "text-slate-500 cursor-not-allowed" 
+                              : "text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          )}
+                          title={isMock ? "Cannot delete mock battery" : "Delete Battery"}
+                          disabled={isMock}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
