@@ -146,8 +146,8 @@ class BatteryService {
             cycles: battery.cycles,
             chemistry: battery.chemistry,
             upload_date: battery.uploadDate,
-            soh_history: battery.sohHistory,
-            issues: battery.issues || [],
+            soh_history: JSON.parse(JSON.stringify(battery.sohHistory)),
+            issues: JSON.parse(JSON.stringify(battery.issues || [])),
             notes: battery.notes
           }));
 
@@ -190,8 +190,8 @@ class BatteryService {
         cycles: battery.cycles,
         chemistry: battery.chemistry as "LFP" | "NMC",
         uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
-        sohHistory: battery.soh_history || [],
-        issues: battery.issues || [],
+        sohHistory: Array.isArray(battery.soh_history) ? battery.soh_history : [],
+        issues: Array.isArray(battery.issues) ? battery.issues : [],
         notes: battery.notes
       }));
     } catch (error) {
@@ -218,8 +218,8 @@ class BatteryService {
         cycles: newBattery.cycles,
         chemistry: newBattery.chemistry,
         upload_date: newBattery.uploadDate,
-        soh_history: newBattery.sohHistory,
-        issues: newBattery.issues || [],
+        soh_history: JSON.parse(JSON.stringify(newBattery.sohHistory)),
+        issues: JSON.parse(JSON.stringify(newBattery.issues || [])),
         notes: newBattery.notes
       });
 
@@ -253,8 +253,8 @@ class BatteryService {
           cycles: updatedBattery.cycles,
           chemistry: updatedBattery.chemistry,
           upload_date: updatedBattery.uploadDate,
-          soh_history: updatedBattery.sohHistory,
-          issues: updatedBattery.issues || [],
+          soh_history: JSON.parse(JSON.stringify(updatedBattery.sohHistory)),
+          issues: JSON.parse(JSON.stringify(updatedBattery.issues || [])),
           notes: updatedBattery.notes
         })
         .eq('id', updatedBattery.id)
@@ -314,8 +314,8 @@ class BatteryService {
       if (updates.cycles !== undefined) dbUpdates.cycles = updates.cycles;
       if (updates.chemistry !== undefined) dbUpdates.chemistry = updates.chemistry;
       if (updates.uploadDate !== undefined) dbUpdates.upload_date = updates.uploadDate;
-      if (updates.sohHistory !== undefined) dbUpdates.soh_history = updates.sohHistory;
-      if (updates.issues !== undefined) dbUpdates.issues = updates.issues;
+      if (updates.sohHistory !== undefined) dbUpdates.soh_history = JSON.parse(JSON.stringify(updates.sohHistory));
+      if (updates.issues !== undefined) dbUpdates.issues = JSON.parse(JSON.stringify(updates.issues));
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
       const { error } = await supabase
