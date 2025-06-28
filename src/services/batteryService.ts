@@ -190,8 +190,8 @@ class BatteryService {
         cycles: battery.cycles,
         chemistry: battery.chemistry as "LFP" | "NMC",
         uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
-        sohHistory: Array.isArray(battery.soh_history) ? battery.soh_history as { cycle: number; soh: number }[] : [],
-        issues: Array.isArray(battery.issues) ? battery.issues as BatteryIssue[] : [],
+        sohHistory: Array.isArray(battery.soh_history) ? (battery.soh_history as unknown as { cycle: number; soh: number }[]) : [],
+        issues: Array.isArray(battery.issues) ? (battery.issues as unknown as BatteryIssue[]) : [],
         notes: battery.notes
       }));
     } catch (error) {
