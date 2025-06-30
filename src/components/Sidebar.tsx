@@ -34,7 +34,7 @@ export default function Sidebar() {
           {!isCollapsed && (
             <div className="flex items-center gap-3">
               <img 
-                src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
+                src="/lovable-uploads/70ead042-a3b1-4883-abf1-eeae7d11f92a.png" 
                 alt="ReVolt" 
                 className="h-8 w-auto"
               />
@@ -52,22 +52,24 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => (
-          <Link key={item.name} to={item.href}>
-            <Button
-              variant={isActive(item.href) ? "secondary" : "ghost"}
-              className={`w-full justify-start glass-button transition-all duration-200 ${
-                isActive(item.href) 
-                  ? "bg-blue-500/20 border-blue-400/50 text-white shadow-lg shadow-blue-500/25" 
-                  : "text-slate-300 hover:text-white hover:bg-white/10"
-              }`}
-            >
-              <item.icon className="h-4 w-4" />
-              {!isCollapsed && <span className="ml-2">{item.name}</span>}
-            </Button>
-          </Link>
-        ))}
+      <nav className="flex-1 p-4">
+        <div className="space-y-3">
+          {navigation.map((item) => (
+            <Link key={item.name} to={item.href}>
+              <Button
+                variant={isActive(item.href) ? "secondary" : "ghost"}
+                className={`w-full justify-start glass-button transition-all duration-200 ${
+                  isActive(item.href) 
+                    ? "bg-blue-500/20 border-blue-400/50 text-white shadow-lg shadow-blue-500/25" 
+                    : "text-slate-300 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <item.icon className="h-4 w-4" />
+                {!isCollapsed && <span className="ml-2">{item.name}</span>}
+              </Button>
+            </Link>
+          ))}
+        </div>
       </nav>
 
       {/* Sign Out Button */}
