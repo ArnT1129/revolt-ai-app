@@ -29,14 +29,14 @@ export default function Sidebar() {
   return (
     <aside className={`${isCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 bg-black/20 backdrop-blur-sm border-r border-white/10 flex flex-col`}>
       {/* Logo and Toggle */}
-      <div className="p-4 border-b border-white/10">
+      <div className="p-6 border-b border-white/10">
         <div className="flex items-center justify-between">
           {!isCollapsed && (
             <div className="flex items-center gap-3">
               <img 
                 src="/lovable-uploads/70ead042-a3b1-4883-abf1-eeae7d11f92a.png" 
                 alt="ReVolt" 
-                className="h-8 w-auto"
+                className="h-12 w-auto"
               />
             </div>
           )}
@@ -52,8 +52,8 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4">
-        <div className="space-y-3">
+      <nav className="flex-1 p-6">
+        <div className="space-y-6">
           {navigation.map((item) => (
             <Link key={item.name} to={item.href}>
               <Button
