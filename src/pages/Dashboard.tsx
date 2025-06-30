@@ -1,4 +1,3 @@
-
 import DashboardStats from "@/components/DashboardStats";
 import OptimizedBatteryTable from "@/components/OptimizedBatteryTable";
 import AdvancedAnalytics from "@/components/AdvancedAnalytics";
@@ -7,7 +6,7 @@ import DataExporter from "@/components/DataExporter";
 import BatteryPassportModal from "@/components/BatteryPassportModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, BarChart3, GitCompare, Download, Activity, LogOut } from "lucide-react";
+import { FileText, BarChart3, GitCompare, Download, Activity } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
@@ -22,7 +21,7 @@ export default function Dashboard() {
   const [isPassportOpen, setIsPassportOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const updateBatteries = async () => {
     try {
@@ -44,10 +43,6 @@ export default function Dashboard() {
       setIsPassportOpen(false);
       await updateBatteries();
     }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
   };
 
   // Initial data load
@@ -144,21 +139,13 @@ export default function Dashboard() {
           </h1>
           <p className="text-muted-foreground text-lg">Battery Intelligence Platform</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center">
           <Link to="/upload">
             <Button className="glass-button border-blue-500/40 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
               <FileText className="mr-2 h-4 w-4" />
               Create Passport
             </Button>
           </Link>
-          <Button 
-            onClick={handleSignOut}
-            variant="outline" 
-            className="glass-button border-red-500/40 hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
         </div>
       </div>
       

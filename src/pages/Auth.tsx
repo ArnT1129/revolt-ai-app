@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2, Battery } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
@@ -133,9 +132,11 @@ export default function Auth() {
         <Card className="enhanced-card border-slate-700/50 backdrop-blur-sm">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="p-3 rounded-full bg-blue-500/20 border border-blue-500/30">
-                <Battery className="h-8 w-8 text-blue-400" />
-              </div>
+              <img 
+                src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
+                alt="ReVolt" 
+                className="h-16 w-auto"
+              />
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-white">
