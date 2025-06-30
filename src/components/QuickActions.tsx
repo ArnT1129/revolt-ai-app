@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Download, RefreshCw, Settings, FileText, BarChart3 } from "lucide-react";
+import { FileText, Download, RefreshCw, Settings, FileBarChart, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -10,9 +10,9 @@ export default function QuickActions() {
 
   const actions = [
     {
-      title: "Upload Data",
-      description: "Import new battery data",
-      icon: Upload,
+      title: "Create Passport",
+      description: "Upload data or manual entry",
+      icon: FileText,
       href: "/upload",
       color: "hover:bg-blue-500/10 hover:border-blue-400"
     },
@@ -54,7 +54,7 @@ export default function QuickActions() {
     {
       title: "Generate Report",
       description: "Create detailed report",
-      icon: FileText,
+      icon: FileBarChart,
       onClick: () => {
         console.log("Generating comprehensive report with settings:", {
           format: settings.exportFormat,

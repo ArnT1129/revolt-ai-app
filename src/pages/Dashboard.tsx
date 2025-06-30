@@ -1,3 +1,4 @@
+
 import DashboardStats from "@/components/DashboardStats";
 import OptimizedBatteryTable from "@/components/OptimizedBatteryTable";
 import AdvancedAnalytics from "@/components/AdvancedAnalytics";
@@ -6,7 +7,7 @@ import DataExporter from "@/components/DataExporter";
 import BatteryPassportModal from "@/components/BatteryPassportModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, BarChart3, GitCompare, Download, Activity, LogOut } from "lucide-react";
+import { FileText, BarChart3, GitCompare, Download, Activity, LogOut } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Battery } from "@/types";
@@ -146,8 +147,8 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <Link to="/upload">
             <Button className="glass-button border-blue-500/40 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Data
+              <FileText className="mr-2 h-4 w-4" />
+              Create Passport
             </Button>
           </Link>
           <Button 
