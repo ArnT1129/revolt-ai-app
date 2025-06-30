@@ -1,179 +1,86 @@
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { 
-  BarChart3, 
-  Upload, 
-  Settings, 
-  Battery, 
-  Menu, 
-  X,
-  User,
-  LogOut
-} from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const navigation = [
-  {
-    name: "Dashboard",
-    href: "/",
-    icon: BarChart3,
-  },
-  {
-    name: "Upload Data",
-    href: "/upload", 
-    icon: Upload,
-  },
-  {
-    name: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-];
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Activity, BarChart3, GitCompare, Download, Settings, Upload, Home } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import QuickActions from "./QuickActions";
 
 export default function Sidebar() {
-  const location = useLocation();
-  const { user, signOut } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const location = useLocation();
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
+  const navigation = [
+    { name: "Dashboard", href: "/", icon: Home },
+    { name: "Create Passport", href: "/upload", icon: Upload },
+    { name: "Settings", href: "/settings", icon: Settings },
+  ];
 
-  const getUserInitials = () => {
-    if (user?.user_metadata?.full_name) {
-      return user.user_metadata.full_name
-        .split(' ')
-        .map((n: string) => n[0])
-        .join('')
-        .toUpperCase();
-    }
-    return user?.email?.[0]?.toUpperCase() || 'U';
+  const isActive = (path: string) => {
+    if (path === "/" && location.pathname === "/") return true;
+    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    return false;
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {!isCollapsed && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 lg:hidden"
-          onClick={() => setIsCollapsed(true)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900/95 backdrop-blur-md border-r border-white/10 transition-all duration-300 lg:relative lg:translate-x-0",
-          isCollapsed ? "-translate-x-full lg:w-16" : "w-64 translate-x-0"
-        )}
-      >
-        {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-white/10">
+    <aside className={`${isCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 bg-black/20 backdrop-blur-sm border-r border-white/10 flex flex-col`}>
+      {/* Logo and Toggle */}
+      <div className="p-4 border-b border-white/10">
+        <div className="flex items-center justify-between">
           {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <Battery className="h-8 w-8 text-blue-400" />
-              <span className="text-xl font-bold text-white">BatteryLab</span>
+            <div className="flex items-center gap-3">
+              <img 
+                src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
+                alt="ReVolt" 
+                className="h-8 w-auto"
+              />
             </div>
           )}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-white hover:bg-white/10 lg:hidden"
+            className="text-white hover:bg-white/10"
           >
-            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            {isCollapsed ? "→" : "←"}
           </Button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-white/10",
-                  isActive
-                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
-                    : "text-slate-300 hover:text-white",
-                  isCollapsed && "justify-center"
-                )}
-                title={isCollapsed ? item.name : undefined}
-              >
-                <item.icon className="h-5 w-5" />
-                {!isCollapsed && <span>{item.name}</span>}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User section */}
-        <div className="border-t border-white/10 p-4">
-          {!isCollapsed ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-blue-600 text-white text-sm">
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user?.user_metadata?.full_name || 'User'}
-                  </p>
-                  <p className="text-xs text-slate-400 truncate">
-                    {user?.email}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="w-full justify-start text-slate-300 hover:text-white hover:bg-white/10"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-center text-slate-300 hover:text-white hover:bg-white/10"
-                title="Profile"
-              >
-                <User className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="w-full justify-center text-slate-300 hover:text-white hover:bg-white/10"
-                title="Sign Out"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => setIsCollapsed(false)}
-        className="fixed top-4 left-4 z-40 lg:hidden text-white hover:bg-white/10"
-      >
-        <Menu className="h-4 w-4" />
-      </Button>
-    </>
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-2">
+        {navigation.map((item) => (
+          <Link key={item.name} to={item.href}>
+            <Button
+              variant={isActive(item.href) ? "secondary" : "ghost"}
+              className={`w-full justify-start glass-button transition-all duration-200 ${
+                isActive(item.href) 
+                  ? "bg-blue-500/20 border-blue-400/50 text-white shadow-lg shadow-blue-500/25" 
+                  : "text-slate-300 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {!isCollapsed && <span className="ml-2">{item.name}</span>}
+            </Button>
+          </Link>
+        ))}
+      </nav>
+
+      {/* Quick Actions - only show when not collapsed */}
+      {!isCollapsed && (
+        <div className="p-4 border-t border-white/10">
+          <QuickActions />
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="p-4 border-t border-white/10">
+        {!isCollapsed && (
+          <p className="text-xs text-slate-400 text-center">
+            Battery Intelligence Platform
+          </p>
+        )}
+      </div>
+    </aside>
   );
 }
