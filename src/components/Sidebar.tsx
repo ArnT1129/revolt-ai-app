@@ -59,7 +59,7 @@ export default function Sidebar() {
               variant={isActive(item.href) ? "secondary" : "ghost"}
               className={`w-full justify-start glass-button transition-all duration-200 ${
                 isActive(item.href) 
-                  ? "bg-blue-500/20 border-blue-400/50 text-white shadow-lg shadow-blue-500/25" 
+                  ? "bg-blue-500/20 border-blue-400/50 text-white shadow-md shadow-blue-500/25" 
                   : "text-slate-300 hover:text-white hover:bg-white/10"
               }`}
             >
