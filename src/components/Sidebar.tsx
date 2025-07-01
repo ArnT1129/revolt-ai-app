@@ -52,17 +52,17 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 space-y-">
         {navigation.map((item) => (
           <Link key={item.name} to={item.href}>
-            <Button
-              variant={isActive(item.href) ? "secondary" : "ghost"}
-              className={`w-full justify-start glass-button transition-all duration-200 ${
-                isActive(item.href) 
-                  ? "bg-blue-500/20 border-blue-400/50 text-white shadow-md shadow-blue-500/25" 
-                  : "text-slate-300 hover:text-white hover:bg-white/10"
-              }`}
-            >
+          <Button
+            variant={isActive(item.href) ? "secondary" : "ghost"}
+            className={`w-full justify-start glass-button mb-2 rounded-md transition-all duration-200 ${
+              isActive(item.href) 
+                ? "bg-blue-500/20 border-blue-400/50 text-white shadow-md shadow-blue-500/15" 
+                : "text-slate-300 hover:text-white hover:bg-white/10"
+            }`}
+          >
               <item.icon className="h-4 w-4" />
               {!isCollapsed && <span className="ml-2">{item.name}</span>}
             </Button>
