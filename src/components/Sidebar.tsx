@@ -52,7 +52,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-4">
+      <nav className="flex-1 p-4 space-y-40">
         {navigation.map((item) => (
           <Link key={item.name} to={item.href}>
             <Button
