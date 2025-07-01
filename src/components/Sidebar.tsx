@@ -11,7 +11,7 @@ export default function Sidebar() {
   const { signOut } = useAuth();
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: Home },
+    { name: "poopy", href: "/", icon: Home },
     { name: "Create Passport", href: "/upload", icon: Upload },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
