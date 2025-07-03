@@ -36,7 +36,7 @@ export default function Sidebar() {
               <img 
                 src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
                 alt="ReVolt" 
-                className="h-12 w-auto"
+                className="h-14 w-auto"
               />
             </div>
           )}
