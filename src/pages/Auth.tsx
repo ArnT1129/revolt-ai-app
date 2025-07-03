@@ -239,7 +239,7 @@ export default function Auth() {
               }}
               disabled={loading}
             >
-              {isSignUp ? 'Sign In Instead' : 'Create New Account'}
+              {isSignUp ? 'Sign In' : 'Create New Account'}
             </Button>
           </CardContent>
         </Card>
