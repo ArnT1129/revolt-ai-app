@@ -42,7 +42,7 @@ export default function RootCauseAnalysis({ battery }: RootCauseAnalysisProps) {
           `${battery.chemistry} chemistry characteristics`,
           battery.soh < 90 ? 'Capacity fade pattern consistent with SEI growth' : 'Normal capacity retention'
         ],
-        recommendations: [
+        reccomendations : [
           'Optimize charging voltage to reduce SEI formation',
           'Implement temperature control during charging',
           'Consider electrolyte additives to stabilize SEI'
