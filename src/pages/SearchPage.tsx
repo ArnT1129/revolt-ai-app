@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,7 @@ const DEFAULT_FILTERS: SearchFilters = {
   cycleRange: [0, 5000]
 };
 
-export default function Search() {
+export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +51,8 @@ export default function Search() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Load batteries function - removed from useCallback to avoid dependency issues
-  const loadBatteries = async () => {
+  // Load batteries function
+  const loadBatteries = useCallback(async () => {
     if (!mountedRef.current) return;
     
     setLoading(true);
@@ -73,17 +74,19 @@ export default function Search() {
         setLoading(false);
       }
     }
-  }. [];
+  }, []);
 
   // Initial load and company mode change detection
   useEffect(() => {
     loadBatteries();
-  }, [isCompanyMode, loadBatteries]);
+  }, [loadBatteries, isCompanyMode]);
 
   // Cleanup on unmount
   useEffect(() => {
-    export function Search() {
-  }, [batteries, debouncedSearchQuery, filters]);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Memoized filter function
   const filteredBatteries = useMemo(() => {
@@ -172,7 +175,9 @@ export default function Search() {
   }, [filteredBatteries]);
 
   // Event handlers
-  const handleRetry = () => { loadBatteries(); };
+  const handleRetry = useCallback(() => { 
+    loadBatteries(); 
+  }, [loadBatteries]);
 
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
