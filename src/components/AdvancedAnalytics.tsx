@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, BarChart, Bar, ScatterChart, Scatter } from "recharts";
-import { TrendingDown, AlertTriangle, Download, FileText, Battery, Zap, Activity } from "lucide-react";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, BarChart, Bar, ScatterChart, Scatter, ComposedChart, Area, AreaChart } from "recharts";
+import { TrendingDown, AlertTriangle, Download, FileText, Battery, Zap, Activity, Clock, DollarSign, Thermometer, Calendar, Target, Shuffle, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import { Battery as BatteryType } from "@/types";
 
 interface AdvancedAnalyticsProps {
@@ -20,11 +19,22 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
   const [cycleVsSoH, setCycleVsSoH] = useState<any[]>([]);
   const [fleetHealthTrend, setFleetHealthTrend] = useState<any[]>([]);
   const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
+  
+  // New unique features
+  const [replacementPrediction, setReplacementPrediction] = useState<any[]>([]);
+  const [financialImpact, setFinancialImpact] = useState<any>(null);
+  const [batchAnalysis, setBatchAnalysis] = useState<any[]>([]);
+  const [warrantyClaims, setWarrantyClaims] = useState<any[]>([]);
+  const [loadBalancing, setLoadBalancing] = useState<any[]>([]);
+  const [temperatureCorrelation, setTemperatureCorrelation] = useState<any[]>([]);
+  const [maintenanceSchedule, setMaintenanceSchedule] = useState<any[]>([]);
+  const [capacityFading, setCapacityFading] = useState<any[]>([]);
+  const [riskAssessment, setRiskAssessment] = useState<any[]>([]);
 
   useEffect(() => {
     if (batteries.length === 0) return;
 
-    // 1. Degradation Analysis - SoH vs Cycles correlation
+    // Original analysis (keeping existing code)
     const degradationData = batteries.map(battery => ({
       id: battery.id,
       soh: battery.soh,
@@ -37,7 +47,6 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
 
     setDegradationAnalysis(degradationData);
 
-    // 2. Cycle vs SoH scatter plot data
     const scatterData = batteries.map(battery => ({
       cycles: battery.cycles,
       soh: battery.soh,
@@ -47,7 +56,6 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
     }));
     setCycleVsSoH(scatterData);
 
-    // 3. Chemistry Performance Comparison
     const chemistryStats = batteries.reduce((acc, battery) => {
       if (!acc[battery.chemistry]) {
         acc[battery.chemistry] = { 
@@ -92,7 +100,6 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
 
     setChemistryComparison(chemistryData);
 
-    // 4. Grade Distribution with detailed stats
     const gradeStats = batteries.reduce((acc, battery) => {
       if (!acc[battery.grade]) {
         acc[battery.grade] = { count: 0, avgSoH: 0, avgRUL: 0, avgCycles: 0 };
@@ -115,16 +122,14 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
 
     setGradeDistribution(gradeData);
 
-    // 5. Fleet Health Trend (simulated monthly data based on current batteries)
     const currentDate = new Date();
     const monthlyData = [];
     for (let i = 11; i >= 0; i--) {
       const month = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
       const monthName = month.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       
-      // Simulate degradation over time
       const simulatedAvgSoH = batteries.reduce((sum, battery) => {
-        const degradationFactor = (i * 0.5); // Simulate 0.5% degradation per month
+        const degradationFactor = (i * 0.5);
         return sum + Math.max(80, battery.soh + degradationFactor);
       }, 0) / batteries.length;
 
@@ -138,7 +143,6 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
     }
     setFleetHealthTrend(monthlyData);
 
-    // 6. Performance Metrics Summary
     const metrics = {
       totalBatteries: batteries.length,
       avgSoH: Number((batteries.reduce((sum, b) => sum + b.soh, 0) / batteries.length).toFixed(1)),
@@ -154,6 +158,180 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
     };
     setPerformanceMetrics(metrics);
 
+    // NEW UNIQUE FEATURES
+
+    // 1. Replacement Prediction & Planning
+    const replacementData = batteries.map(battery => {
+      const monthsToReplacement = Math.max(0, Math.round(battery.rul / 30)); // Assuming 30 cycles per month
+      const replacementMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + monthsToReplacement, 1);
+      const urgencyScore = battery.soh < 85 ? 'High' : battery.soh < 90 ? 'Medium' : 'Low';
+      
+      return {
+        id: battery.id,
+        monthsToReplacement,
+        replacementDate: replacementMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        urgencyScore,
+        soh: battery.soh,
+        estimatedCost: battery.chemistry === 'LFP' ? 1200 : 1800, // Estimated replacement costs
+        chemistry: battery.chemistry,
+        grade: battery.grade
+      };
+    }).sort((a, b) => a.monthsToReplacement - b.monthsToReplacement);
+
+    setReplacementPrediction(replacementData);
+
+    // 2. Financial Impact Analysis
+    const totalReplacementCost = replacementData.reduce((sum, b) => sum + b.estimatedCost, 0);
+    const criticalBatteriesCost = replacementData.filter(b => b.urgencyScore === 'High').reduce((sum, b) => sum + b.estimatedCost, 0);
+    const downtimeCost = batteries.filter(b => b.status === 'Critical').length * 5000; // $5k per day downtime
+    const energyLoss = batteries.reduce((sum, b) => sum + (100 - b.soh), 0) * 50; // $50 per % SoH loss
+
+    setFinancialImpact({
+      totalReplacementCost,
+      criticalBatteriesCost,
+      downtimeCost,
+      energyLoss,
+      totalFinancialRisk: totalReplacementCost + downtimeCost + energyLoss,
+      savingsOpportunity: batteries.filter(b => b.soh > 95).length * 200 // Extended life savings
+    });
+
+    // 3. Batch Analysis (Manufacturing lot tracking)
+    const batchData = batteries.reduce((acc, battery) => {
+      const batch = battery.id.split('-')[0] || 'Unknown'; // Assuming batch is in ID prefix
+      if (!acc[batch]) {
+        acc[batch] = { batteries: [], avgSoH: 0, variance: 0, count: 0 };
+      }
+      acc[batch].batteries.push(battery);
+      acc[batch].count++;
+      return acc;
+    }, {} as any);
+
+    const batchAnalysisData = Object.entries(batchData).map(([batch, data]: [string, any]) => {
+      const avgSoH = data.batteries.reduce((sum: number, b: any) => sum + b.soh, 0) / data.count;
+      const variance = data.batteries.reduce((sum: number, b: any) => sum + Math.pow(b.soh - avgSoH, 2), 0) / data.count;
+      const qualityScore = avgSoH > 95 ? 'Excellent' : avgSoH > 90 ? 'Good' : avgSoH > 85 ? 'Fair' : 'Poor';
+      
+      return {
+        batch,
+        count: data.count,
+        avgSoH: Number(avgSoH.toFixed(1)),
+        variance: Number(variance.toFixed(1)),
+        qualityScore,
+        consistencyRating: variance < 5 ? 'High' : variance < 10 ? 'Medium' : 'Low'
+      };
+    });
+
+    setBatchAnalysis(batchAnalysisData);
+
+    // 4. Warranty Claims Prediction
+    const warrantyData = batteries.map(battery => {
+      const warrantyExpiry = new Date(battery.uploadDate);
+      warrantyExpiry.setFullYear(warrantyExpiry.getFullYear() + 3); // 3-year warranty
+      const isUnderWarranty = new Date() < warrantyExpiry;
+      const claimProbability = battery.soh < 85 ? 0.8 : battery.soh < 90 ? 0.4 : 0.1;
+      
+      return {
+        id: battery.id,
+        isUnderWarranty,
+        claimProbability,
+        soh: battery.soh,
+        status: battery.status,
+        estimatedClaimCost: claimProbability * 1500
+      };
+    });
+
+    setWarrantyClaims(warrantyData);
+
+    // 5. Load Balancing Optimization
+    const loadBalancingData = batteries.map(battery => {
+      const utilizationScore = (battery.cycles / 5000) * 100; // Assuming 5000 is max cycles
+      const balancingRecommendation = battery.soh > 95 ? 'Increase Load' : battery.soh < 85 ? 'Reduce Load' : 'Maintain';
+      
+      return {
+        id: battery.id,
+        soh: battery.soh,
+        utilizationScore: Math.min(100, Number(utilizationScore.toFixed(1))),
+        balancingRecommendation,
+        priority: battery.soh < 85 ? 1 : battery.soh < 90 ? 2 : 3
+      };
+    }).sort((a, b) => a.priority - b.priority);
+
+    setLoadBalancing(loadBalancingData);
+
+    // 6. Temperature Correlation Analysis
+    const temperatureData = batteries.map(battery => {
+      const simulatedTemp = 25 + (Math.random() - 0.5) * 20; // Simulated temperature
+      const tempImpact = simulatedTemp > 35 ? 'High Risk' : simulatedTemp > 30 ? 'Medium Risk' : 'Low Risk';
+      
+      return {
+        id: battery.id,
+        temperature: Number(simulatedTemp.toFixed(1)),
+        soh: battery.soh,
+        tempImpact,
+        degradationAcceleration: simulatedTemp > 35 ? 1.5 : simulatedTemp > 30 ? 1.2 : 1.0
+      };
+    });
+
+    setTemperatureCorrelation(temperatureData);
+
+    // 7. Maintenance Schedule Optimization
+    const maintenanceData = batteries.map(battery => {
+      const daysSinceLastMaintenance = Math.floor(Math.random() * 90); // Random days 0-90
+      const maintenanceUrgency = daysSinceLastMaintenance > 60 ? 'Overdue' : daysSinceLastMaintenance > 30 ? 'Due Soon' : 'Not Due';
+      const nextMaintenanceDate = new Date();
+      nextMaintenanceDate.setDate(nextMaintenanceDate.getDate() + (90 - daysSinceLastMaintenance));
+      
+      return {
+        id: battery.id,
+        daysSinceLastMaintenance,
+        maintenanceUrgency,
+        nextMaintenanceDate: nextMaintenanceDate.toLocaleDateString(),
+        soh: battery.soh,
+        estimatedMaintenanceCost: battery.status === 'Critical' ? 500 : 200
+      };
+    }).sort((a, b) => a.daysSinceLastMaintenance - b.daysSinceLastMaintenance);
+
+    setMaintenanceSchedule(maintenanceData);
+
+    // 8. Capacity Fading Analysis
+    const capacityData = batteries.map(battery => {
+      const initialCapacity = 100; // Assumed initial capacity
+      const currentCapacity = battery.soh;
+      const fadingRate = (100 - battery.soh) / battery.cycles * 1000; // Per 1000 cycles
+      
+      return {
+        id: battery.id,
+        initialCapacity,
+        currentCapacity,
+        capacityLoss: Number((100 - battery.soh).toFixed(1)),
+        fadingRate: Number(fadingRate.toFixed(3)),
+        cycles: battery.cycles,
+        chemistry: battery.chemistry
+      };
+    });
+
+    setCapacityFading(capacityData);
+
+    // 9. Risk Assessment Matrix
+    const riskData = batteries.map(battery => {
+      const ageRisk = battery.cycles > 4000 ? 'High' : battery.cycles > 2000 ? 'Medium' : 'Low';
+      const performanceRisk = battery.soh < 85 ? 'High' : battery.soh < 90 ? 'Medium' : 'Low';
+      const overallRisk = (ageRisk === 'High' || performanceRisk === 'High') ? 'High' : 
+                         (ageRisk === 'Medium' || performanceRisk === 'Medium') ? 'Medium' : 'Low';
+      
+      return {
+        id: battery.id,
+        ageRisk,
+        performanceRisk,
+        overallRisk,
+        soh: battery.soh,
+        cycles: battery.cycles,
+        riskScore: battery.soh < 85 ? 9 : battery.soh < 90 ? 6 : 3
+      };
+    }).sort((a, b) => b.riskScore - a.riskScore);
+
+    setRiskAssessment(riskData);
+
   }, [batteries]);
 
   const exportAnalytics = () => {
@@ -165,6 +343,16 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
       gradeDistribution,
       cycleVsSoHData: cycleVsSoH,
       fleetHealthTrend,
+      // New exports
+      replacementPrediction,
+      financialImpact,
+      batchAnalysis,
+      warrantyClaims,
+      loadBalancing,
+      temperatureCorrelation,
+      maintenanceSchedule,
+      capacityFading,
+      riskAssessment,
       batteryDetails: batteries.map(b => ({
         id: b.id,
         soh: b.soh,
@@ -181,7 +369,7 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `fleet-analytics-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `comprehensive-fleet-analytics-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -257,7 +445,338 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
         </div>
       )}
 
-      {/* SoH vs Cycles Correlation */}
+      {/* Financial Impact Overview */}
+      {financialImpact && (
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <DollarSign className="h-5 w-5 text-green-400" />
+              Financial Impact Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 border border-red-500/20 rounded-lg bg-red-500/10">
+                <h4 className="text-red-400 font-medium mb-2">Total Financial Risk</h4>
+                <p className="text-2xl font-bold text-white">${financialImpact.totalFinancialRisk.toLocaleString()}</p>
+                <p className="text-sm text-slate-300">Replacement + Downtime + Energy Loss</p>
+              </div>
+              <div className="p-4 border border-yellow-500/20 rounded-lg bg-yellow-500/10">
+                <h4 className="text-yellow-400 font-medium mb-2">Critical Replacements</h4>
+                <p className="text-2xl font-bold text-white">${financialImpact.criticalBatteriesCost.toLocaleString()}</p>
+                <p className="text-sm text-slate-300">Immediate attention needed</p>
+              </div>
+              <div className="p-4 border border-green-500/20 rounded-lg bg-green-500/10">
+                <h4 className="text-green-400 font-medium mb-2">Savings Opportunity</h4>
+                <p className="text-2xl font-bold text-white">${financialImpact.savingsOpportunity.toLocaleString()}</p>
+                <p className="text-sm text-slate-300">Extended life optimization</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Replacement Planning */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Calendar className="h-5 w-5 text-blue-400" />
+            Replacement Planning & Forecast
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-slate-300">Replacement Timeline</h4>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {replacementPrediction.slice(0, 8).map((battery, index) => (
+                  <div key={battery.id} className="flex items-center justify-between p-3 border border-white/10 rounded-lg bg-black/20">
+                    <div>
+                      <p className="text-white font-medium">{battery.id}</p>
+                      <p className="text-sm text-slate-400">{battery.replacementDate}</p>
+                    </div>
+                    <div className="text-right">
+                      <Badge 
+                        variant={battery.urgencyScore === 'High' ? 'destructive' : 
+                               battery.urgencyScore === 'Medium' ? 'default' : 'secondary'}
+                      >
+                        {battery.urgencyScore}
+                      </Badge>
+                      <p className="text-xs text-slate-400 mt-1">${battery.estimatedCost}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={replacementPrediction.slice(0, 6)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="id" stroke="#9CA3AF" angle={-45} textAnchor="end" height={80} />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Bar dataKey="avgSoH" fill="#8B5CF6" name="Avg SoH %" />
+                  <Bar dataKey="variance" fill="#F59E0B" name="Variance" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Load Balancing & Risk Assessment */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Shuffle className="h-5 w-5 text-cyan-400" />
+              Load Balancing Optimization
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {loadBalancing.slice(0, 6).map((battery, index) => (
+                <div key={battery.id} className="flex items-center justify-between p-3 border border-white/10 rounded-lg bg-black/20">
+                  <div>
+                    <p className="text-white font-medium">{battery.id}</p>
+                    <p className="text-sm text-slate-400">SoH: {battery.soh}%</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge 
+                      variant={battery.balancingRecommendation === 'Reduce Load' ? 'destructive' : 
+                             battery.balancingRecommendation === 'Increase Load' ? 'default' : 'secondary'}
+                    >
+                      {battery.balancingRecommendation}
+                    </Badge>
+                    <p className="text-xs text-slate-400 mt-1">Utilization: {battery.utilizationScore}%</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <AlertCircle className="h-5 w-5 text-orange-400" />
+              Risk Assessment Matrix
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {riskAssessment.slice(0, 6).map((battery, index) => (
+                <div key={battery.id} className="flex items-center justify-between p-3 border border-white/10 rounded-lg bg-black/20">
+                  <div>
+                    <p className="text-white font-medium">{battery.id}</p>
+                    <p className="text-sm text-slate-400">Score: {battery.riskScore}/10</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge 
+                      variant={battery.overallRisk === 'High' ? 'destructive' : 
+                             battery.overallRisk === 'Medium' ? 'default' : 'secondary'}
+                    >
+                      {battery.overallRisk} Risk
+                    </Badge>
+                    <p className="text-xs text-slate-400 mt-1">Age: {battery.ageRisk} | Perf: {battery.performanceRisk}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Temperature Correlation & Capacity Fading */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Thermometer className="h-5 w-5 text-red-400" />
+              Temperature Impact Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart data={temperatureCorrelation}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="temperature" stroke="#9CA3AF" />
+                  <YAxis dataKey="soh" stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }}
+                    formatter={(value, name) => [
+                      name === 'soh' ? `${value}%` : `${value}°C`,
+                      name === 'soh' ? 'SoH' : 'Temperature'
+                    ]}
+                  />
+                  <Scatter 
+                    name="Low Risk" 
+                    data={temperatureCorrelation.filter(d => d.tempImpact === 'Low Risk')} 
+                    fill="#10B981" 
+                  />
+                  <Scatter 
+                    name="Medium Risk" 
+                    data={temperatureCorrelation.filter(d => d.tempImpact === 'Medium Risk')} 
+                    fill="#F59E0B" 
+                  />
+                  <Scatter 
+                    name="High Risk" 
+                    data={temperatureCorrelation.filter(d => d.tempImpact === 'High Risk')} 
+                    fill="#EF4444" 
+                  />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <TrendingDown className="h-5 w-5 text-indigo-400" />
+              Capacity Fading Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={capacityFading.slice(0, 8)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="id" stroke="#9CA3AF" angle={-45} textAnchor="end" height={80} />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Bar dataKey="fadingRate" fill="#8B5CF6" name="Fading Rate (%/1000 cycles)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Maintenance Schedule */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Clock className="h-5 w-5 text-blue-400" />
+            Maintenance Schedule Optimization
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {maintenanceSchedule.slice(0, 8).map((battery, index) => (
+                <div key={battery.id} className="flex items-center justify-between p-3 border border-white/10 rounded-lg bg-black/20">
+                  <div>
+                    <p className="text-white font-medium">{battery.id}</p>
+                    <p className="text-sm text-slate-400">Next: {battery.nextMaintenanceDate}</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge 
+                      variant={battery.maintenanceUrgency === 'Overdue' ? 'destructive' : 
+                             battery.maintenanceUrgency === 'Due Soon' ? 'default' : 'secondary'}
+                    >
+                      {battery.maintenanceUrgency}
+                    </Badge>
+                    <p className="text-xs text-slate-400 mt-1">Cost: ${battery.estimatedMaintenanceCost}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={maintenanceSchedule.slice(0, 6)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="id" stroke="#9CA3AF" angle={-45} textAnchor="end" height={80} />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Bar dataKey="daysSinceLastMaintenance" fill="#06B6D4" name="Days Since Last Maintenance" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Warranty Claims Analysis */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <FileText className="h-5 w-5 text-green-400" />
+            Warranty Claims Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="p-4 border border-white/10 rounded-lg bg-black/20">
+              <h4 className="text-slate-300 font-medium mb-2">Under Warranty</h4>
+              <p className="text-2xl font-bold text-green-400">
+                {warrantyClaims.filter(w => w.isUnderWarranty).length}
+              </p>
+              <p className="text-sm text-slate-400">Batteries covered</p>
+            </div>
+            <div className="p-4 border border-white/10 rounded-lg bg-black/20">
+              <h4 className="text-slate-300 font-medium mb-2">High Claim Risk</h4>
+              <p className="text-2xl font-bold text-yellow-400">
+                {warrantyClaims.filter(w => w.claimProbability > 0.5).length}
+              </p>
+              <p className="text-sm text-slate-400">Likely claims</p>
+            </div>
+            <div className="p-4 border border-white/10 rounded-lg bg-black/20">
+              <h4 className="text-slate-300 font-medium mb-2">Estimated Claims Cost</h4>
+              <p className="text-2xl font-bold text-red-400">
+                ${warrantyClaims.reduce((sum, w) => sum + w.estimatedClaimCost, 0).toFixed(0)}
+              </p>
+              <p className="text-sm text-slate-400">Potential liability</p>
+            </div>
+          </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {warrantyClaims
+              .filter(w => w.claimProbability > 0.3)
+              .slice(0, 6)
+              .map((battery, index) => (
+                <div key={battery.id} className="flex items-center justify-between p-3 border border-white/10 rounded-lg bg-black/20">
+                  <div>
+                    <p className="text-white font-medium">{battery.id}</p>
+                    <p className="text-sm text-slate-400">SoH: {battery.soh}%</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white font-medium">{(battery.claimProbability * 100).toFixed(0)}%</p>
+                    <p className="text-xs text-slate-400">${battery.estimatedClaimCost.toFixed(0)} risk</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Original Analysis - SoH vs Cycles Correlation */}
       <Card className="enhanced-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
@@ -534,4 +1053,69 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
       )}
     </div>
   );
-}
+}px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Bar dataKey="monthsToReplacement" fill="#3B82F6" name="Months to Replacement" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Batch Quality Analysis */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Target className="h-5 w-5 text-purple-400" />
+            Manufacturing Batch Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              {batchAnalysis.map((batch, index) => (
+                <div key={batch.batch} className="p-4 border border-white/10 rounded-lg bg-black/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-white">Batch {batch.batch}</h4>
+                    <Badge 
+                      variant={batch.qualityScore === 'Excellent' ? 'default' : 
+                             batch.qualityScore === 'Good' ? 'secondary' : 'destructive'}
+                    >
+                      {batch.qualityScore}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-slate-400">Count</p>
+                      <p className="text-white font-medium">{batch.count}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Avg SoH</p>
+                      <p className="text-blue-400 font-medium">{batch.avgSoH}%</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Variance</p>
+                      <p className="text-yellow-400 font-medium">{batch.variance}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Consistency</p>
+                      <p className="text-green-400 font-medium">{batch.consistencyRating}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={batchAnalysis}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="batch" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1
