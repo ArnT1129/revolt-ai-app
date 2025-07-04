@@ -6,6 +6,7 @@ import { Battery } from "@/types";
 import { DashboardStatsService } from "@/services/dashboardStats";
 import { batteryService } from "@/services/batteryService";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function DashboardStats() {
   const [stats, setStats] = useState({
