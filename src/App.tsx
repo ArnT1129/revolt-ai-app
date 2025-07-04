@@ -7,16 +7,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useSearchParams } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
+import Search from "./pages/Search";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Sidebar from "./components/Sidebar";
 import LiquidGlassAI from "./components/LiquidGlassAI";
 import LandingPageModal from "./components/LandingPageModal";
+import OnboardingModal from "./components/OnboardingModal";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
+import { OnboardingProvider } from "./contexts/OnboardingContext";
 
 const queryClient = new QueryClient();
 
@@ -65,15 +68,19 @@ function AppContent() {
           <Route path="/*" element={
             <ProtectedRoute>
               <CompanyProvider>
-                <Sidebar />
-                <div className="flex-1 flex flex-col">
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/upload" element={<Upload />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </div>
+                <OnboardingProvider>
+                  <Sidebar />
+                  <div className="flex-1 flex flex-col">
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/upload" element={<Upload />} />
+                      <Route path="/search" element={<Search />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </div>
+                  <OnboardingModal />
+                </OnboardingProvider>
               </CompanyProvider>
             </ProtectedRoute>
           } />

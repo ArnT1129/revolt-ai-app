@@ -362,6 +362,7 @@ export type Database = {
           email: string
           first_name: string | null
           id: string
+          is_demo: boolean | null
           last_name: string | null
           role: Database["public"]["Enums"]["app_role"] | null
           updated_at: string | null
@@ -372,6 +373,7 @@ export type Database = {
           email: string
           first_name?: string | null
           id: string
+          is_demo?: boolean | null
           last_name?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
           updated_at?: string | null
@@ -382,6 +384,7 @@ export type Database = {
           email?: string
           first_name?: string | null
           id?: string
+          is_demo?: boolean | null
           last_name?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
           updated_at?: string | null
@@ -570,6 +573,33 @@ export type Database = {
           },
         ]
       }
+      user_onboarding: {
+        Row: {
+          completed_steps: Json | null
+          created_at: string
+          id: string
+          is_completed: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_steps?: Json | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_steps?: Json | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -589,6 +619,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      setup_demo_user: {
+        Args: { user_id: string }
+        Returns: undefined
       }
     }
     Enums: {

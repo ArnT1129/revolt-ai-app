@@ -5,17 +5,16 @@ import { Home, Upload, Settings, LogOut, Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import CompanySelector from "./CompanySelector";
-import SearchModal from "./SearchModal";
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
   const location = useLocation();
   const { signOut } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: Home },
     { name: "Create Passport", href: "/upload", icon: Upload },
+    { name: "Search", href: "/search", icon: Search },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
@@ -30,92 +29,75 @@ export default function Sidebar() {
   };
 
   return (
-    <>
-      <aside className={`${isCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 bg-black/20 backdrop-blur-sm border-r border-white/10 flex flex-col`}>
-        {/* Logo and Toggle */}
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            {!isCollapsed && (
-              <div className="flex items-center gap-3">
-                <img 
-                  src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
-                  alt="ReVolt" 
-                  className="h-20 w-auto"
-                />
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-white hover:bg-white/10"
-            >
-              {isCollapsed ? "→" : "←"}
-            </Button>
-          </div>
-        </div>
-
-        {/* Company Selector */}
-        {!isCollapsed && (
-          <div className="p-4 border-b border-white/10">
-            <CompanySelector />
-          </div>
-        )}
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          {navigation.map((item) => (
-            <Link key={item.name} to={item.href}>
-              <Button
-                variant={isActive(item.href) ? "secondary" : "ghost"}
-                className={`w-full justify-start glass-button rounded-md transition-all duration-200 ${
-                  isActive(item.href) 
-                    ? "bg-blue-500/20 border-blue-400/50 text-white shadow-md shadow-blue-500/15" 
-                    : "text-slate-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                {!isCollapsed && <span className="ml-2">{item.name}</span>}
-              </Button>
-            </Link>
-          ))}
-          
-          {/* Search Button */}
-          <Button
-            onClick={() => setShowSearchModal(true)}
-            variant="ghost"
-            className="w-full justify-start glass-button rounded-md transition-all duration-200 text-slate-300 hover:text-white hover:bg-white/10"
-          >
-            <Search className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Search</span>}
-          </Button>
-        </nav>
-
-        {/* Sign Out Button */}
-        <div className="p-4 border-t border-white/10">
-          <Button
-            onClick={handleSignOut}
-            variant="outline"
-            className={`w-full justify-start glass-button border-red-500/40 hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 text-slate-300 hover:text-white ${
-              isCollapsed ? 'px-0' : ''
-            }`}
-          >
-            <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Sign Out</span>}
-          </Button>
-          
+    <aside className={`${isCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 bg-black/20 backdrop-blur-sm border-r border-white/10 flex flex-col`}>
+      {/* Logo and Toggle */}
+      <div className="p-4 border-b border-white/10">
+        <div className="flex items-center justify-between">
           {!isCollapsed && (
-            <p className="text-xs text-slate-400 text-center mt-3">
-              Battery Intelligence Platform
-            </p>
+            <div className="flex items-center gap-3">
+              <img 
+                src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
+                alt="ReVolt" 
+                className="h-20 w-auto"
+              />
+            </div>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-white hover:bg-white/10"
+          >
+            {isCollapsed ? "→" : "←"}
+          </Button>
         </div>
-      </aside>
+      </div>
 
-      <SearchModal
-        isOpen={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
-      />
-    </>
+      {/* Company Selector */}
+      {!isCollapsed && (
+        <div className="p-4 border-b border-white/10">
+          <CompanySelector />
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-2">
+        {navigation.map((item) => (
+          <Link key={item.name} to={item.href}>
+            <Button
+              variant={isActive(item.href) ? "secondary" : "ghost"}
+              className={`w-full justify-start glass-button rounded-md transition-all duration-200 ${
+                isActive(item.href) 
+                  ? "bg-blue-500/20 border-blue-400/50 text-white shadow-md shadow-blue-500/15" 
+                  : "text-slate-300 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {!isCollapsed && <span className="ml-2">{item.name}</span>}
+            </Button>
+          </Link>
+        ))}
+      </nav>
+
+      {/* Sign Out Button */}
+      <div className="p-4 border-t border-white/10">
+        <Button
+          onClick={handleSignOut}
+          variant="outline"
+          className={`w-full justify-start glass-button border-red-500/40 hover:border-red-400 hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 text-slate-300 hover:text-white ${
+            isCollapsed ? 'px-0' : ''
+          }`}
+        >
+          <LogOut className="h-4 w-4" />
+          {!isCollapsed && <span className="ml-2">Sign Out</span>}
+        </Button>
+        
+        {!isCollapsed && (
+          <p className="text-xs text-slate-400 text-center mt-3">
+            Battery Intelligence Platform
+          </p>
+        )}
+      </div>
+    </aside>
   );
 }

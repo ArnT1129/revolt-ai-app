@@ -189,7 +189,12 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .eq('company_id', companyId);
 
     if (error) throw error;
-    return data || [];
+    
+    // Type assertion with proper role casting
+    return (data || []).map(member => ({
+      ...member,
+      role: member.role as 'owner' | 'admin' | 'employee'
+    }));
   };
 
   const getPendingInvitations = async (companyId: string): Promise<CompanyInvitation[]> => {
@@ -201,7 +206,12 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .gt('expires_at', new Date().toISOString());
 
     if (error) throw error;
-    return data || [];
+    
+    // Type assertion with proper role casting
+    return (data || []).map(invitation => ({
+      ...invitation,
+      role: invitation.role as 'admin' | 'employee'
+    }));
   };
 
   const acceptInvitation = async (invitationId: string): Promise<boolean> => {
