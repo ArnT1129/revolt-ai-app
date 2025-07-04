@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,14 @@ interface SearchFilters {
 
 const ITEMS_PER_PAGE = 20;
 
+const DEFAULT_FILTERS: SearchFilters = {
+  chemistry: 'all',
+  grade: 'all',
+  status: 'all',
+  sohRange: [0, 100],
+  cycleRange: [0, 5000]
+};
+
 export default function Search() {
   const [searchQuery, setSearchQuery] = useState('');
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
@@ -27,15 +35,10 @@ export default function Search() {
   const [activeTab, setActiveTab] = useState('batteries');
   const [currentPage, setCurrentPage] = useState(1);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const { isCompanyMode, currentCompany } = useCompany();
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
   
-  const [filters, setFilters] = useState<SearchFilters>({
-    chemistry: 'all',
-    grade: 'all',
-    status: 'all',
-    sohRange: [0, 100],
-    cycleRange: [0, 5000]
-  });
+  const { isCompanyMode, currentCompany } = useCompany();
+  const mountedRef = useRef(true);
 
   // Debounce search query
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function Search() {
 
   // Fetch batteries only on mount and company mode change
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
     
     const loadBatteries = async () => {
       setLoading(true);
@@ -57,17 +60,17 @@ export default function Search() {
       
       try {
         const data = await batteryService.getUserBatteries();
-        if (mounted) {
+        if (mountedRef.current) {
           setBatteries(Array.isArray(data) ? data : []);
         }
       } catch (err) {
-        if (mounted) {
+        if (mountedRef.current) {
           console.error('Error fetching batteries:', err);
           setError('Failed to load batteries');
           setBatteries([]);
         }
       } finally {
-        if (mounted) {
+        if (mountedRef.current) {
           setLoading(false);
         }
       }
@@ -76,11 +79,11 @@ export default function Search() {
     loadBatteries();
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
-  }, [isCompanyMode]);
+  }, [isCompanyMode]); // Only depend on isCompanyMode
 
-  // Filter batteries
+  // Memoized filter function
   const filteredBatteries = useMemo(() => {
     if (!Array.isArray(batteries)) return [];
 
@@ -166,51 +169,58 @@ export default function Search() {
     };
   }, [filteredBatteries]);
 
-  // Event handlers
+  // Memoized event handlers
   const handleRetry = useCallback(() => {
     setError(null);
     setLoading(true);
     
     batteryService.getUserBatteries()
       .then(data => {
-        setBatteries(Array.isArray(data) ? data : []);
+        if (mountedRef.current) {
+          setBatteries(Array.isArray(data) ? data : []);
+        }
       })
       .catch(err => {
-        console.error('Error fetching batteries:', err);
-        setError('Failed to load batteries');
-        setBatteries([]);
+        if (mountedRef.current) {
+          console.error('Error fetching batteries:', err);
+          setError('Failed to load batteries');
+          setBatteries([]);
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (mountedRef.current) {
+          setLoading(false);
+        }
       });
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({
-      chemistry: 'all',
-      grade: 'all',
-      status: 'all',
-      sohRange: [0, 100],
-      cycleRange: [0, 5000]
-    });
+    setFilters(DEFAULT_FILTERS);
     setSearchQuery('');
     setCurrentPage(1);
   }, []);
 
   const updateFilters = useCallback((key: keyof SearchFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      // Prevent unnecessary re-renders by checking if the value actually changed
+      if (prev[key] === value) return prev;
+      
+      return { ...prev, [key]: value };
+    });
+    setCurrentPage(1); // Reset to first page when filters change
   }, []);
 
-  const getStatusColor = (status: string) => {
+  // Memoized utility functions
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'Healthy': return 'bg-green-500/20 text-green-400';
       case 'Degrading': return 'bg-yellow-500/20 text-yellow-400';
       case 'Critical': return 'bg-red-500/20 text-red-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
-  };
+  }, []);
 
-  const getGradeColor = (grade: string) => {
+  const getGradeColor = useCallback((grade: string) => {
     switch (grade) {
       case 'A': return 'bg-green-500/20 text-green-400';
       case 'B': return 'bg-blue-500/20 text-blue-400';
@@ -218,7 +228,16 @@ export default function Search() {
       case 'D': return 'bg-red-500/20 text-red-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
-  };
+  }, []);
+
+  // Page navigation handlers
+  const handlePrevPage = useCallback(() => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  }, [totalPages]);
 
   if (loading) {
     return (
@@ -353,7 +372,7 @@ export default function Search() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      onClick={handlePrevPage}
                       disabled={currentPage === 1}
                       variant="outline"
                       size="sm"
@@ -365,7 +384,7 @@ export default function Search() {
                       Page {currentPage} of {totalPages || 1}
                     </span>
                     <Button
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      onClick={handleNextPage}
                       disabled={currentPage === totalPages || totalPages === 0}
                       variant="outline"
                       size="sm"
