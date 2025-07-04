@@ -66,7 +66,7 @@ export default function Search() {
   // Only fetch batteries on mount and when company mode changes
   useEffect(() => {
     fetchBatteries();
-  }, [fetchBatteries, isCompanyMode]);
+  }, [isCompanyMode]); // Remove fetchBatteries from dependencies
 
   // Memoized filtered batteries to prevent unnecessary recalculations
   const filteredBatteries = useMemo(() => {
