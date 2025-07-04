@@ -39,8 +39,6 @@ export default function Search() {
   
   const { isCompanyMode, currentCompany } = useCompany();
   const mountedRef = useRef(true);
-  const prevCompanyModeRef = useRef(isCompanyMode);
-  const batteriesLoadedRef = useRef(false); // Track if batteries have been loaded
 
   // Debounce search query
   useEffect(() => {
@@ -80,14 +78,8 @@ export default function Search() {
 
   // Initial load and company mode change detection
   useEffect(() => {
-    const companyModeChanged = prevCompanyModeRef.current !== isCompanyMode;
-    prevCompanyModeRef.current = isCompanyMode;
-    
-    // Load batteries on mount or when company mode changes
-    if (!batteriesLoadedRef.current || companyModeChanged) {
-      loadBatteries();
-    }
-  }, [isCompanyMode]); // Only depend on isCompanyMode
+    loadBatteries();
+  }, [isCompanyMode]);
 
   // Cleanup on unmount
   useEffect(() => {
