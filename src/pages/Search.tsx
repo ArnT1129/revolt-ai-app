@@ -61,11 +61,10 @@ export default function Search() {
       const data = await batteryService.getUserBatteries();
       if (mountedRef.current) {
         setBatteries(Array.isArray(data) ? data : []);
-        batteriesLoadedRef.current = true;
       }
     } catch (err) {
+      console.error('Error fetching batteries:', err);
       if (mountedRef.current) {
-        console.error('Error fetching batteries:', err);
         setError('Failed to load batteries');
         setBatteries([]);
       }
@@ -74,19 +73,17 @@ export default function Search() {
         setLoading(false);
       }
     }
-  };
+  }. [];
 
   // Initial load and company mode change detection
   useEffect(() => {
     loadBatteries();
-  }, [isCompanyMode]);
+  }, [isCompanyMode, loadBatteries]);
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+    export function Search() {
+  }, [batteries, debouncedSearchQuery, filters]);
 
   // Memoized filter function
   const filteredBatteries = useMemo(() => {
@@ -175,11 +172,7 @@ export default function Search() {
   }, [filteredBatteries]);
 
   // Event handlers
-  const handleRetry = useCallback(() => {
-    setError(null);
-    batteriesLoadedRef.current = false; // Reset the loaded flag
-    loadBatteries();
-  }, []);
+  const handleRetry = () => { loadBatteries(); };
 
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
