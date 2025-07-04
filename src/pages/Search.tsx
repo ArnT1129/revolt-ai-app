@@ -26,7 +26,9 @@ export default function Search() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('batteries');
   const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const { isCompanyMode, currentCompany } = useCompany();
+  
   const [filters, setFilters] = useState<SearchFilters>({
     chemistry: 'all',
     grade: 'all',
@@ -35,127 +37,153 @@ export default function Search() {
     cycleRange: [0, 5000]
   });
 
-  // Debounced search query to prevent excessive filtering
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-
-  // Memoize the fetchBatteries function to prevent infinite re-renders
-  const fetchBatteries = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await batteryService.getUserBatteries();
-      setBatteries(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching batteries:', error);
-      setError('Failed to load batteries');
-      setBatteries([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Empty dependency array since this function doesn't depend on any state
-
+  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1); // Reset to first page when search changes
+      setCurrentPage(1);
     }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Only fetch batteries on mount and when company mode changes
+  // Fetch batteries only on mount and company mode change
   useEffect(() => {
-    fetchBatteries();
-  }, [isCompanyMode]); // Remove fetchBatteries from dependencies
+    let mounted = true;
+    
+    const loadBatteries = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const data = await batteryService.getUserBatteries();
+        if (mounted) {
+          setBatteries(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error('Error fetching batteries:', err);
+          setError('Failed to load batteries');
+          setBatteries([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-  // Memoized filtered batteries to prevent unnecessary recalculations
+    loadBatteries();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isCompanyMode]);
+
+  // Filter batteries
   const filteredBatteries = useMemo(() => {
-    if (!Array.isArray(batteries)) {
-      return [];
-    }
+    if (!Array.isArray(batteries)) return [];
 
-    let filtered = batteries;
+    return batteries.filter(battery => {
+      // Text search
+      if (debouncedSearchQuery.trim()) {
+        const query = debouncedSearchQuery.toLowerCase();
+        const searchFields = [
+          battery.id || '',
+          battery.chemistry || '',
+          battery.grade || '',
+          battery.status || '',
+          battery.notes || ''
+        ].map(field => field.toLowerCase());
 
-    // Text search - optimized to avoid multiple toLowerCase calls
-    if (debouncedSearchQuery.trim()) {
-      const query = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(battery => {
-        try {
-          // Pre-compute lowercase values to avoid repeated calls
-          const batteryId = (battery.id || '').toLowerCase();
-          const batteryChemistry = (battery.chemistry || '').toLowerCase();
-          const batteryGrade = (battery.grade || '').toLowerCase();
-          const batteryStatus = (battery.status || '').toLowerCase();
-          const batteryNotes = (battery.notes || '').toLowerCase();
+        const matchesBasicFields = searchFields.some(field => field.includes(query));
+        
+        if (!matchesBasicFields && battery.issues && Array.isArray(battery.issues)) {
+          const matchesIssues = battery.issues.some(issue => {
+            if (!issue || typeof issue !== 'object') return false;
+            const issueFields = [
+              issue.title || '',
+              issue.description || '',
+              issue.category || ''
+            ].map(field => field.toLowerCase());
+            return issueFields.some(field => field.includes(query));
+          });
           
-          // Check basic fields first (most common matches)
-          if (batteryId.includes(query) || 
-              batteryChemistry.includes(query) || 
-              batteryGrade.includes(query) || 
-              batteryStatus.includes(query) || 
-              batteryNotes.includes(query)) {
-            return true;
-          }
-          
-          // Check issues only if basic fields don't match
-          if (battery.issues && Array.isArray(battery.issues)) {
-            return battery.issues.some(issue => {
-              if (!issue || typeof issue !== 'object') return false;
-              return (
-                (issue.title || '').toLowerCase().includes(query) ||
-                (issue.description || '').toLowerCase().includes(query) ||
-                (issue.category || '').toLowerCase().includes(query)
-              );
-            });
-          }
-          
-          return false;
-        } catch (err) {
-          console.error('Error filtering battery:', battery, err);
+          if (!matchesIssues) return false;
+        } else if (!matchesBasicFields) {
           return false;
         }
-      });
-    }
-
-    // Apply filters efficiently
-    try {
-      if (filters.chemistry !== 'all') {
-        filtered = filtered.filter(b => b.chemistry === filters.chemistry);
-      }
-      if (filters.grade !== 'all') {
-        filtered = filtered.filter(b => b.grade === filters.grade);
-      }
-      if (filters.status !== 'all') {
-        filtered = filtered.filter(b => b.status === filters.status);
       }
 
-      // Numeric range filters with safety checks
-      filtered = filtered.filter(b => {
-        const soh = typeof b.soh === 'number' ? b.soh : 0;
-        const cycles = typeof b.cycles === 'number' ? b.cycles : 0;
-        return (
-          soh >= filters.sohRange[0] && 
-          soh <= filters.sohRange[1] &&
-          cycles >= filters.cycleRange[0] && 
-          cycles <= filters.cycleRange[1]
-        );
-      });
-    } catch (err) {
-      console.error('Error applying filters:', err);
-      return [];
-    }
+      // Apply filters
+      if (filters.chemistry !== 'all' && battery.chemistry !== filters.chemistry) return false;
+      if (filters.grade !== 'all' && battery.grade !== filters.grade) return false;
+      if (filters.status !== 'all' && battery.status !== filters.status) return false;
 
-    return filtered;
+      const soh = typeof battery.soh === 'number' ? battery.soh : 0;
+      const cycles = typeof battery.cycles === 'number' ? battery.cycles : 0;
+      
+      if (soh < filters.sohRange[0] || soh > filters.sohRange[1]) return false;
+      if (cycles < filters.cycleRange[0] || cycles > filters.cycleRange[1]) return false;
+
+      return true;
+    });
   }, [batteries, debouncedSearchQuery, filters]);
 
-  // Paginated results to improve rendering performance
+  // Paginate results
   const paginatedBatteries = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredBatteries.slice(startIndex, endIndex);
+    return filteredBatteries.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredBatteries, currentPage]);
 
   const totalPages = Math.ceil(filteredBatteries.length / ITEMS_PER_PAGE);
+
+  // Analytics
+  const analytics = useMemo(() => {
+    if (!filteredBatteries.length) {
+      return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
+    }
+
+    const validBatteries = filteredBatteries.filter(b => 
+      b && typeof b.soh === 'number' && typeof b.status === 'string'
+    );
+
+    if (!validBatteries.length) {
+      return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
+    }
+
+    const avgSoH = validBatteries.reduce((sum, b) => sum + b.soh, 0) / validBatteries.length;
+    const criticalCount = validBatteries.filter(b => b.status === 'Critical').length;
+    const totalIssues = validBatteries.reduce((sum, b) => 
+      sum + (Array.isArray(b.issues) ? b.issues.length : 0), 0
+    );
+
+    return {
+      totalBatteries: filteredBatteries.length,
+      avgSoH: avgSoH.toFixed(1),
+      criticalCount,
+      totalIssues
+    };
+  }, [filteredBatteries]);
+
+  // Event handlers
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setLoading(true);
+    
+    batteryService.getUserBatteries()
+      .then(data => {
+        setBatteries(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error('Error fetching batteries:', err);
+        setError('Failed to load batteries');
+        setBatteries([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   const resetFilters = useCallback(() => {
     setFilters({
@@ -169,49 +197,20 @@ export default function Search() {
     setCurrentPage(1);
   }, []);
 
-  // Memoized analytics to prevent recalculation on every render
-  const analytics = useMemo(() => {
-    if (!Array.isArray(filteredBatteries) || filteredBatteries.length === 0) {
-      return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
-    }
+  const updateFilters = useCallback((key: keyof SearchFilters, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
 
-    try {
-      const validBatteries = filteredBatteries.filter(b => 
-        b && typeof b.soh === 'number' && typeof b.status === 'string'
-      );
-
-      if (validBatteries.length === 0) {
-        return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
-      }
-
-      const avgSoH = validBatteries.reduce((sum, b) => sum + b.soh, 0) / validBatteries.length;
-      const criticalCount = validBatteries.filter(b => b.status === 'Critical').length;
-      const totalIssues = validBatteries.reduce((sum, b) => 
-        sum + (Array.isArray(b.issues) ? b.issues.length : 0), 0
-      );
-
-      return {
-        totalBatteries: filteredBatteries.length,
-        avgSoH: avgSoH.toFixed(1),
-        criticalCount,
-        totalIssues
-      };
-    } catch (err) {
-      console.error('Error calculating analytics:', err);
-      return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
-    }
-  }, [filteredBatteries]);
-
-  const getStatusColor = useCallback((status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'Healthy': return 'bg-green-500/20 text-green-400';
       case 'Degrading': return 'bg-yellow-500/20 text-yellow-400';
       case 'Critical': return 'bg-red-500/20 text-red-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
-  }, []);
+  };
 
-  const getGradeColor = useCallback((grade: string) => {
+  const getGradeColor = (grade: string) => {
     switch (grade) {
       case 'A': return 'bg-green-500/20 text-green-400';
       case 'B': return 'bg-blue-500/20 text-blue-400';
@@ -219,42 +218,7 @@ export default function Search() {
       case 'D': return 'bg-red-500/20 text-red-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
-  }, []);
-
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
-  const PaginationControls = () => (
-    <div className="flex items-center justify-between mt-4">
-      <div className="text-sm text-slate-400">
-        Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredBatteries.length)} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredBatteries.length)} of {filteredBatteries.length} results
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          variant="outline"
-          size="sm"
-          className="glass-button"
-        >
-          Previous
-        </Button>
-        <span className="text-sm text-slate-400">
-          Page {currentPage} of {totalPages || 1}
-        </span>
-        <Button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages || totalPages === 0}
-          variant="outline"
-          size="sm"
-          className="glass-button"
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-  );
+  };
 
   if (loading) {
     return (
@@ -274,7 +238,7 @@ export default function Search() {
           <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
           <p className="text-white mb-2">Error Loading Batteries</p>
           <p className="text-slate-400 mb-4">{error}</p>
-          <Button onClick={fetchBatteries} className="glass-button">
+          <Button onClick={handleRetry} className="glass-button">
             Try Again
           </Button>
         </div>
@@ -383,7 +347,34 @@ export default function Search() {
               </div>
               
               {filteredBatteries.length > ITEMS_PER_PAGE && (
-                <PaginationControls />
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-slate-400">
+                    Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredBatteries.length)} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredBatteries.length)} of {filteredBatteries.length} results
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      size="sm"
+                      className="glass-button"
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-slate-400">
+                      Page {currentPage} of {totalPages || 1}
+                    </span>
+                    <Button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                      variant="outline"
+                      size="sm"
+                      className="glass-button"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </TabsContent>
@@ -431,7 +422,7 @@ export default function Search() {
                 <label className="text-sm text-slate-300">Chemistry</label>
                 <select 
                   value={filters.chemistry} 
-                  onChange={(e) => setFilters({...filters, chemistry: e.target.value as any})}
+                  onChange={(e) => updateFilters('chemistry', e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-md px-3 py-2 text-white"
                 >
                   <option value="all">All Chemistries</option>
@@ -443,7 +434,7 @@ export default function Search() {
                 <label className="text-sm text-slate-300">Grade</label>
                 <select 
                   value={filters.grade} 
-                  onChange={(e) => setFilters({...filters, grade: e.target.value as any})}
+                  onChange={(e) => updateFilters('grade', e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-md px-3 py-2 text-white"
                 >
                   <option value="all">All Grades</option>
@@ -457,7 +448,7 @@ export default function Search() {
                 <label className="text-sm text-slate-300">Status</label>
                 <select 
                   value={filters.status} 
-                  onChange={(e) => setFilters({...filters, status: e.target.value as any})}
+                  onChange={(e) => updateFilters('status', e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-md px-3 py-2 text-white"
                 >
                   <option value="all">All Statuses</option>
