@@ -36,9 +36,19 @@ export default function Search() {
   const [currentPage, setCurrentPage] = useState(1);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
+  const [initialized, setInitialized] = useState(false);
   
   const { isCompanyMode, currentCompany } = useCompany();
   const mountedRef = useRef(true);
+  
+  // Store the company mode state to detect changes
+  const companyModeRef = useRef(isCompanyMode);
+  const hasCompanyModeChanged = companyModeRef.current !== isCompanyMode;
+  
+  // Update the ref when company mode changes
+  useEffect(() => {
+    companyModeRef.current = isCompanyMode;
+  }, [isCompanyMode]);
 
   // Debounce search query
   useEffect(() => {
@@ -50,38 +60,46 @@ export default function Search() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch batteries only on mount and company mode change
-  useEffect(() => {
-    mountedRef.current = true;
+  // Memoized load function to prevent recreation
+  const loadBatteries = useCallback(async () => {
+    if (!mountedRef.current) return;
     
-    const loadBatteries = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const data = await batteryService.getUserBatteries();
-        if (mountedRef.current) {
-          setBatteries(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        if (mountedRef.current) {
-          console.error('Error fetching batteries:', err);
-          setError('Failed to load batteries');
-          setBatteries([]);
-        }
-      } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await batteryService.getUserBatteries();
+      if (mountedRef.current) {
+        setBatteries(Array.isArray(data) ? data : []);
+        setInitialized(true);
       }
-    };
+    } catch (err) {
+      if (mountedRef.current) {
+        console.error('Error fetching batteries:', err);
+        setError('Failed to load batteries');
+        setBatteries([]);
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, []); // Empty dependency array
 
-    loadBatteries();
+  // Load batteries only when needed
+  useEffect(() => {
+    // Only load if not initialized or if company mode changed
+    if (!initialized || hasCompanyModeChanged) {
+      loadBatteries();
+    }
+  }, [initialized, hasCompanyModeChanged, loadBatteries]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       mountedRef.current = false;
     };
-  }, [isCompanyMode]); // Only depend on isCompanyMode
+  }, []);
 
   // Memoized filter function
   const filteredBatteries = useMemo(() => {
@@ -172,27 +190,8 @@ export default function Search() {
   // Memoized event handlers
   const handleRetry = useCallback(() => {
     setError(null);
-    setLoading(true);
-    
-    batteryService.getUserBatteries()
-      .then(data => {
-        if (mountedRef.current) {
-          setBatteries(Array.isArray(data) ? data : []);
-        }
-      })
-      .catch(err => {
-        if (mountedRef.current) {
-          console.error('Error fetching batteries:', err);
-          setError('Failed to load batteries');
-          setBatteries([]);
-        }
-      })
-      .finally(() => {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
-      });
-  }, []);
+    loadBatteries();
+  }, [loadBatteries]);
 
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
@@ -202,12 +201,10 @@ export default function Search() {
 
   const updateFilters = useCallback((key: keyof SearchFilters, value: any) => {
     setFilters(prev => {
-      // Prevent unnecessary re-renders by checking if the value actually changed
       if (prev[key] === value) return prev;
-      
       return { ...prev, [key]: value };
     });
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, []);
 
   // Memoized utility functions
