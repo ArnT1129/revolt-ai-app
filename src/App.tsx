@@ -16,6 +16,7 @@ import LandingPageModal from "./components/LandingPageModal";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { CompanyProvider } from "./contexts/CompanyContext";
 
 const queryClient = new QueryClient();
 
@@ -63,15 +64,17 @@ function AppContent() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/*" element={
             <ProtectedRoute>
-              <Sidebar />
-              <div className="flex-1 flex flex-col">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/upload" element={<Upload />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </div>
+              <CompanyProvider>
+                <Sidebar />
+                <div className="flex-1 flex flex-col">
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/upload" element={<Upload />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </div>
+              </CompanyProvider>
             </ProtectedRoute>
           } />
         </Routes>

@@ -1,12 +1,14 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, User, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
@@ -17,6 +19,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [accountMode, setAccountMode] = useState<'individual' | 'company'>('individual');
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -152,6 +155,38 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {/* Account Mode Selection */}
+            <Tabs value={accountMode} onValueChange={(value) => setAccountMode(value as 'individual' | 'company')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-black/20 border border-white/10">
+                <TabsTrigger value="individual" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Individual
+                </TabsTrigger>
+                <TabsTrigger value="company" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Company
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="individual" className="mt-4">
+                <div className="text-center p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <User className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-300">
+                    Access your personal battery analytics and create individual passports
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="company" className="mt-4">
+                <div className="text-center p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <Building2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-300">
+                    Join your company's shared workspace and collaborate on battery analysis
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && (
                 <div className="space-y-2">
@@ -176,7 +211,7 @@ export default function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="glass-input"
-                  placeholder="Enter your email"
+                  placeholder={accountMode === 'company' ? "your.work@company.com" : "Enter your email"}
                   disabled={loading}
                 />
               </div>
