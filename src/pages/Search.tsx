@@ -22,7 +22,8 @@ const ITEMS_PER_PAGE = 20;
 export default function Search() {
   const [searchQuery, setSearchQuery] = useState('');
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('batteries');
   const [currentPage, setCurrentPage] = useState(1);
   const { isCompanyMode, currentCompany } = useCompany();
@@ -52,12 +53,14 @@ export default function Search() {
 
   const fetchBatteries = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await batteryService.getUserBatteries();
-      setBatteries(data);
+      setBatteries(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching batteries:', error);
-      setBatteries([]); // Ensure we have a fallback
+      setError('Failed to load batteries');
+      setBatteries([]);
     } finally {
       setLoading(false);
     }
@@ -65,55 +68,80 @@ export default function Search() {
 
   // Memoized filtered batteries to prevent unnecessary recalculations
   const filteredBatteries = useMemo(() => {
+    if (!Array.isArray(batteries)) {
+      return [];
+    }
+
     let filtered = batteries;
 
     // Text search - optimized to avoid multiple toLowerCase calls
     if (debouncedSearchQuery.trim()) {
       const query = debouncedSearchQuery.toLowerCase();
       filtered = filtered.filter(battery => {
-        // Pre-compute lowercase values to avoid repeated calls
-        const batteryId = battery.id.toLowerCase();
-        const batteryChemistry = battery.chemistry.toLowerCase();
-        const batteryGrade = battery.grade.toLowerCase();
-        const batteryStatus = battery.status.toLowerCase();
-        const batteryNotes = battery.notes?.toLowerCase() || '';
-        
-        // Check basic fields first (most common matches)
-        if (batteryId.includes(query) || 
-            batteryChemistry.includes(query) || 
-            batteryGrade.includes(query) || 
-            batteryStatus.includes(query) || 
-            batteryNotes.includes(query)) {
-          return true;
+        try {
+          // Pre-compute lowercase values to avoid repeated calls
+          const batteryId = (battery.id || '').toLowerCase();
+          const batteryChemistry = (battery.chemistry || '').toLowerCase();
+          const batteryGrade = (battery.grade || '').toLowerCase();
+          const batteryStatus = (battery.status || '').toLowerCase();
+          const batteryNotes = (battery.notes || '').toLowerCase();
+          
+          // Check basic fields first (most common matches)
+          if (batteryId.includes(query) || 
+              batteryChemistry.includes(query) || 
+              batteryGrade.includes(query) || 
+              batteryStatus.includes(query) || 
+              batteryNotes.includes(query)) {
+            return true;
+          }
+          
+          // Check issues only if basic fields don't match
+          if (battery.issues && Array.isArray(battery.issues)) {
+            return battery.issues.some(issue => {
+              if (!issue || typeof issue !== 'object') return false;
+              return (
+                (issue.title || '').toLowerCase().includes(query) ||
+                (issue.description || '').toLowerCase().includes(query) ||
+                (issue.category || '').toLowerCase().includes(query)
+              );
+            });
+          }
+          
+          return false;
+        } catch (err) {
+          console.error('Error filtering battery:', battery, err);
+          return false;
         }
-        
-        // Check issues only if basic fields don't match
-        return battery.issues?.some(issue => 
-          issue.title.toLowerCase().includes(query) ||
-          issue.description.toLowerCase().includes(query) ||
-          issue.category.toLowerCase().includes(query)
-        ) || false;
       });
     }
 
     // Apply filters efficiently
-    if (filters.chemistry !== 'all') {
-      filtered = filtered.filter(b => b.chemistry === filters.chemistry);
-    }
-    if (filters.grade !== 'all') {
-      filtered = filtered.filter(b => b.grade === filters.grade);
-    }
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(b => b.status === filters.status);
-    }
+    try {
+      if (filters.chemistry !== 'all') {
+        filtered = filtered.filter(b => b.chemistry === filters.chemistry);
+      }
+      if (filters.grade !== 'all') {
+        filtered = filtered.filter(b => b.grade === filters.grade);
+      }
+      if (filters.status !== 'all') {
+        filtered = filtered.filter(b => b.status === filters.status);
+      }
 
-    // Numeric range filters
-    filtered = filtered.filter(b => 
-      b.soh >= filters.sohRange[0] && 
-      b.soh <= filters.sohRange[1] &&
-      b.cycles >= filters.cycleRange[0] && 
-      b.cycles <= filters.cycleRange[1]
-    );
+      // Numeric range filters with safety checks
+      filtered = filtered.filter(b => {
+        const soh = typeof b.soh === 'number' ? b.soh : 0;
+        const cycles = typeof b.cycles === 'number' ? b.cycles : 0;
+        return (
+          soh >= filters.sohRange[0] && 
+          soh <= filters.sohRange[1] &&
+          cycles >= filters.cycleRange[0] && 
+          cycles <= filters.cycleRange[1]
+        );
+      });
+    } catch (err) {
+      console.error('Error applying filters:', err);
+      return [];
+    }
 
     return filtered;
   }, [batteries, debouncedSearchQuery, filters]);
@@ -141,20 +169,35 @@ export default function Search() {
 
   // Memoized analytics to prevent recalculation on every render
   const analytics = useMemo(() => {
-    if (filteredBatteries.length === 0) {
+    if (!Array.isArray(filteredBatteries) || filteredBatteries.length === 0) {
       return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
     }
 
-    const avgSoH = filteredBatteries.reduce((sum, b) => sum + b.soh, 0) / filteredBatteries.length;
-    const criticalCount = filteredBatteries.filter(b => b.status === 'Critical').length;
-    const totalIssues = filteredBatteries.reduce((sum, b) => sum + (b.issues?.length || 0), 0);
+    try {
+      const validBatteries = filteredBatteries.filter(b => 
+        b && typeof b.soh === 'number' && typeof b.status === 'string'
+      );
 
-    return {
-      totalBatteries: filteredBatteries.length,
-      avgSoH: avgSoH.toFixed(1),
-      criticalCount,
-      totalIssues
-    };
+      if (validBatteries.length === 0) {
+        return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
+      }
+
+      const avgSoH = validBatteries.reduce((sum, b) => sum + b.soh, 0) / validBatteries.length;
+      const criticalCount = validBatteries.filter(b => b.status === 'Critical').length;
+      const totalIssues = validBatteries.reduce((sum, b) => 
+        sum + (Array.isArray(b.issues) ? b.issues.length : 0), 0
+      );
+
+      return {
+        totalBatteries: filteredBatteries.length,
+        avgSoH: avgSoH.toFixed(1),
+        criticalCount,
+        totalIssues
+      };
+    } catch (err) {
+      console.error('Error calculating analytics:', err);
+      return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
+    }
   }, [filteredBatteries]);
 
   const getStatusColor = useCallback((status: string) => {
@@ -196,11 +239,11 @@ export default function Search() {
           Previous
         </Button>
         <span className="text-sm text-slate-400">
-          Page {currentPage} of {totalPages}
+          Page {currentPage} of {totalPages || 1}
         </span>
         <Button
           onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          disabled={currentPage === totalPages || totalPages === 0}
           variant="outline"
           size="sm"
           className="glass-button"
@@ -210,6 +253,32 @@ export default function Search() {
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <main className="flex-1 p-4 md:p-8 animate-fade-in">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white">Loading batteries...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="flex-1 p-4 md:p-8 animate-fade-in">
+        <div className="text-center py-12">
+          <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+          <p className="text-white mb-2">Error Loading Batteries</p>
+          <p className="text-slate-400 mb-4">{error}</p>
+          <Button onClick={fetchBatteries} className="glass-button">
+            Try Again
+          </Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
@@ -259,9 +328,7 @@ export default function Search() {
           <TabsContent value="batteries" className="mt-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                {loading ? (
-                  <div className="text-center py-8 text-slate-400">Loading batteries...</div>
-                ) : paginatedBatteries.length === 0 ? (
+                {paginatedBatteries.length === 0 ? (
                   <div className="text-center py-8 text-slate-400">
                     {batteries.length === 0 ? 'No batteries found' : 'No batteries match your search criteria'}
                   </div>
@@ -278,7 +345,7 @@ export default function Search() {
                             <div>
                               <div className="font-medium text-white">{battery.id}</div>
                               <div className="text-sm text-slate-400">
-                                {battery.chemistry} • {battery.cycles.toLocaleString()} cycles
+                                {battery.chemistry} • {(battery.cycles || 0).toLocaleString()} cycles
                               </div>
                             </div>
                           </div>
@@ -290,12 +357,16 @@ export default function Search() {
                               {battery.status}
                             </Badge>
                             <div className="text-right">
-                              <div className="text-sm font-medium text-white">{battery.soh.toFixed(1)}% SoH</div>
-                              <div className="text-xs text-slate-400">{battery.rul} cycles RUL</div>
+                              <div className="text-sm font-medium text-white">
+                                {(battery.soh || 0).toFixed(1)}% SoH
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {battery.rul || 0} cycles RUL
+                              </div>
                             </div>
                           </div>
                         </div>
-                        {battery.issues && battery.issues.length > 0 && (
+                        {battery.issues && Array.isArray(battery.issues) && battery.issues.length > 0 && (
                           <div className="mt-2 flex items-center gap-1 text-xs">
                             <AlertTriangle className="h-3 w-3 text-orange-400" />
                             <span className="text-orange-400">
