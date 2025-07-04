@@ -36,19 +36,10 @@ export default function Search() {
   const [currentPage, setCurrentPage] = useState(1);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
-  const [initialized, setInitialized] = useState(false);
   
   const { isCompanyMode, currentCompany } = useCompany();
   const mountedRef = useRef(true);
-  
-  // Store the company mode state to detect changes
-  const companyModeRef = useRef(isCompanyMode);
-  const hasCompanyModeChanged = companyModeRef.current !== isCompanyMode;
-  
-  // Update the ref when company mode changes
-  useEffect(() => {
-    companyModeRef.current = isCompanyMode;
-  }, [isCompanyMode]);
+  const prevCompanyModeRef = useRef(isCompanyMode);
 
   // Debounce search query
   useEffect(() => {
@@ -60,7 +51,7 @@ export default function Search() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Memoized load function to prevent recreation
+  // Load batteries function
   const loadBatteries = useCallback(async () => {
     if (!mountedRef.current) return;
     
@@ -71,7 +62,6 @@ export default function Search() {
       const data = await batteryService.getUserBatteries();
       if (mountedRef.current) {
         setBatteries(Array.isArray(data) ? data : []);
-        setInitialized(true);
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -84,15 +74,18 @@ export default function Search() {
         setLoading(false);
       }
     }
-  }, []); // Empty dependency array
+  }, []);
 
-  // Load batteries only when needed
+  // Initial load and company mode change detection
   useEffect(() => {
-    // Only load if not initialized or if company mode changed
-    if (!initialized || hasCompanyModeChanged) {
+    const companyModeChanged = prevCompanyModeRef.current !== isCompanyMode;
+    prevCompanyModeRef.current = isCompanyMode;
+    
+    // Load batteries on mount or when company mode changes
+    if (companyModeChanged || batteries.length === 0) {
       loadBatteries();
     }
-  }, [initialized, hasCompanyModeChanged, loadBatteries]);
+  }, [isCompanyMode, loadBatteries]); // Only depend on isCompanyMode
 
   // Cleanup on unmount
   useEffect(() => {
@@ -187,7 +180,7 @@ export default function Search() {
     };
   }, [filteredBatteries]);
 
-  // Memoized event handlers
+  // Event handlers
   const handleRetry = useCallback(() => {
     setError(null);
     loadBatteries();
@@ -200,14 +193,11 @@ export default function Search() {
   }, []);
 
   const updateFilters = useCallback((key: keyof SearchFilters, value: any) => {
-    setFilters(prev => {
-      if (prev[key] === value) return prev;
-      return { ...prev, [key]: value };
-    });
+    setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   }, []);
 
-  // Memoized utility functions
+  // Utility functions
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'Healthy': return 'bg-green-500/20 text-green-400';
