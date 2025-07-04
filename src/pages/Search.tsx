@@ -38,19 +38,7 @@ export default function Search() {
   // Debounced search query to prevent excessive filtering
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1); // Reset to first page when search changes
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    fetchBatteries();
-  }, [isCompanyMode]);
-
+  // Memoize the fetchBatteries function to prevent infinite re-renders
   const fetchBatteries = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -64,7 +52,21 @@ export default function Search() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Empty dependency array since this function doesn't depend on any state
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to first page when search changes
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Only fetch batteries on mount and when company mode changes
+  useEffect(() => {
+    fetchBatteries();
+  }, [fetchBatteries, isCompanyMode]);
 
   // Memoized filtered batteries to prevent unnecessary recalculations
   const filteredBatteries = useMemo(() => {
