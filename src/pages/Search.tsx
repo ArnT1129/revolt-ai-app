@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,12 +17,14 @@ interface SearchFilters {
   cycleRange: [number, number];
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export default function Search() {
   const [searchQuery, setSearchQuery] = useState('');
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
-  const [filteredBatteries, setFilteredBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('batteries');
+  const [currentPage, setCurrentPage] = useState(1);
   const { isCompanyMode, currentCompany } = useCompany();
   const [filters, setFilters] = useState<SearchFilters>({
     chemistry: 'all',
@@ -33,47 +34,69 @@ export default function Search() {
     cycleRange: [0, 5000]
   });
 
+  // Debounced search query to prevent excessive filtering
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to first page when search changes
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchBatteries();
   }, [isCompanyMode]);
 
-  useEffect(() => {
-    filterBatteries();
-  }, [searchQuery, batteries, filters]);
-
-  const fetchBatteries = async () => {
+  const fetchBatteries = useCallback(async () => {
     setLoading(true);
     try {
       const data = await batteryService.getUserBatteries();
       setBatteries(data);
     } catch (error) {
       console.error('Error fetching batteries:', error);
+      setBatteries([]); // Ensure we have a fallback
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterBatteries = () => {
+  // Memoized filtered batteries to prevent unnecessary recalculations
+  const filteredBatteries = useMemo(() => {
     let filtered = batteries;
 
-    // Text search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(battery => 
-        battery.id.toLowerCase().includes(query) ||
-        battery.chemistry.toLowerCase().includes(query) ||
-        battery.grade.toLowerCase().includes(query) ||
-        battery.status.toLowerCase().includes(query) ||
-        battery.notes?.toLowerCase().includes(query) ||
-        battery.issues?.some(issue => 
+    // Text search - optimized to avoid multiple toLowerCase calls
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
+      filtered = filtered.filter(battery => {
+        // Pre-compute lowercase values to avoid repeated calls
+        const batteryId = battery.id.toLowerCase();
+        const batteryChemistry = battery.chemistry.toLowerCase();
+        const batteryGrade = battery.grade.toLowerCase();
+        const batteryStatus = battery.status.toLowerCase();
+        const batteryNotes = battery.notes?.toLowerCase() || '';
+        
+        // Check basic fields first (most common matches)
+        if (batteryId.includes(query) || 
+            batteryChemistry.includes(query) || 
+            batteryGrade.includes(query) || 
+            batteryStatus.includes(query) || 
+            batteryNotes.includes(query)) {
+          return true;
+        }
+        
+        // Check issues only if basic fields don't match
+        return battery.issues?.some(issue => 
           issue.title.toLowerCase().includes(query) ||
           issue.description.toLowerCase().includes(query) ||
           issue.category.toLowerCase().includes(query)
-        )
-      );
+        ) || false;
+      });
     }
 
-    // Apply filters
+    // Apply filters efficiently
     if (filters.chemistry !== 'all') {
       filtered = filtered.filter(b => b.chemistry === filters.chemistry);
     }
@@ -84,20 +107,27 @@ export default function Search() {
       filtered = filtered.filter(b => b.status === filters.status);
     }
 
-    // SoH range filter
+    // Numeric range filters
     filtered = filtered.filter(b => 
-      b.soh >= filters.sohRange[0] && b.soh <= filters.sohRange[1]
+      b.soh >= filters.sohRange[0] && 
+      b.soh <= filters.sohRange[1] &&
+      b.cycles >= filters.cycleRange[0] && 
+      b.cycles <= filters.cycleRange[1]
     );
 
-    // Cycle range filter
-    filtered = filtered.filter(b => 
-      b.cycles >= filters.cycleRange[0] && b.cycles <= filters.cycleRange[1]
-    );
+    return filtered;
+  }, [batteries, debouncedSearchQuery, filters]);
 
-    setFilteredBatteries(filtered);
-  };
+  // Paginated results to improve rendering performance
+  const paginatedBatteries = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredBatteries.slice(startIndex, endIndex);
+  }, [filteredBatteries, currentPage]);
 
-  const resetFilters = () => {
+  const totalPages = Math.ceil(filteredBatteries.length / ITEMS_PER_PAGE);
+
+  const resetFilters = useCallback(() => {
     setFilters({
       chemistry: 'all',
       grade: 'all',
@@ -106,18 +136,37 @@ export default function Search() {
       cycleRange: [0, 5000]
     });
     setSearchQuery('');
-  };
+    setCurrentPage(1);
+  }, []);
 
-  const getStatusColor = (status: string) => {
+  // Memoized analytics to prevent recalculation on every render
+  const analytics = useMemo(() => {
+    if (filteredBatteries.length === 0) {
+      return { totalBatteries: 0, avgSoH: 0, criticalCount: 0, totalIssues: 0 };
+    }
+
+    const avgSoH = filteredBatteries.reduce((sum, b) => sum + b.soh, 0) / filteredBatteries.length;
+    const criticalCount = filteredBatteries.filter(b => b.status === 'Critical').length;
+    const totalIssues = filteredBatteries.reduce((sum, b) => sum + (b.issues?.length || 0), 0);
+
+    return {
+      totalBatteries: filteredBatteries.length,
+      avgSoH: avgSoH.toFixed(1),
+      criticalCount,
+      totalIssues
+    };
+  }, [filteredBatteries]);
+
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'Healthy': return 'bg-green-500/20 text-green-400';
       case 'Degrading': return 'bg-yellow-500/20 text-yellow-400';
       case 'Critical': return 'bg-red-500/20 text-red-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
-  };
+  }, []);
 
-  const getGradeColor = (grade: string) => {
+  const getGradeColor = useCallback((grade: string) => {
     switch (grade) {
       case 'A': return 'bg-green-500/20 text-green-400';
       case 'B': return 'bg-blue-500/20 text-blue-400';
@@ -125,7 +174,42 @@ export default function Search() {
       case 'D': return 'bg-red-500/20 text-red-400';
       default: return 'bg-gray-500/20 text-gray-400';
     }
-  };
+  }, []);
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const PaginationControls = () => (
+    <div className="flex items-center justify-between mt-4">
+      <div className="text-sm text-slate-400">
+        Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredBatteries.length)} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredBatteries.length)} of {filteredBatteries.length} results
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+          size="sm"
+          className="glass-button"
+        >
+          Previous
+        </Button>
+        <span className="text-sm text-slate-400">
+          Page {currentPage} of {totalPages}
+        </span>
+        <Button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          variant="outline"
+          size="sm"
+          className="glass-button"
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
@@ -173,54 +257,60 @@ export default function Search() {
           </TabsList>
 
           <TabsContent value="batteries" className="mt-4">
-            <div className="max-h-[600px] overflow-y-auto space-y-2">
-              {loading ? (
-                <div className="text-center py-8 text-slate-400">Loading batteries...</div>
-              ) : filteredBatteries.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">
-                  {batteries.length === 0 ? 'No batteries found' : 'No batteries match your search criteria'}
-                </div>
-              ) : (
-                filteredBatteries.map((battery) => (
-                  <Card 
-                    key={battery.id} 
-                    className="enhanced-card cursor-pointer hover:border-blue-400/50 transition-all"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Battery className="h-5 w-5 text-blue-400" />
-                          <div>
-                            <div className="font-medium text-white">{battery.id}</div>
-                            <div className="text-sm text-slate-400">
-                              {battery.chemistry} • {battery.cycles.toLocaleString()} cycles
+            <div className="space-y-4">
+              <div className="space-y-2">
+                {loading ? (
+                  <div className="text-center py-8 text-slate-400">Loading batteries...</div>
+                ) : paginatedBatteries.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400">
+                    {batteries.length === 0 ? 'No batteries found' : 'No batteries match your search criteria'}
+                  </div>
+                ) : (
+                  paginatedBatteries.map((battery) => (
+                    <Card 
+                      key={battery.id} 
+                      className="enhanced-card cursor-pointer hover:border-blue-400/50 transition-all"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Battery className="h-5 w-5 text-blue-400" />
+                            <div>
+                              <div className="font-medium text-white">{battery.id}</div>
+                              <div className="text-sm text-slate-400">
+                                {battery.chemistry} • {battery.cycles.toLocaleString()} cycles
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getGradeColor(battery.grade)}>
+                              Grade {battery.grade}
+                            </Badge>
+                            <Badge className={getStatusColor(battery.status)}>
+                              {battery.status}
+                            </Badge>
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-white">{battery.soh.toFixed(1)}% SoH</div>
+                              <div className="text-xs text-slate-400">{battery.rul} cycles RUL</div>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getGradeColor(battery.grade)}>
-                            Grade {battery.grade}
-                          </Badge>
-                          <Badge className={getStatusColor(battery.status)}>
-                            {battery.status}
-                          </Badge>
-                          <div className="text-right">
-                            <div className="text-sm font-medium text-white">{battery.soh.toFixed(1)}% SoH</div>
-                            <div className="text-xs text-slate-400">{battery.rul} cycles RUL</div>
+                        {battery.issues && battery.issues.length > 0 && (
+                          <div className="mt-2 flex items-center gap-1 text-xs">
+                            <AlertTriangle className="h-3 w-3 text-orange-400" />
+                            <span className="text-orange-400">
+                              {battery.issues.length} issue{battery.issues.length !== 1 ? 's' : ''}
+                            </span>
                           </div>
-                        </div>
-                      </div>
-                      {battery.issues && battery.issues.length > 0 && (
-                        <div className="mt-2 flex items-center gap-1 text-xs">
-                          <AlertTriangle className="h-3 w-3 text-orange-400" />
-                          <span className="text-orange-400">
-                            {battery.issues.length} issue{battery.issues.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+              
+              {filteredBatteries.length > ITEMS_PER_PAGE && (
+                <PaginationControls />
               )}
             </div>
           </TabsContent>
@@ -230,7 +320,7 @@ export default function Search() {
               <Card className="enhanced-card">
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-blue-400">
-                    {filteredBatteries.length}
+                    {analytics.totalBatteries}
                   </div>
                   <div className="text-sm text-slate-400">Total Batteries</div>
                 </CardContent>
@@ -238,9 +328,7 @@ export default function Search() {
               <Card className="enhanced-card">
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-green-400">
-                    {filteredBatteries.length > 0 
-                      ? (filteredBatteries.reduce((sum, b) => sum + b.soh, 0) / filteredBatteries.length).toFixed(1)
-                      : 0}%
+                    {analytics.avgSoH}%
                   </div>
                   <div className="text-sm text-slate-400">Avg SoH</div>
                 </CardContent>
@@ -248,7 +336,7 @@ export default function Search() {
               <Card className="enhanced-card">
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-orange-400">
-                    {filteredBatteries.filter(b => b.status === 'Critical').length}
+                    {analytics.criticalCount}
                   </div>
                   <div className="text-sm text-slate-400">Critical</div>
                 </CardContent>
@@ -256,7 +344,7 @@ export default function Search() {
               <Card className="enhanced-card">
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-cyan-400">
-                    {filteredBatteries.reduce((sum, b) => sum + (b.issues?.length || 0), 0)}
+                    {analytics.totalIssues}
                   </div>
                   <div className="text-sm text-slate-400">Total Issues</div>
                 </CardContent>
