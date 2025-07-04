@@ -40,6 +40,7 @@ export default function Search() {
   const { isCompanyMode, currentCompany } = useCompany();
   const mountedRef = useRef(true);
   const prevCompanyModeRef = useRef(isCompanyMode);
+  const batteriesLoadedRef = useRef(false); // Track if batteries have been loaded
 
   // Debounce search query
   useEffect(() => {
@@ -51,8 +52,8 @@ export default function Search() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Load batteries function
-  const loadBatteries = useCallback(async () => {
+  // Load batteries function - removed from useCallback to avoid dependency issues
+  const loadBatteries = async () => {
     if (!mountedRef.current) return;
     
     setLoading(true);
@@ -62,6 +63,7 @@ export default function Search() {
       const data = await batteryService.getUserBatteries();
       if (mountedRef.current) {
         setBatteries(Array.isArray(data) ? data : []);
+        batteriesLoadedRef.current = true;
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -74,7 +76,7 @@ export default function Search() {
         setLoading(false);
       }
     }
-  }, []);
+  };
 
   // Initial load and company mode change detection
   useEffect(() => {
@@ -82,10 +84,10 @@ export default function Search() {
     prevCompanyModeRef.current = isCompanyMode;
     
     // Load batteries on mount or when company mode changes
-    if (companyModeChanged || batteries.length === 0) {
+    if (!batteriesLoadedRef.current || companyModeChanged) {
       loadBatteries();
     }
-  }, [isCompanyMode, loadBatteries]); // Only depend on isCompanyMode
+  }, [isCompanyMode]); // Only depend on isCompanyMode
 
   // Cleanup on unmount
   useEffect(() => {
@@ -183,8 +185,9 @@ export default function Search() {
   // Event handlers
   const handleRetry = useCallback(() => {
     setError(null);
+    batteriesLoadedRef.current = false; // Reset the loaded flag
     loadBatteries();
-  }, [loadBatteries]);
+  }, []);
 
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS);
