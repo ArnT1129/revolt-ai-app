@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Battery, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, User, Building2 } from 'lucide-react';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,6 +16,7 @@ export default function Auth() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [company, setCompany] = useState('');
+  const [accountType, setAccountType] = useState<'individual' | 'company'>('individual');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -41,7 +41,8 @@ export default function Auth() {
         const metadata = {
           first_name: firstName,
           last_name: lastName,
-          company: company,
+          company: accountType === 'company' ? company : undefined,
+          account_type: accountType,
         };
         
         await signUp(email, password, metadata);
@@ -69,6 +70,7 @@ export default function Auth() {
       const metadata = {
         first_name: 'Demo',
         last_name: 'User',
+        account_type: 'individual',
       };
       
       await signUp(`demo${Date.now()}@example.com`, 'demopassword123', metadata);
@@ -94,11 +96,12 @@ export default function Auth() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Battery className="h-10 w-10 text-blue-400" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
-              BatteryIQ
-            </h1>
+          <div className="flex items-center justify-center mb-4">
+            <img 
+              src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMjAwIDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8IS0tIExpZ2h0bmluZyBib2x0IGljb24gLS0+CjxwYXRoIGQ9Ik0yMCA2MEw0MCAyMEg1MEw0MCA0MEg1NUw0MCA2MEgzMEw0MCA0MEgyNUw0MCA2MEgyMFoiIGZpbGw9InVybCgjZ3JhZGllbnQxKSIvPgo8IS0tIFJlVm9sdCB0ZXh0IC0tPgo8dGV4dCB4PSI3MCIgeT0iNTAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzNiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9InVybCgjZ3JhZGllbnQyKSI+UmVWb2x0PC90ZXh0Pgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWRpZW50MSIgeDE9IjIwIiB5MT0iMjAiIHgyPSI1NSIgeTI9IjYwIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjOEI1Q0Y2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNBNzU1RkYiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0iZ3JhZGllbnQyIiB4MT0iNzAiIHkxPSIyMCIgeDI9IjE4MCIgeTI9IjYwIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzk5NEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgc3RvcC1jb2xvcj0iIzU5OEVGNiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOEI1Q0Y2Ii8+CiAgPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4K"
+              alt="ReVolt Logo" 
+              className="h-12 w-auto"
+            />
           </div>
           <p className="text-slate-400">Advanced Battery Analytics Platform</p>
         </div>
@@ -113,6 +116,32 @@ export default function Auth() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <>
+                  {/* Account Type Selection */}
+                  <div className="space-y-3">
+                    <Label className="text-slate-300">Account Type</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={accountType === 'individual' ? 'default' : 'outline'}
+                        className={`h-12 ${accountType === 'individual' ? 'glass-button' : 'glass-button-outline'}`}
+                        onClick={() => setAccountType('individual')}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Individual
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={accountType === 'company' ? 'default' : 'outline'}
+                        className={`h-12 ${accountType === 'company' ? 'glass-button' : 'glass-button-outline'}`}
+                        onClick={() => setAccountType('company')}
+                      >
+                        <Building2 className="h-4 w-4 mr-2" />
+                        Company
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Personal Information */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
@@ -137,17 +166,22 @@ export default function Auth() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company" className="text-slate-300">Company (Optional)</Label>
-                    <Input
-                      id="company"
-                      type="text"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      className="glass-input"
-                      placeholder="Your company name"
-                    />
-                  </div>
+
+                  {/* Company Information - only show if company account type */}
+                  {accountType === 'company' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="company" className="text-slate-300">Company Name *</Label>
+                      <Input
+                        id="company"
+                        type="text"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        className="glass-input"
+                        placeholder="Your company name"
+                        required
+                      />
+                    </div>
+                  )}
                 </>
               )}
               
@@ -205,7 +239,7 @@ export default function Auth() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full glass-button"
+                className="w-full glass-button-outline"
                 onClick={handleDemoLogin}
                 disabled={loading}
               >
