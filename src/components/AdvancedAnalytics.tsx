@@ -1115,7 +1115,299 @@ export default function AdvancedAnalytics({ batteries }: AdvancedAnalyticsProps)
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="batch" stroke="#9CA3AF" />
                   <YAxis stroke="#9CA3AF" />
+
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: '#1F2937', 
-                      border: '1
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }}
+                  />
+                  <Bar dataKey="avgSoH" fill="#8B5CF6" name="Avg SoH %" />
+                  <Bar dataKey="variance" fill="#F59E0B" name="Variance" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Original Analysis - SoH vs Cycles Correlation */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <TrendingDown className="h-5 w-5 text-blue-400" />
+            Battery Performance Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-sm font-medium text-slate-300 mb-3">SoH vs Cycle Count</h4>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart data={cycleVsSoH}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="cycles" stroke="#9CA3AF" />
+                    <YAxis dataKey="soh" domain={[75, 100]} stroke="#9CA3AF" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                      formatter={(value, name) => [
+                        name === 'soh' ? `${value}%` : value,
+                        name === 'soh' ? 'SoH' : 'Cycles'
+                      ]}
+                      labelFormatter={(label, payload) => 
+                        payload?.[0]?.payload ? `${payload[0].payload.id} (${payload[0].payload.chemistry})` : ''
+                      }
+                    />
+                    <Scatter 
+                      name="LFP" 
+                      data={cycleVsSoH.filter(d => d.chemistry === 'LFP')} 
+                      fill="#10B981" 
+                    />
+                    <Scatter 
+                      name="NMC" 
+                      data={cycleVsSoH.filter(d => d.chemistry === 'NMC')} 
+                      fill="#3B82F6" 
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-slate-300 mb-3">Degradation Rate by Battery</h4>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={degradationAnalysis.slice(0, 8)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="id" stroke="#9CA3AF" angle={-45} textAnchor="end" height={80} />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                      formatter={(value) => [`${Number(value).toFixed(3)}%`, 'Degradation Rate']}
+                    />
+                    <Bar dataKey="degradationRate" fill="#F59E0B" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Chemistry Comparison */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="text-white">Chemistry Performance Comparison</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chemistryComparison} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="chemistry" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }} 
+                  />
+                  <Bar dataKey="avgSoH" fill="#10B981" name="Avg SoH %" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-4">
+              {chemistryComparison.map((chem, index) => (
+                <div key={chem.chemistry} className="p-4 border border-white/10 rounded-lg bg-black/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-white">{chem.chemistry}</h4>
+                    <Badge variant="outline" className="text-slate-300 border-white/20">
+                      {chem.count} batteries
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-slate-400">Avg SoH</p>
+                      <p className="text-blue-400 font-medium">{chem.avgSoH}%</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Avg RUL</p>
+                      <p className="text-cyan-400 font-medium">{chem.avgRUL}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Healthy</p>
+                      <p className="text-green-400 font-medium">{chem.healthyPercent}%</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Grade A</p>
+                      <p className="text-indigo-400 font-medium">{chem.gradeAPercent}%</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Grade Distribution & Fleet Health Trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="text-white">Grade Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 mb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={gradeDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ grade, percentage }) => `${grade}: ${percentage}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {gradeDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {gradeDistribution.map((grade, index) => (
+                <div key={grade.grade} className="flex items-center justify-between p-2 border border-white/10 rounded bg-black/20">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <span className="text-white font-medium">Grade {grade.grade}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white text-sm">{grade.count} ({grade.percentage}%)</p>
+                    <p className="text-slate-400 text-xs">Avg SoH: {grade.avgSoH}%</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="text-white">Fleet Health Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={fleetHealthTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="month" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      color: '#F3F4F6'
+                    }} 
+                  />
+                  <Line type="monotone" dataKey="avgSoH" stroke="#60A5FA" strokeWidth={2} name="Avg SoH %" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-green-400 font-medium">{fleetHealthTrend[fleetHealthTrend.length - 1]?.healthyCount || 0}</p>
+                <p className="text-xs text-slate-400">Healthy</p>
+              </div>
+              <div>
+                <p className="text-yellow-400 font-medium">{fleetHealthTrend[fleetHealthTrend.length - 1]?.degradingCount || 0}</p>
+                <p className="text-xs text-slate-400">Degrading</p>
+              </div>
+              <div>
+                <p className="text-red-400 font-medium">{fleetHealthTrend[fleetHealthTrend.length - 1]?.criticalCount || 0}</p>
+                <p className="text-xs text-slate-400">Critical</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Performance Insights */}
+      {performanceMetrics && (
+        <Card className="enhanced-card">
+          <CardHeader>
+            <CardTitle className="text-white">Fleet Performance Insights</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="p-4 border border-green-500/20 rounded-lg bg-green-500/10">
+                  <h4 className="text-green-400 font-medium mb-2">Best Performer</h4>
+                  <p className="text-white font-medium">{performanceMetrics.bestPerformer.id}</p>
+                  <p className="text-sm text-slate-300">
+                    SoH: {performanceMetrics.bestPerformer.soh}% | 
+                    RUL: {performanceMetrics.bestPerformer.rul} | 
+                    Grade: {performanceMetrics.bestPerformer.grade}
+                  </p>
+                </div>
+                
+                <div className="p-4 border border-red-500/20 rounded-lg bg-red-500/10">
+                  <h4 className="text-red-400 font-medium mb-2">Needs Attention</h4>
+                  <p className="text-white font-medium">{performanceMetrics.worstPerformer.id}</p>
+                  <p className="text-sm text-slate-300">
+                    SoH: {performanceMetrics.worstPerformer.soh}% | 
+                    RUL: {performanceMetrics.worstPerformer.rul} | 
+                    Grade: {performanceMetrics.worstPerformer.grade}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="p-4 border border-white/10 rounded-lg bg-black/20">
+                  <h4 className="text-slate-300 font-medium mb-2">Fleet Statistics</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Total Cycles:</span>
+                      <span className="text-white">{performanceMetrics.totalCycles.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Avg Degradation Rate:</span>
+                      <span className="text-white">{performanceMetrics.avgDegradationRate}%/cycle</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Fleet Health:</span>
+                      <span className="text-white">{performanceMetrics.healthyPercent}% Healthy</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
