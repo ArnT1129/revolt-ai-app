@@ -1,12 +1,17 @@
-
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Building2, Loader2 } from 'lucide-react';
 import { useCompany } from '@/contexts/CompanyContext';
-import { toast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateCompanyModalProps {
   isOpen: boolean;
@@ -14,95 +19,130 @@ interface CreateCompanyModalProps {
 }
 
 export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyModalProps) {
-  const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [domain, setDomain] = useState('');
   const [loading, setLoading] = useState(false);
-  const { createCompany } = useCompany();
+  const { createCompany, switchToCompany } = useCompany();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim()) {
+    if (!companyName.trim()) {
       toast({
         title: "Error",
         description: "Company name is required",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     setLoading(true);
+    
     try {
-      await createCompany(name.trim(), domain.trim() || undefined);
+      const newCompany = await createCompany(companyName.trim(), domain.trim() || undefined);
+      
       toast({
         title: "Success",
-        description: "Company created successfully!"
+        description: "Company created successfully",
       });
-      setName('');
+      
+      // Switch to the new company
+      switchToCompany(newCompany.id);
+      
+      // Reset form and close modal
+      setCompanyName('');
       setDomain('');
       onClose();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error creating company:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create company",
-        variant: "destructive"
+        description: "Failed to create company. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="enhanced-card">
-        <DialogHeader>
-          <DialogTitle className="text-white">Create New Company</DialogTitle>
-        </DialogHeader>
+  const handleClose = () => {
+    if (!loading) {
+      setCompanyName('');
+      setDomain('');
+      onClose();
+    }
+  };
 
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px] enhanced-card">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-white">
+            <Building2 className="h-5 w-5" />
+            Create Company
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Create a new company to collaborate with your team
+          </DialogDescription>
+        </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="companyName" className="text-slate-300">Company Name</Label>
-            <Input
-              id="companyName"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="glass-input"
-              placeholder="Enter company name"
-              disabled={loading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="companyDomain" className="text-slate-300">
-              Domain (Optional)
+            <Label htmlFor="company-name" className="text-slate-300">
+              Company Name *
             </Label>
             <Input
-              id="companyDomain"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              className="glass-input"
-              placeholder="company.com"
+              id="company-name"
+              placeholder="Enter company name"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               disabled={loading}
+              className="glass-input"
+              required
             />
           </div>
-
-          <div className="flex gap-2 pt-4">
+          
+          <div className="space-y-2">
+            <Label htmlFor="domain" className="text-slate-300">
+              Domain (optional)
+            </Label>
+            <Input
+              id="domain"
+              placeholder="company.com"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              disabled={loading}
+              className="glass-input"
+            />
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={loading}
-              className="flex-1 glass-button"
+              className="glass-button"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 glass-button"
+              className="glass-button"
             >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Company
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Create Company
+                </>
+              )}
             </Button>
           </div>
         </form>
