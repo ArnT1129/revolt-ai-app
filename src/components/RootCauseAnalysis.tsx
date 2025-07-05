@@ -1,217 +1,184 @@
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
-import { Battery } from "@/types";
-import { AlertTriangle, Search, Zap, Thermometer, Activity } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, TrendingDown, Zap, Clock, ChevronRight } from 'lucide-react';
+import { Battery } from '@/types';
+
+interface DegradationMechanism {
+  mechanism: string;
+  likelihood: number;
+  severity: 'Low' | 'Medium' | 'High' | 'Critical';
+  indicators: string[];
+  recommendations: string[];
+  timeframe: string;
+}
 
 interface RootCauseAnalysisProps {
   battery: Battery;
+  onClose?: () => void;
 }
 
-interface DegradationMechanism {
-  type: string;
-  severity: 'Low' | 'Medium' | 'High' | 'Critical';
-  probability: number;
-  description: string;
-  indicators: string[];
-  recommendations: string[];
-}
-
-export default function RootCauseAnalysis({ battery }: RootCauseAnalysisProps) {
-  const [mechanisms, setMechanisms] = useState<DegradationMechanism[]>([]);
+export default function RootCauseAnalysis({ battery, onClose }: RootCauseAnalysisProps) {
+  const [analysis, setAnalysis] = useState<DegradationMechanism[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const analyzeDegradationMechanisms = (): DegradationMechanism[] => {
-      const analysis: DegradationMechanism[] = [];
+    // Simulate analysis based on battery data
+    const performAnalysis = () => {
+      const mechanisms: DegradationMechanism[] = [];
 
-      // SEI Layer Growth Analysis
-      const seiProbability = battery.chemistry === 'NMC' && battery.cycles > 500 ? 
-        Math.min(85, 30 + (battery.cycles / 100) * 10) : 
-        Math.min(70, 20 + (battery.cycles / 100) * 8);
+      // Analyze based on SoH
+      if (battery.soh < 80) {
+        mechanisms.push({
+          mechanism: 'Capacity Fade',
+          likelihood: 85,
+          severity: 'High',
+          indicators: ['Low State of Health', 'High cycle count', 'Gradual capacity loss'],
+          recommendations: ['Monitor charging patterns', 'Consider replacement planning', 'Reduce deep discharge cycles'],
+          timeframe: 'Immediate attention required'
+        });
+      }
 
-      analysis.push({
-        type: 'SEI Layer Growth',
-        severity: seiProbability > 70 ? 'High' : seiProbability > 50 ? 'Medium' : 'Low',
-        probability: seiProbability,
-        description: 'Solid Electrolyte Interphase layer thickening reduces lithium ion mobility',
-        indicators: [
-          `${battery.cycles} charge cycles completed`,
-          `${battery.chemistry} chemistry characteristics`,
-          battery.soh < 90 ? 'Capacity fade pattern consistent with SEI growth' : 'Normal capacity retention'
-        ],
-        recommendations : [
-          'Optimize charging voltage to reduce SEI formation',
-          'Implement temperature control during charging',
-          'Consider electrolyte additives to stabilize SEI'
-        ]
-      });
+      // Analyze based on cycles
+      if (battery.cycles > 2000) {
+        mechanisms.push({
+          mechanism: 'Electrode Degradation',
+          likelihood: 70,
+          severity: 'Medium',
+          indicators: ['High cycle count', 'Increased internal resistance'],
+          recommendations: ['Implement cycle optimization', 'Monitor voltage patterns', 'Schedule maintenance'],
+          timeframe: '3-6 months'
+        });
+      }
 
-      // Lithium Plating Analysis
-      const platingRisk = battery.rawData ? 
-        battery.rawData.some((d: any) => d.voltage_V > 4.2) ? 80 : 
-        battery.cycles > 1000 ? 60 : 30 : 40;
+      // Analyze based on chemistry
+      if (battery.chemistry === 'NMC' && battery.soh < 85) {
+        mechanisms.push({
+          mechanism: 'Thermal Stress',
+          likelihood: 60,
+          severity: 'Medium',
+          indicators: ['NMC chemistry sensitivity', 'Reduced SoH'],
+          recommendations: ['Improve thermal management', 'Monitor operating temperature', 'Optimize charging rates'],
+          timeframe: '1-3 months'
+        });
+      }
 
-      analysis.push({
-        type: 'Lithium Plating',
-        severity: platingRisk > 70 ? 'Critical' : platingRisk > 50 ? 'High' : 'Medium',
-        probability: platingRisk,
-        description: 'Metallic lithium deposits on anode causing capacity loss and safety risks',
-        indicators: [
-          battery.rawData?.some((d: any) => d.voltage_V > 4.2) ? 'High voltage charging detected' : 'Normal voltage range',
-          battery.cycles > 1000 ? 'High cycle count increases plating risk' : 'Moderate cycle count',
-          battery.status === 'Critical' ? 'Critical status indicates potential plating' : 'Status within normal range'
-        ],
-        recommendations: [
-          'Reduce charging current (C-rate)',
-          'Implement voltage limits below 4.2V',
-          'Add temperature monitoring during fast charging',
-          'Consider pulse charging protocols'
-        ]
-      });
+      if (mechanisms.length === 0) {
+        mechanisms.push({
+          mechanism: 'Normal Aging',
+          likelihood: 30,
+          severity: 'Low',
+          indicators: ['Standard wear patterns', 'Expected degradation'],
+          recommendations: ['Continue regular monitoring', 'Maintain optimal operating conditions'],
+          timeframe: 'Long-term monitoring'
+        });
+      }
 
-      // Active Material Loss
-      const materialLoss = battery.soh < 85 ? 
-        Math.min(90, 40 + (100 - battery.soh) * 2) : 
-        Math.min(50, 20 + (battery.cycles / 200));
-
-      analysis.push({
-        type: 'Active Material Loss',
-        severity: materialLoss > 70 ? 'High' : materialLoss > 50 ? 'Medium' : 'Low',
-        probability: materialLoss,
-        description: 'Loss of active material through particle cracking and dissolution',
-        indicators: [
-          `SoH at ${battery.soh.toFixed(1)}%`,
-          battery.chemistry === 'NMC' ? 'NMC cathodes susceptible to transition metal dissolution' : 'LFP shows good structural stability',
-          battery.cycles > 1500 ? 'High cycle stress on active materials' : 'Moderate cycle stress'
-        ],
-        recommendations: [
-          'Optimize depth of discharge (avoid deep cycling)',
-          'Implement gentler charging profiles',
-          'Monitor internal resistance trends',
-          'Consider material coating improvements'
-        ]
-      });
-
-      // Electrolyte Decomposition
-      const electrolyteRisk = battery.chemistry === 'NMC' && battery.cycles > 800 ? 65 :
-        battery.chemistry === 'LFP' && battery.cycles > 1200 ? 45 : 25;
-
-      analysis.push({
-        type: 'Electrolyte Decomposition',
-        severity: electrolyteRisk > 60 ? 'Medium' : 'Low',
-        probability: electrolyteRisk,
-        description: 'Electrolyte breakdown products interfere with ion transport',
-        indicators: [
-          `${battery.chemistry} electrolyte stability characteristics`,
-          battery.cycles > 800 ? 'Extended cycling accelerates decomposition' : 'Limited decomposition expected',
-          battery.soh < 88 ? 'Capacity fade consistent with electrolyte issues' : 'Normal electrolyte function'
-        ],
-        recommendations: [
-          'Monitor gas evolution during cycling',
-          'Consider electrolyte additives for stability',
-          'Implement controlled atmosphere storage',
-          'Regular impedance spectroscopy analysis'
-        ]
-      });
-
-      return analysis.sort((a, b) => b.probability - a.probability);
+      setAnalysis(mechanisms);
+      setLoading(false);
     };
 
-    setMechanisms(analyzeDegradationMechanisms());
+    performAnalysis();
   }, [battery]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'Critical': return 'text-red-400 bg-red-900/20 border-red-500/20';
-      case 'High': return 'text-orange-400 bg-orange-900/20 border-orange-500/20';
-      case 'Medium': return 'text-yellow-400 bg-yellow-900/20 border-yellow-500/20';
-      case 'Low': return 'text-green-400 bg-green-900/20 border-green-500/20';
-      default: return 'text-gray-400 bg-gray-900/20 border-gray-500/20';
+      case 'Critical': return 'bg-red-500/20 text-red-400';
+      case 'High': return 'bg-orange-500/20 text-orange-400';
+      case 'Medium': return 'bg-yellow-500/20 text-yellow-400';
+      case 'Low': return 'bg-green-500/20 text-green-400';
+      default: return 'bg-gray-500/20 text-gray-400';
     }
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'SEI Layer Growth': return Activity;
-      case 'Lithium Plating': return Zap;
-      case 'Active Material Loss': return AlertTriangle;
-      case 'Electrolyte Decomposition': return Thermometer;
-      default: return Search;
-    }
-  };
+  if (loading) {
+    return (
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-400" />
+            Root Cause Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+            <p className="text-slate-400">Analyzing battery degradation patterns...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="enhanced-card">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Search className="h-5 w-5 text-blue-400" />
-          Root Cause Analysis - {battery.id}
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-400" />
+            Root Cause Analysis - {battery.id}
+          </CardTitle>
+          {onClose && (
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              ×
+            </Button>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert className="border-blue-500/20 bg-blue-900/10">
-          <AlertTriangle className="h-4 w-4 text-blue-400" />
-          <AlertTitle className="text-blue-400">Degradation Mechanism Analysis</AlertTitle>
-          <AlertDescription className="text-slate-300">
-            AI-powered analysis of potential root causes based on battery chemistry, cycle count, and performance data.
-          </AlertDescription>
-        </Alert>
+      <CardContent className="space-y-6">
+        {analysis.map((mechanism, index) => (
+          <div key={index} className="border border-white/10 rounded-lg p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">{mechanism.mechanism}</h3>
+              <div className="flex items-center gap-2">
+                <Badge className={getSeverityColor(mechanism.severity)}>
+                  {mechanism.severity}
+                </Badge>
+                <span className="text-sm text-slate-400">{mechanism.likelihood}% likely</span>
+              </div>
+            </div>
 
-        {mechanisms.map((mechanism, index) => {
-          const Icon = getIcon(mechanism.type);
-          
-          return (
-            <Card key={mechanism.type} className={`border ${getSeverityColor(mechanism.severity)}`}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-5 w-5" />
-                    <CardTitle className="text-lg text-white">{mechanism.type}</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={getSeverityColor(mechanism.severity)}>
-                      {mechanism.severity}
-                    </Badge>
-                    <span className="text-sm font-medium text-slate-300">
-                      {mechanism.probability.toFixed(0)}% probability
-                    </span>
-                  </div>
-                </div>
-                <Progress value={mechanism.probability} className="w-full" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-slate-300">{mechanism.description}</p>
-                
-                <div>
-                  <h4 className="font-semibold text-white mb-2">Key Indicators:</h4>
-                  <ul className="space-y-1">
-                    {mechanism.indicators.map((indicator, idx) => (
-                      <li key={idx} className="text-sm text-slate-400 flex items-start gap-2">
-                        <span className="text-blue-400 mt-1">•</span>
-                        {indicator}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-1">
+                  <TrendingDown className="h-4 w-4" />
+                  Key Indicators
+                </h4>
+                <ul className="space-y-1">
+                  {mechanism.indicators.map((indicator, i) => (
+                    <li key={i} className="text-sm text-slate-400 flex items-center gap-2">
+                      <ChevronRight className="h-3 w-3" />
+                      {indicator}
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-                <div>
-                  <h4 className="font-semibold text-white mb-2">Recommended Actions:</h4>
-                  <ul className="space-y-1">
-                    {mechanism.recommendations.map((rec, idx) => (
-                      <li key={idx} className="text-sm text-slate-300 flex items-start gap-2">
-                        <span className="text-green-400 mt-1">✓</span>
-                        {rec}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              <div>
+                <h4 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-1">
+                  <Zap className="h-4 w-4" />
+                  Recommendations
+                </h4>
+                <ul className="space-y-1">
+                  {mechanism.recommendations.map((rec, i) => (
+                    <li key={i} className="text-sm text-slate-400 flex items-center gap-2">
+                      <ChevronRight className="h-3 w-3" />
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-blue-400" />
+              <span className="text-slate-300">Timeframe:</span>
+              <span className="text-blue-400">{mechanism.timeframe}</span>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

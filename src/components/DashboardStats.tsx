@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BatteryFull, BatteryMedium, AlertTriangle } from "lucide-react";

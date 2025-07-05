@@ -1,150 +1,87 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Battery, Zap, Shield, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Battery, Eye, EyeOff } from 'lucide-react';
 
 export default function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [company, setCompany] = useState('');
-  const [accountType, setAccountType] = useState<'individual' | 'company'>('individual');
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-  const { signIn } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      navigate('/');
-    } catch (error: any) {
-      toast({
-        title: "Sign In Failed",
-        description: error.message || "Failed to sign in. Please check your credentials.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            company: company,
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Create onboarding record for new users
-        const { error: onboardingError } = await supabase
-          .from('user_onboarding')
-          .insert([
-            {
-              user_id: data.user.id,
-              completed_steps: [],
-              is_completed: false
-            }
-          ]);
-
-        if (onboardingError) {
-          console.error('Error creating onboarding record:', onboardingError);
-        }
-      }
-
-      toast({
-        title: "Account Created Successfully",
-        description: "Please check your email to verify your account.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Sign Up Failed",
-        description: error.message || "Failed to create account. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Setup demo user with sample data
-        const { error: demoError } = await supabase.rpc('setup_demo_user', {
-          user_id: data.user.id
+      if (isLogin) {
+        await signIn(email, password);
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully signed in.",
         });
-
-        if (demoError) {
-          console.error('Error setting up demo user:', demoError);
-        }
-
-        // Create onboarding record for demo users
-        const { error: onboardingError } = await supabase
-          .from('user_onboarding')
-          .insert([
-            {
-              user_id: data.user.id,
-              completed_steps: [],
-              is_completed: false
-            }
-          ]);
-
-        if (onboardingError) {
-          console.error('Error creating onboarding record:', onboardingError);
-        }
+        navigate('/');
+      } else {
+        // For signUp, pass the metadata as the third parameter
+        const metadata = {
+          first_name: firstName,
+          last_name: lastName,
+          company: company,
+        };
+        
+        await signUp(email, password, metadata);
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
       }
-
-      toast({
-        title: "Demo Account Created",
-        description: "Please check your email to verify your account. You'll have access to sample battery data.",
-      });
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast({
-        title: "Demo Sign Up Failed",
-        description: error.message || "Failed to create demo account. Please try again.",
+        title: "Authentication Error",
+        description: error.message || "An error occurred during authentication.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    try {
+      // For demo, just pass minimal metadata
+      const metadata = {
+        first_name: 'Demo',
+        last_name: 'User',
+      };
+      
+      await signUp(`demo${Date.now()}@example.com`, 'demopassword123', metadata);
+      toast({
+        title: "Demo Account Created!",
+        description: "Welcome to the demo experience.",
+      });
+      navigate('/?demo=true');
+    } catch (error: any) {
+      console.error('Demo login error:', error);
+      toast({
+        title: "Demo Error",
+        description: "Failed to create demo account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -153,239 +90,143 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      {/* Aurora Background */}
-      <div className="aurora-background">
-        <div className="aurora one"></div>
-        <div className="aurora two"></div>
-        <div className="aurora three"></div>
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Battery className="h-8 w-8 text-blue-400" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
+      <div className="w-full max-w-md space-y-6">
+        {/* Logo */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Battery className="h-10 w-10 text-blue-400" />
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
               BatteryIQ
             </h1>
           </div>
-          <p className="text-slate-300">Advanced Battery Analytics Platform</p>
+          <p className="text-slate-400">Advanced Battery Analytics Platform</p>
         </div>
 
         <Card className="enhanced-card">
           <CardHeader>
-            <CardTitle className="text-center text-white">Welcome</CardTitle>
-            <CardDescription className="text-center text-slate-400">
-              Sign in to your account or create a new one
-            </CardDescription>
+            <CardTitle className="text-center text-white">
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 bg-black/20 border border-white/10">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                <TabsTrigger value="demo">Demo</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="signin" className="space-y-4">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="glass-input"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="glass-input"
-                    />
-                  </div>
-                  <Button type="submit" className="w-full glass-button" disabled={loading}>
-                    {loading ? 'Signing In...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup" className="space-y-4">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Account Type</Label>
-                    <Select value={accountType} onValueChange={(value: 'individual' | 'company') => setAccountType(value)}>
-                      <SelectTrigger className="glass-input">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="individual">
-                          <div className="flex items-center gap-2">
-                            <Shield className="h-4 w-4" />
-                            Individual Account
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="company">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            Company Account
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
+          <CardContent className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
+                      <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
                       <Input
                         id="firstName"
                         type="text"
-                        placeholder="First name"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        required
                         className="glass-input"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
+                      <Label htmlFor="lastName" className="text-slate-300">Last Name</Label>
                       <Input
                         id="lastName"
                         type="text"
-                        placeholder="Last name"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        required
                         className="glass-input"
+                        required
                       />
                     </div>
                   </div>
-
-                  {accountType === 'company' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="company">Company Name</Label>
-                      <Input
-                        id="company"
-                        type="text"
-                        placeholder="Enter your company name"
-                        value={company}
-                        onChange={(e) => setCompany(e.target.value)}
-                        required
-                        className="glass-input"
-                      />
-                    </div>
-                  )}
-
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="company" className="text-slate-300">Company (Optional)</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
+                      id="company"
+                      type="text"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
                       className="glass-input"
+                      placeholder="Your company name"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="glass-input"
-                    />
-                  </div>
-                  <Button type="submit" className="w-full glass-button" disabled={loading}>
-                    {loading ? 'Creating Account...' : 'Create Account'}
+                </>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-slate-300">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="glass-input"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-slate-300">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="glass-input pr-10"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-slate-400" />
+                    )}
                   </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="demo" className="space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-amber-400" />
-                    <span className="text-amber-300 text-sm font-medium">
-                      Demo accounts come with sample battery data for testing
-                    </span>
-                  </div>
                 </div>
-                
-                <form onSubmit={handleDemoSignUp} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        type="text"
-                        placeholder="First name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required
-                        className="glass-input"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        type="text"
-                        placeholder="Last name"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                        className="glass-input"
-                      />
-                    </div>
-                  </div>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="glass-input"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="glass-input"
-                    />
-                  </div>
-                  <Button type="submit" className="w-full glass-button" disabled={loading}>
-                    {loading ? 'Creating Demo Account...' : 'Create Demo Account'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+              <Button 
+                type="submit" 
+                className="w-full glass-button" 
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+              </Button>
+            </form>
+
+            <Separator className="bg-white/10" />
+
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full glass-button"
+                onClick={handleDemoLogin}
+                disabled={loading}
+              >
+                Try Demo Account
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-slate-300 hover:text-white"
+                onClick={() => setIsLogin(!isLogin)}
+              >
+                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+        <div className="text-center text-sm text-slate-400">
+          <p>Secure battery analytics and management platform</p>
+        </div>
       </div>
     </div>
   );
