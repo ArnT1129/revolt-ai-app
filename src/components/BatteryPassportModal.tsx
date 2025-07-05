@@ -12,9 +12,10 @@ interface BatteryPassportModalProps {
   battery: Battery | null;
   isOpen: boolean;
   onClose: () => void;
+  onSave?: (battery: Battery) => void;
 }
 
-export default function BatteryPassportModal({ battery, isOpen, onClose }: BatteryPassportModalProps) {
+export default function BatteryPassportModal({ battery, isOpen, onClose, onSave }: BatteryPassportModalProps) {
   const [activeTab, setActiveTab] = useState<'passport' | 'alerts'>('passport');
 
   if (!battery) return null;
