@@ -117,21 +117,6 @@ export default function Sidebar() {
                 }
               </Button>
             </div>
-            
-            {/* Collapsed state - show only the collapse button aligned with other buttons */}
-            {isCollapsed && (
-              <div className="flex justify-center mt-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 glass-button"
-                  onClick={() => setIsCollapsed(!isCollapsed)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
 
           {/* Company Mode Toggle */}
           {!isCollapsed && (
