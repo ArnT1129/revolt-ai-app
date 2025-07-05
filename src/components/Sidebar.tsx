@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import CompanySelector from "./CompanySelector";
+import CreateCompanyModal from "./CreateCompanyModal";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
@@ -15,8 +17,11 @@ import {
   X,
   Building2,
   Users,
+  User,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Plus,
   MessageCircleWarning
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -24,8 +29,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const { user, signOut } = useAuth();
-  const { isCompanyMode, currentCompany, switchToCompany, switchToIndividual } = useCompany();
+  const { isCompanyMode, currentCompany, userCompanies, switchToCompany, switchToIndividual } = useCompany();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -56,6 +63,20 @@ export default function Sidebar() {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handleAccountSwitch = (type: 'individual' | 'company', companyId?: string) => {
+    if (type === 'individual') {
+      switchToIndividual();
+    } else if (type === 'company' && companyId) {
+      switchToCompany(companyId);
+    }
+    setIsAccountSelectorOpen(false);
+  };
+
+  const handleCreateCompany = () => {
+    setShowCreateModal(true);
+    setIsAccountSelectorOpen(false);
   };
 
   return (
@@ -124,35 +145,82 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Company Mode Toggle */}
+          {/* Account Mode Toggle */}
           {!isCollapsed && (
             <div className="px-4 py-3 border-b border-white/10">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-300">View Mode</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => isCompanyMode ? switchToIndividual() : navigate('/company')}
-                  className="glass-button h-8"
-                >
-                  {isCompanyMode ? (
-                    <><Building2 className="h-3 w-3 mr-1" />Company</>
-                  ) : (
-                    <><Users className="h-3 w-3 mr-1" />Personal</>
-                  )}
-                </Button>
-              </div>
-              
-              {isCompanyMode && (
-                <div className="space-y-2">
-                  <CompanySelector />
-                  {currentCompany && (
-                    <Badge variant="secondary" className="w-full justify-center">
-                      <Building2 className="h-3 w-3 mr-1" />
-                      {currentCompany.name}
-                    </Badge>
+                <span className="text-sm font-medium text-slate-300">Account Mode</span>
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAccountSelectorOpen(!isAccountSelectorOpen)}
+                    className="glass-button h-8 pr-8"
+                  >
+                    {isCompanyMode ? (
+                      <><Building2 className="h-3 w-3 mr-1" />Company</>
+                    ) : (
+                      <><User className="h-3 w-3 mr-1" />Personal</>
+                    )}
+                    <ChevronDown className="h-3 w-3 ml-1 absolute right-2" />
+                  </Button>
+
+                  {/* Account Selector Dropdown */}
+                  {isAccountSelectorOpen && (
+                    <Card className="absolute top-10 left-0 right-0 z-50 enhanced-card min-w-[200px]">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm text-white">Switch Account</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <Button
+                          variant={!isCompanyMode ? "secondary" : "ghost"}
+                          onClick={() => handleAccountSwitch('individual')}
+                          className="w-full justify-start glass-button"
+                        >
+                          <User className="h-4 w-4 mr-2" />
+                          Individual Account
+                          {!isCompanyMode && <Badge variant="secondary" className="ml-auto">Active</Badge>}
+                        </Button>
+
+                        {userCompanies.length > 0 && (
+                          <>
+                            <div className="text-xs text-slate-400 px-2 py-1">Companies</div>
+                            {userCompanies.map((company) => (
+                              <Button
+                                key={company.id}
+                                variant={currentCompany?.id === company.id ? "secondary" : "ghost"}
+                                onClick={() => handleAccountSwitch('company', company.id)}
+                                className="w-full justify-start glass-button"
+                              >
+                                <Building2 className="h-4 w-4 mr-2" />
+                                {company.name}
+                                {currentCompany?.id === company.id && <Badge variant="secondary" className="ml-auto">Active</Badge>}
+                              </Button>
+                            ))}
+                          </>
+                        )}
+
+                        <div className="pt-2 border-t border-white/10">
+                          <Button
+                            variant="ghost"
+                            onClick={handleCreateCompany}
+                            className="w-full justify-start glass-button text-blue-400"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Company
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
+              </div>
+              
+              {isCompanyMode && currentCompany && (
+                <Badge variant="secondary" className="w-full justify-center">
+                  <Building2 className="h-3 w-3 mr-1" />
+                  {currentCompany.name}
+                </Badge>
               )}
             </div>
           )}
@@ -237,6 +305,20 @@ export default function Sidebar() {
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
+
+      {/* Overlay for account selector */}
+      {isAccountSelectorOpen && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => setIsAccountSelectorOpen(false)}
+        />
+      )}
+
+      {/* Create Company Modal */}
+      <CreateCompanyModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </>
   );
 }
