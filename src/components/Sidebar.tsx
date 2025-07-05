@@ -79,7 +79,7 @@ export default function Sidebar() {
         isCollapsed ? "w-16" : "w-56"
       )}>
         <div className="flex flex-col h-full">
-          {/* Header with collapse button */}
+          {/* Header */}
           <div className="p-4 border-b border-white/10">
             <div className="flex items-center justify-between">
               <div className={cn(
@@ -104,12 +104,13 @@ export default function Sidebar() {
                 </div>
               </div>
 
-              {/* Collapse button - only show on desktop */}
+              {/* Collapse button - next to logo */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="hidden md:flex h-8 w-8 glass-button"
                 onClick={() => setIsCollapsed(!isCollapsed)}
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
                 {isCollapsed ? 
                   <ChevronRight className="h-4 w-4" /> : 
@@ -117,6 +118,7 @@ export default function Sidebar() {
                 }
               </Button>
             </div>
+          </div>
 
           {/* Company Mode Toggle */}
           {!isCollapsed && (
