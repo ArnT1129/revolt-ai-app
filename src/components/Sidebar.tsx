@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { CompanySelector } from "./CompanySelector";
+import CompanySelector from "./CompanySelector";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
@@ -25,7 +26,7 @@ export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, signOut } = useAuth();
-  const { isCompanyMode, currentCompany, toggleCompanyMode } = useCompany();
+  const { isCompanyMode, currentCompany, switchToCompany, switchToIndividual } = useCompany();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -35,6 +36,13 @@ export default function Sidebar() {
     { icon: Search, label: "Search", path: "/search" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
+
+  // Add company management for company mode
+  const companyMenuItems = isCompanyMode ? [
+    { icon: Building2, label: "Company", path: "/company" },
+  ] : [];
+
+  const allMenuItems = [...menuItems, ...companyMenuItems];
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -110,7 +118,7 @@ export default function Sidebar() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={toggleCompanyMode}
+                  onClick={() => isCompanyMode ? switchToIndividual() : navigate('/company')}
                   className="glass-button h-8"
                 >
                   {isCompanyMode ? (
@@ -138,7 +146,7 @@ export default function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 px-4 py-3">
             <div className="space-y-2">
-              {menuItems.map((item) => (
+              {allMenuItems.map((item) => (
                 <Button
                   key={item.path}
                   variant={location.pathname === item.path ? "secondary" : "ghost"}
