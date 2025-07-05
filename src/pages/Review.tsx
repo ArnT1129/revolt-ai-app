@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +11,8 @@ import {
   Clock, 
   Battery, 
   Users, 
-  Search,
+  CheckCircle,
+  Shield,
   Filter
 } from "lucide-react";
 import { Battery as BatteryType } from "@/types";
@@ -54,58 +54,42 @@ export default function Review() {
       const userBatteries = await batteryService.getUserBatteries();
       setBatteries(userBatteries);
 
-      // Mock alerts with battery associations for now
-      const mockAlerts: BatteryAlert[] = [
-        {
-          id: '1',
-          battery_id: userBatteries[0]?.id || 'DEMO-NMC-001',
-          sender_id: 'user1',
-          recipient_id: 'current-user',
-          alert_type: 'concern',
-          title: 'Battery Performance Concern',
-          message: 'SoH declining faster than expected for this NMC battery. Recommend investigation.',
-          is_read: false,
-          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          sender_name: 'John Doe',
-          battery: userBatteries[0]
-        },
-        {
-          id: '2',
-          battery_id: userBatteries[1]?.id || 'DEMO-LFP-002',
-          sender_id: 'user2',
-          recipient_id: 'current-user',
-          alert_type: 'mistake',
-          title: 'Data Entry Error',
-          message: 'Found incorrect cycle count in the passport. Should be verified.',
-          is_read: false,
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          sender_name: 'Jane Smith',
-          battery: userBatteries[1]
-        },
-        {
-          id: '3',
-          battery_id: userBatteries[2]?.id || 'DEMO-NMC-003',
-          sender_id: 'user3',
-          recipient_id: 'current-user',
-          alert_type: 'urgent',
-          title: 'Critical Battery Status',
-          message: 'This battery has reached critical SoH levels and needs immediate attention.',
-          is_read: true,
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          sender_name: 'Mike Johnson',
-          battery: userBatteries[2]
-        }
-      ];
+      // Fetch alerts from database
+      const { data: alertsData, error } = await supabase
+        .from('battery_alerts')
+        .select(`
+          *,
+          sender:profiles!battery_alerts_sender_id_fkey(full_name),
+          battery:batteries(*)
+        `)
+        .eq('recipient_id', (await supabase.auth.getUser()).data.user?.id)
+        .order('created_at', { ascending: false });
 
-      // Associate batteries with alerts
-      const alertsWithBatteries = mockAlerts.map(alert => ({
-        ...alert,
-        battery: userBatteries.find(b => b.id === alert.battery_id) || userBatteries[0]
-      }));
+      if (error) {
+        console.error('Error fetching alerts:', error);
+        // Set empty alerts array if there's an error
+        setAlerts([]);
+      } else {
+        // Transform the data to match our interface
+        const transformedAlerts = alertsData?.map(alert => ({
+          id: alert.id,
+          battery_id: alert.battery_id,
+          sender_id: alert.sender_id,
+          recipient_id: alert.recipient_id,
+          alert_type: alert.alert_type,
+          title: alert.title,
+          message: alert.message,
+          is_read: alert.is_read,
+          created_at: alert.created_at,
+          sender_name: alert.sender?.full_name || 'Unknown User',
+          battery: alert.battery
+        })) || [];
 
-      setAlerts(alertsWithBatteries);
+        setAlerts(transformedAlerts);
+      }
     } catch (error) {
       console.error('Error fetching alerts and batteries:', error);
+      setAlerts([]);
       toast({
         title: "Error",
         description: "Failed to load review data",
@@ -117,9 +101,27 @@ export default function Review() {
   };
 
   const markAsRead = async (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, is_read: true } : alert
-    ));
+    try {
+      const { error } = await supabase
+        .from('battery_alerts')
+        .update({ is_read: true })
+        .eq('id', alertId);
+
+      if (error) {
+        throw error;
+      }
+
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId ? { ...alert, is_read: true } : alert
+      ));
+    } catch (error) {
+      console.error('Error marking alert as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark alert as read",
+        variant: "destructive",
+      });
+    }
   };
 
   const openBatteryPassport = (battery: BatteryType) => {
@@ -166,6 +168,43 @@ export default function Review() {
     );
   }
 
+  // Show "No review needed" message if there are no alerts at all
+  if (alerts.length === 0) {
+    return (
+      <main className="flex-1 p-4 md:p-8 animate-fade-in">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent mb-2">
+              Battery Review Center
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Review alerts and concerns about battery passports
+            </p>
+          </div>
+        </div>
+
+        <Card className="bg-slate-800/40 border-slate-600/30">
+          <CardContent className="text-center py-16">
+            <div className="mb-6">
+              <div className="mx-auto w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle className="h-10 w-10 text-green-400" />
+              </div>
+              <Shield className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+            </div>
+            <h3 className="text-2xl font-semibold text-slate-200 mb-2">No Review Needed</h3>
+            <p className="text-slate-400 max-w-md mx-auto mb-6">
+              Great news! All your battery passports are in good standing. No alerts or concerns have been reported at this time.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+              <Shield className="h-4 w-4" />
+              <span>Your battery data is secure and verified</span>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -180,14 +219,14 @@ export default function Review() {
         <div className="flex items-center gap-4">
           {unreadCount > 0 && (
             <Badge className="bg-red-600/80 text-red-100 border-0">
-              {unreadCount} unread alerts
+              {unreadCount} unread alert{unreadCount !== 1 ? 's' : ''}
             </Badge>
           )}
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         <Button
           variant={filterType === 'all' ? 'secondary' : 'outline'}
           size="sm"
@@ -222,6 +261,24 @@ export default function Review() {
           <MessageCircle className="h-4 w-4 mr-1" />
           Concerns
         </Button>
+        <Button
+          variant={filterType === 'mistake' ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => setFilterType('mistake')}
+          className="glass-button"
+        >
+          <AlertTriangle className="h-4 w-4 mr-1" />
+          Mistakes
+        </Button>
+        <Button
+          variant={filterType === 'info' ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => setFilterType('info')}
+          className="glass-button"
+        >
+          <MessageCircle className="h-4 w-4 mr-1" />
+          Info
+        </Button>
       </div>
 
       {/* Alerts List */}
@@ -229,18 +286,20 @@ export default function Review() {
         {filteredAlerts.length === 0 ? (
           <Card className="bg-slate-800/40 border-slate-600/30">
             <CardContent className="text-center py-12">
-              <Search className="h-16 w-16 mx-auto mb-4 text-slate-500" />
-              <h3 className="text-xl font-medium text-slate-300 mb-2">No alerts found</h3>
+              <Filter className="h-16 w-16 mx-auto mb-4 text-slate-500" />
+              <h3 className="text-xl font-medium text-slate-300 mb-2">
+                No {filterType === 'all' ? '' : filterType} alerts found
+              </h3>
               <p className="text-slate-500">
                 {filterType === 'all' 
-                  ? "No alerts have been received yet." 
-                  : `No ${filterType} alerts found.`}
+                  ? "No alerts match your current filters." 
+                  : `No ${filterType} alerts found. Try adjusting your filters.`}
               </p>
             </CardContent>
           </Card>
         ) : (
           filteredAlerts.map(alert => (
-            <Card key={alert.id} className={`bg-slate-800/40 border-slate-600/30 ${!alert.is_read ? 'ring-1 ring-blue-500/30' : ''}`}>
+            <Card key={alert.id} className={`bg-slate-800/40 border-slate-600/30 transition-all duration-200 hover:bg-slate-800/60 ${!alert.is_read ? 'ring-1 ring-blue-500/30' : ''}`}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4 flex-1">
@@ -302,9 +361,9 @@ export default function Review() {
                       <div>
                         <h4 className="font-medium text-slate-200">Battery {alert.battery.id}</h4>
                         <div className="flex items-center gap-4 text-sm text-slate-400">
-                          <span>SoH: {alert.battery.soh.toFixed(1)}%</span>
-                          <span>Grade: {alert.battery.grade}</span>
-                          <span>Status: {alert.battery.status}</span>
+                          <span>SoH: {alert.battery.soh?.toFixed(1) || 'N/A'}%</span>
+                          <span>Grade: {alert.battery.grade || 'N/A'}</span>
+                          <span>Status: {alert.battery.status || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
