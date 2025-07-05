@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +13,6 @@ import {
   LogOut, 
   Menu,
   X,
-  Battery,
   Building2,
   Users,
   ChevronLeft,
@@ -88,9 +86,20 @@ export default function Sidebar() {
                 "flex items-center gap-3 transition-opacity duration-200",
                 isCollapsed && "opacity-0"
               )}>
-                <Battery className="h-8 w-8 text-blue-400" />
+                <div className="h-8 w-8 flex items-center justify-center">
+                  <svg viewBox="0 0 40 40" className="h-8 w-8">
+                    <defs>
+                      <linearGradient id="revolt-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#00D4FF" />
+                        <stop offset="50%" stopColor="#0099FF" />
+                        <stop offset="100%" stopColor="#6B46C1" />
+                      </linearGradient>
+                    </defs>
+                    <path d="M8 28 L18 8 L16 14 L24 14 L32 12 L22 32 L24 26 L16 26 L8 28 Z" fill="url(#revolt-gradient)" />
+                  </svg>
+                </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white">BatteryIQ</h1>
+                  <h1 className="text-xl font-bold text-white">ReVolt</h1>
                   <p className="text-xs text-slate-400">Analytics Platform</p>
                 </div>
               </div>
@@ -108,6 +117,20 @@ export default function Sidebar() {
                 }
               </Button>
             </div>
+            
+            {/* Collapsed state - show only the collapse button aligned with other buttons */}
+            {isCollapsed && (
+              <div className="flex justify-center mt-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 glass-button"
+                  onClick={() => setIsCollapsed(!isCollapsed)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Company Mode Toggle */}
