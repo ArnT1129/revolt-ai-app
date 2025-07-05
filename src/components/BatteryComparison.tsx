@@ -1,11 +1,12 @@
+
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, ScatterChart, Scatter } from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Battery } from "@/types";
-import { GitCompare, TrendingUp, AlertTriangle, Calculator, Clock, DollarSign, Thermometer, Zap, Target, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { GitCompare, Calculator, Target, AlertTriangle, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
 interface BatteryComparisonProps {
   batteries: Battery[];
@@ -67,7 +68,7 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
     const selected = enhancedBatteries.filter(b => selectedBatteries.includes(b.id));
     
     // Generate comparison data based on mode
-    const maxCycles = Math.max(...selected.map(b => b.cycles));
+    const maxCycles = Math.max(...selected.map(b => b.cycles || 0));
     const chartData = [];
     
     const stepSize = Math.max(50, Math.ceil(maxCycles / 20));
@@ -84,22 +85,23 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
                 .sort((a, b) => Math.abs(a.cycle - cycle) - Math.abs(b.cycle - cycle))[0];
               dataPoint[battery.id] = closestPoint ? closestPoint.soh : 100;
             } else {
-              const degradationRate = (100 - battery.soh) / battery.cycles;
+              const degradationRate = (100 - battery.soh) / (battery.cycles || 1);
               const simulatedSoh = Math.max(80, 100 - (degradationRate * cycle));
-              dataPoint[battery.id] = cycle <= battery.cycles ? simulatedSoh : battery.soh;
+              dataPoint[battery.id] = cycle <= (battery.cycles || 0) ? simulatedSoh : battery.soh;
             }
             break;
           case 'cost':
             // Total cost of ownership over time
             const replacementCost = battery.costPerKWh || 200;
             const maintenanceCost = cycle * 0.5; // $0.5 per cycle
-            const efficiencyLoss = (100 - (dataPoint[battery.id] || battery.soh)) / 100;
+            const currentSoh = dataPoint[battery.id] || battery.soh;
+            const efficiencyLoss = (100 - currentSoh) / 100;
             const energyLossCost = efficiencyLoss * cycle * 0.1; // Energy loss cost
             dataPoint[battery.id] = replacementCost + maintenanceCost + energyLossCost;
             break;
           case 'temperature':
             // Temperature impact on performance
-            const tempDegradation = Math.max(0, (battery.operatingTemp! - 25) * 0.5);
+            const tempDegradation = Math.max(0, ((battery.operatingTemp || 25) - 25) * 0.5);
             const tempAdjustedSoh = battery.soh * (1 - tempDegradation / 100);
             dataPoint[battery.id] = Math.max(70, tempAdjustedSoh);
             break;
@@ -107,9 +109,9 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
             // Performance score based on multiple factors
             const perfScore = (
               (battery.soh * 0.3) +
-              (battery.energyDensity! / 250 * 25) +
-              (battery.powerDensity! / 500 * 25) +
-              ((1 - battery.selfDischargeRate!) * 20)
+              ((battery.energyDensity || 150) / 250 * 25) +
+              ((battery.powerDensity || 350) / 500 * 25) +
+              ((1 - (battery.selfDischargeRate || 0.3)) * 20)
             );
             dataPoint[battery.id] = Math.min(100, Math.max(0, perfScore));
             break;
@@ -128,24 +130,24 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
       const risks = [];
       
       // Temperature risk
-      if (battery.operatingTemp! > 35) {
+      if ((battery.operatingTemp || 25) > 35) {
         risks.push({ type: 'temperature', severity: 'high', message: 'Operating above optimal temperature' });
       }
       
       // Age risk
-      const daysSinceMaintenance = (Date.now() - battery.lastMaintenance!.getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceMaintenance = (Date.now() - (battery.lastMaintenance?.getTime() || Date.now())) / (1000 * 60 * 60 * 24);
       if (daysSinceMaintenance > 60) {
         risks.push({ type: 'maintenance', severity: 'medium', message: 'Maintenance overdue' });
       }
       
       // Degradation risk
-      const degradationRate = (100 - battery.soh) / battery.cycles;
+      const degradationRate = (100 - battery.soh) / (battery.cycles || 1);
       if (degradationRate > 0.01) {
         risks.push({ type: 'degradation', severity: 'high', message: 'Rapid degradation detected' });
       }
       
       // Cycle risk
-      if (battery.cycles > 1500) {
+      if ((battery.cycles || 0) > 1500) {
         risks.push({ type: 'lifecycle', severity: 'medium', message: 'Approaching end of life' });
       }
       
@@ -166,25 +168,25 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
       const recommendations = [];
       
       // Based on use case
-      if (useCase === 'backup' && battery.selfDischargeRate! > 0.3) {
+      if (useCase === 'backup' && (battery.selfDischargeRate || 0.3) > 0.3) {
         recommendations.push('Consider battery with lower self-discharge for backup applications');
       }
       
-      if (useCase === 'grid' && battery.powerDensity! < 300) {
+      if (useCase === 'grid' && (battery.powerDensity || 350) < 300) {
         recommendations.push('May not be suitable for grid-scale rapid response');
       }
       
-      if (useCase === 'mobile' && battery.energyDensity! < 150) {
+      if (useCase === 'mobile' && (battery.energyDensity || 150) < 150) {
         recommendations.push('Low energy density may limit mobile application runtime');
       }
       
       // Temperature recommendations
-      if (battery.operatingTemp! > battery.temperatureRange!.max - 5) {
+      if ((battery.operatingTemp || 25) > ((battery.temperatureRange?.max || 60) - 5)) {
         recommendations.push('Implement cooling to prevent thermal damage');
       }
       
       // Maintenance recommendations
-      const daysSinceMaintenance = (Date.now() - battery.lastMaintenance!.getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceMaintenance = (Date.now() - (battery.lastMaintenance?.getTime() || Date.now())) / (1000 * 60 * 60 * 24);
       if (daysSinceMaintenance > 30) {
         recommendations.push('Schedule preventive maintenance');
       }
@@ -204,12 +206,12 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
   const getComparisonMetrics = () => {
     const selected = enhancedBatteries.filter(b => selectedBatteries.includes(b.id));
     return selected.map(battery => {
-      const degradationRate = battery.cycles > 0 ? (100 - battery.soh) / battery.cycles : 0;
-      const efficiencyScore = (battery.soh * 0.4) + ((battery.rul / 50) * 0.3) + (((2000 - battery.cycles) / 2000) * 0.3);
+      const degradationRate = (battery.cycles || 0) > 0 ? (100 - battery.soh) / (battery.cycles || 1) : 0;
+      const efficiencyScore = (battery.soh * 0.4) + ((battery.rul / 50) * 0.3) + (((2000 - (battery.cycles || 0)) / 2000) * 0.3);
       
       // Calculate Total Cost of Ownership
-      const yearsInService = battery.cycles / 365; // Assuming 1 cycle per day
-      const annualMaintenanceCost = 50 + (battery.cycles * 0.01);
+      const yearsInService = (battery.cycles || 0) / 365; // Assuming 1 cycle per day
+      const annualMaintenanceCost = 50 + ((battery.cycles || 0) * 0.01);
       const totalCostOfOwnership = (battery.costPerKWh || 200) + (annualMaintenanceCost * yearsInService);
       
       // Calculate expected replacement date
@@ -329,7 +331,7 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
                           <span>{battery.location}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Temp: {battery.operatingTemp?.toFixed(1)}°C</span>
+                          <span>Temp: {(battery.operatingTemp || 25).toFixed(1)}°C</span>
                           <span>{battery.application}</span>
                         </div>
                       </div>
@@ -543,7 +545,7 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Cycles:</span>
-                            <span className="text-purple-300 font-medium">{battery.cycles.toLocaleString()}</span>
+                            <span className="text-purple-300 font-medium">{(battery.cycles || 0).toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">RUL:</span>
@@ -551,7 +553,7 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Temp:</span>
-                            <span className="text-orange-300 font-medium">{battery.operatingTemp?.toFixed(1)}°C</span>
+                            <span className="text-orange-300 font-medium">{(battery.operatingTemp || 25).toFixed(1)}°C</span>
                           </div>
                         </div>
                         
@@ -562,15 +564,15 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Energy:</span>
-                            <span className="text-cyan-300 font-medium">{battery.energyDensity?.toFixed(0)} Wh/kg</span>
+                            <span className="text-cyan-300 font-medium">{(battery.energyDensity || 150).toFixed(0)} Wh/kg</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Power:</span>
-                            <span className="text-pink-300 font-medium">{battery.powerDensity?.toFixed(0)} W/kg</span>
+                            <span className="text-pink-300 font-medium">{(battery.powerDensity || 350).toFixed(0)} W/kg</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Warranty:</span>
-                            <span className="text-teal-300 font-medium">{battery.warranty}y</span>
+                            <span className="text-teal-300 font-medium">{battery.warranty || 5}y</span>
                           </div>
                         </div>
                       </div>
@@ -593,3 +595,4 @@ export default function BatteryComparison({ batteries }: BatteryComparisonProps)
       </Card>
     </div>
   );
+}

@@ -1,511 +1,249 @@
 
-import { useState } from 'react';
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Battery } from "@/types";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart } from "recharts";
-import { Edit, Save, X, Download, FileText, Thermometer, Zap, Activity, Battery as BatteryIcon, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toast } from "@/hooks/use-toast";
+import { Calendar, Zap, Thermometer, Activity, FileText, AlertCircle, Users } from "lucide-react";
+import BatteryAlertSystem from "./BatteryAlertSystem";
 
 interface BatteryPassportModalProps {
   battery: Battery | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updatedBattery: Battery) => void;
-  showDashboardButton?: boolean;
-  onNavigateToDashboard?: () => void;
 }
 
-const gradeColor: Record<string, string> = {
-  A: "bg-green-500",
-  B: "bg-yellow-500", 
-  C: "bg-orange-500",
-  D: "bg-red-500",
-};
-
-const statusColor: Record<string, string> = {
-  Healthy: "text-green-400",
-  Degrading: "text-yellow-400",
-  Critical: "text-red-400",
-  Unknown: "text-gray-400"
-};
-
-export default function BatteryPassportModal({ 
-  battery, 
-  isOpen, 
-  onClose, 
-  onSave, 
-  showDashboardButton = false, 
-  onNavigateToDashboard 
-}: BatteryPassportModalProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedBattery, setEditedBattery] = useState<Battery | null>(null);
-  const [notes, setNotes] = useState("");
+export default function BatteryPassportModal({ battery, isOpen, onClose }: BatteryPassportModalProps) {
+  const [activeTab, setActiveTab] = useState<'passport' | 'alerts'>('passport');
 
   if (!battery) return null;
 
-  const handleEdit = () => {
-    setEditedBattery({ ...battery });
-    setNotes(battery.notes || "");
-    setIsEditing(true);
-  };
-
-  const handleSave = () => {
-    if (editedBattery) {
-      const updatedBattery = { ...editedBattery, notes };
-      onSave(updatedBattery);
-      setIsEditing(false);
-      toast({
-        title: "Battery Updated",
-        description: "Battery passport information has been saved.",
-      });
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Healthy': return 'bg-green-600/80 text-green-100';
+      case 'Degrading': return 'bg-yellow-600/80 text-yellow-100';
+      case 'Critical': return 'bg-red-600/80 text-red-100';
+      default: return 'bg-gray-600/80 text-gray-100';
     }
   };
 
-  const handleCancel = () => {
-    setEditedBattery(null);
-    setNotes("");
-    setIsEditing(false);
-  };
-
-  const handleExportPDF = () => {
-    toast({
-      title: "Export Started",
-      description: "Battery passport PDF is being generated...",
-    });
-  };
-
-  const updateEditedBattery = (field: string, value: any) => {
-    if (editedBattery) {
-      setEditedBattery({ ...editedBattery, [field]: value });
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case 'A': return 'bg-green-600/80 text-green-100';
+      case 'B': return 'bg-blue-600/80 text-blue-100';
+      case 'C': return 'bg-yellow-600/80 text-yellow-100';
+      case 'D': return 'bg-red-600/80 text-red-100';
+      default: return 'bg-gray-600/80 text-gray-100';
     }
   };
-
-  const updateMetrics = (field: string, value: any) => {
-    if (editedBattery && editedBattery.metrics) {
-      setEditedBattery({
-        ...editedBattery,
-        metrics: { ...editedBattery.metrics, [field]: value }
-      });
-    }
-  };
-
-  const currentBattery = isEditing ? editedBattery! : battery;
-  const metrics = currentBattery.metrics;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-2xl font-bold">Digital Battery Passport</DialogTitle>
-          <div className="flex gap-2">
-            {showDashboardButton && onNavigateToDashboard && (
-              <Button onClick={onNavigateToDashboard} className="glass-button">
-                <ArrowRight className="h-4 w-4 mr-2" />
-                View on Dashboard
-              </Button>
-            )}
-            <Button onClick={handleExportPDF} variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export PDF
-            </Button>
-            {!isEditing ? (
-              <Button onClick={handleEdit} variant="outline" size="sm">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button onClick={handleSave} size="sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save
-                </Button>
-                <Button onClick={handleCancel} variant="outline" size="sm">
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-              </div>
-            )}
-          </div>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-600">
+        <DialogHeader>
+          <DialogTitle className="text-slate-100 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-400" />
+            Battery Passport - {battery.id}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Basic Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="batteryId">Battery ID</Label>
-                {isEditing ? (
-                  <Input
-                    id="batteryId"
-                    value={currentBattery.id}
-                    onChange={(e) => updateEditedBattery('id', e.target.value)}
-                  />
-                ) : (
-                  <p className="font-mono text-sm bg-muted p-2 rounded">{currentBattery.id}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="chemistry">Chemistry</Label>
-                {isEditing ? (
-                  <select
-                    id="chemistry"
-                    className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
-                    value={currentBattery.chemistry}
-                    onChange={(e) => updateEditedBattery('chemistry', e.target.value)}
-                  >
-                    <option value="LFP">LFP</option>
-                    <option value="NMC">NMC</option>
-                    <option value="LCO">LCO</option>
-                    <option value="NCA">NCA</option>
-                  </select>
-                ) : (
-                  <p className="font-semibold p-2">{currentBattery.chemistry}</p>
-                )}
-              </div>
-              <div>
-                <Label>Grade</Label>
-                {isEditing ? (
-                  <select
-                    className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
-                    value={currentBattery.grade}
-                    onChange={(e) => updateEditedBattery('grade', e.target.value)}
-                  >
-                    <option value="A">Grade A</option>
-                    <option value="B">Grade B</option>
-                    <option value="C">Grade C</option>
-                    <option value="D">Grade D</option>
-                  </select>
-                ) : (
-                  <div className="mt-2">
-                    <Badge className={cn("text-white", gradeColor[currentBattery.grade])}>
-                      Grade {currentBattery.grade}
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-slate-800/50 p-1 rounded-lg mb-4">
+          <button
+            onClick={() => setActiveTab('passport')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'passport'
+                ? 'bg-blue-600/80 text-white'
+                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+            }`}
+          >
+            <FileText className="h-4 w-4 inline mr-2" />
+            Passport Details
+          </button>
+          <button
+            onClick={() => setActiveTab('alerts')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'alerts'
+                ? 'bg-blue-600/80 text-white'
+                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+            }`}
+          >
+            <Users className="h-4 w-4 inline mr-2" />
+            Team Alerts
+          </button>
+        </div>
+
+        {activeTab === 'passport' ? (
+          <div className="space-y-6">
+            {/* Header Information */}
+            <Card className="bg-slate-800/40 border-slate-600/30">
+              <CardHeader>
+                <CardTitle className="text-slate-200 flex items-center justify-between">
+                  <span>Battery Overview</span>
+                  <div className="flex gap-2">
+                    <Badge className={`${getStatusColor(battery.status)} border-0`}>
+                      {battery.status}
+                    </Badge>
+                    <Badge className={`${getGradeColor(battery.grade)} border-0`}>
+                      Grade {battery.grade}
                     </Badge>
                   </div>
-                )}
-              </div>
-              <div>
-                <Label>Status</Label>
-                {isEditing ? (
-                  <select
-                    className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md"
-                    value={currentBattery.status}
-                    onChange={(e) => updateEditedBattery('status', e.target.value)}
-                  >
-                    <option value="Healthy">Healthy</option>
-                    <option value="Degrading">Degrading</option>
-                    <option value="Critical">Critical</option>
-                    <option value="Unknown">Unknown</option>
-                  </select>
-                ) : (
-                  <p className={cn("font-semibold mt-2", statusColor[currentBattery.status])}>
-                    {currentBattery.status}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="uploadDate">Upload Date</Label>
-              <p className="text-sm text-muted-foreground mt-1">{currentBattery.uploadDate}</p>
-            </div>
-          </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-300">{battery.soh.toFixed(1)}%</div>
+                    <div className="text-sm text-slate-400">State of Health</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-emerald-300">{battery.rul}</div>
+                    <div className="text-sm text-slate-400">Remaining Useful Life</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-300">{battery.cycles.toLocaleString()}</div>
+                    <div className="text-sm text-slate-400">Cycle Count</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-300">{battery.chemistry}</div>
+                    <div className="text-sm text-slate-400">Chemistry Type</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Core Performance Metrics */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <BatteryIcon className="h-5 w-5" />
-              Core Performance
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <Label className="text-xs text-muted-foreground">State of Health</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={currentBattery.soh}
-                    onChange={(e) => updateEditedBattery('soh', parseFloat(e.target.value))}
-                    className="text-2xl font-bold h-auto p-1 mt-1"
-                  />
-                ) : (
-                  <p className="text-2xl font-bold">{currentBattery.soh.toFixed(1)}%</p>
-                )}
-              </div>
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <Label className="text-xs text-muted-foreground">Remaining Useful Life</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    value={currentBattery.rul}
-                    onChange={(e) => updateEditedBattery('rul', parseInt(e.target.value))}
-                    className="text-2xl font-bold h-auto p-1 mt-1"
-                  />
-                ) : (
+            {/* Performance History */}
+            {battery.sohHistory && battery.sohHistory.length > 0 && (
+              <Card className="bg-slate-800/40 border-slate-600/30">
+                <CardHeader>
+                  <CardTitle className="text-slate-200 flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-green-400" />
+                    Performance History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {battery.sohHistory.slice(-5).map((point, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-slate-900/40 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                          <span className="text-slate-300">Cycle {point.cycle}</span>
+                        </div>
+                        <div className="text-green-300 font-medium">{point.soh.toFixed(1)}% SoH</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Issues and Alerts */}
+            {battery.issues && battery.issues.length > 0 && (
+              <Card className="bg-slate-800/40 border-slate-600/30">
+                <CardHeader>
+                  <CardTitle className="text-slate-200 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-amber-400" />
+                    Active Issues
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {battery.issues.map((issue, index) => (
+                      <div key={index} className="p-4 bg-slate-900/40 rounded-lg border-l-4 border-amber-400">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-slate-200">{issue.title}</h4>
+                          <Badge className={`${
+                            issue.severity === 'Critical' ? 'bg-red-600/80 text-red-100' :
+                            issue.severity === 'Warning' ? 'bg-yellow-600/80 text-yellow-100' :
+                            'bg-blue-600/80 text-blue-100'
+                          } border-0`}>
+                            {issue.severity}
+                          </Badge>
+                        </div>
+                        <p className="text-slate-300 text-sm mb-2">{issue.description}</p>
+                        {issue.recommendation && (
+                          <p className="text-blue-300 text-sm">
+                            <strong>Recommendation:</strong> {issue.recommendation}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Technical Specifications */}
+            <Card className="bg-slate-800/40 border-slate-600/30">
+              <CardHeader>
+                <CardTitle className="text-slate-200 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-yellow-400" />
+                  Technical Specifications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-slate-300 mb-2">Basic Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Battery ID:</span>
+                        <span className="text-slate-200">{battery.id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Chemistry:</span>
+                        <span className="text-slate-200">{battery.chemistry}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Grade:</span>
+                        <span className="text-slate-200">{battery.grade}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Status:</span>
+                        <span className="text-slate-200">{battery.status}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-slate-300 mb-2">Performance Metrics</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">State of Health:</span>
+                        <span className="text-slate-200">{battery.soh.toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">RUL:</span>
+                        <span className="text-slate-200">{battery.rul} cycles</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Total Cycles:</span>
+                        <span className="text-slate-200">{battery.cycles.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Upload Date:</span>
+                        <span className="text-slate-200">{new Date(battery.uploadDate).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {battery.notes && (
                   <>
-                    <p className="text-2xl font-bold">{currentBattery.rul}</p>
-                    <p className="text-xs text-muted-foreground">cycles</p>
+                    <Separator className="my-4 bg-slate-600/30" />
+                    <div>
+                      <h4 className="font-medium text-slate-300 mb-2">Notes</h4>
+                      <p className="text-slate-400 text-sm">{battery.notes}</p>
+                    </div>
                   </>
                 )}
-              </div>
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <Label className="text-xs text-muted-foreground">Total Cycles</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    value={currentBattery.cycles}
-                    onChange={(e) => updateEditedBattery('cycles', parseInt(e.target.value))}
-                    className="text-2xl font-bold h-auto p-1 mt-1"
-                  />
-                ) : (
-                  <p className="text-2xl font-bold">{currentBattery.cycles}</p>
-                )}
-              </div>
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <Label className="text-xs text-muted-foreground">Capacity Retention</Label>
-                {isEditing ? (
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={metrics?.capacityRetention || 0}
-                    onChange={(e) => updateMetrics('capacityRetention', parseFloat(e.target.value))}
-                    className="text-2xl font-bold h-auto p-1 mt-1"
-                  />
-                ) : (
-                  <p className="text-2xl font-bold">
-                    {metrics?.capacityRetention ? metrics.capacityRetention.toFixed(1) : 'N/A'}%
-                  </p>
-                )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
-
-          {/* Advanced Analytics */}
-          {metrics && (
-            <div className="lg:col-span-2 space-y-6">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Advanced Analytics
-              </h3>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <Label className="text-xs text-muted-foreground">Energy Efficiency</Label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={metrics.energyEfficiency || 0}
-                      onChange={(e) => updateMetrics('energyEfficiency', parseFloat(e.target.value))}
-                      className="text-xl font-bold h-auto p-1 mt-1"
-                    />
-                  ) : (
-                    <p className="text-xl font-bold">
-                      {metrics.energyEfficiency ? metrics.energyEfficiency.toFixed(1) : 'N/A'}%
-                    </p>
-                  )}
-                </div>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <Label className="text-xs text-muted-foreground">Power Fade Rate</Label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.001"
-                      value={metrics.powerFadeRate || 0}
-                      onChange={(e) => updateMetrics('powerFadeRate', parseFloat(e.target.value))}
-                      className="text-xl font-bold h-auto p-1 mt-1"
-                    />
-                  ) : (
-                    <>
-                      <p className="text-xl font-bold">
-                        {metrics.powerFadeRate ? (metrics.powerFadeRate * 100).toFixed(2) : 'N/A'}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">per cycle</p>
-                    </>
-                  )}
-                </div>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <Label className="text-xs text-muted-foreground">Internal Resistance</Label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={metrics.internalResistance || 0}
-                      onChange={(e) => updateMetrics('internalResistance', parseFloat(e.target.value))}
-                      className="text-xl font-bold h-auto p-1 mt-1"
-                    />
-                  ) : (
-                    <>
-                      <p className="text-xl font-bold">
-                        {metrics.internalResistance ? metrics.internalResistance.toFixed(1) : 'N/A'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">mΩ</p>
-                    </>
-                  )}
-                </div>
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <Label className="text-xs text-muted-foreground">Peak Power</Label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={metrics.peakPower || 0}
-                      onChange={(e) => updateMetrics('peakPower', parseFloat(e.target.value))}
-                      className="text-xl font-bold h-auto p-1 mt-1"
-                    />
-                  ) : (
-                    <>
-                      <p className="text-xl font-bold">
-                        {metrics.peakPower ? metrics.peakPower.toFixed(0) : 'N/A'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">W</p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Efficiency Metrics */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-semibold flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    Efficiency Metrics
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Charging Efficiency</Label>
-                      <p className="text-lg font-semibold">
-                        {metrics.chargingEfficiency ? metrics.chargingEfficiency.toFixed(1) : 'N/A'}%
-                      </p>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Discharging Efficiency</Label>
-                      <p className="text-lg font-semibold">
-                        {metrics.dischargingEfficiency ? metrics.dischargingEfficiency.toFixed(1) : 'N/A'}%
-                      </p>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Energy Density</Label>
-                      <p className="text-lg font-semibold">
-                        {metrics.energyDensity ? metrics.energyDensity.toFixed(0) : 'N/A'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Wh/kg</p>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Self-Discharge Rate</Label>
-                      <p className="text-lg font-semibold">
-                        {metrics.selfDischargeRate ? metrics.selfDischargeRate.toFixed(1) : 'N/A'}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">per month</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Environmental Metrics */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-semibold flex items-center gap-2">
-                    <Thermometer className="h-4 w-4" />
-                    Environmental & Life Metrics
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Temperature Range</Label>
-                      <p className="text-sm font-semibold">
-                        {metrics.temperatureRange ? 
-                          `${metrics.temperatureRange.min?.toFixed(1) || 'N/A'}°C - ${metrics.temperatureRange.max?.toFixed(1) || 'N/A'}°C` 
-                          : 'N/A'
-                        }
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Avg: {metrics.temperatureRange?.avg ? metrics.temperatureRange.avg.toFixed(1) : 'N/A'}°C
-                      </p>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Voltage Range</Label>
-                      <p className="text-sm font-semibold">
-                        {metrics.voltageRange ? 
-                          `${metrics.voltageRange.min?.toFixed(2) || 'N/A'}V - ${metrics.voltageRange.max?.toFixed(2) || 'N/A'}V` 
-                          : 'N/A'
-                        }
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Avg: {metrics.voltageRange?.avg ? metrics.voltageRange.avg.toFixed(2) : 'N/A'}V
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-muted/30 p-3 rounded">
-                        <Label className="text-xs text-muted-foreground">Cycle Life</Label>
-                        <p className="text-lg font-semibold">{metrics.cycleLife || 'N/A'}</p>
-                      </div>
-                      <div className="bg-muted/30 p-3 rounded">
-                        <Label className="text-xs text-muted-foreground">Calendar Life</Label>
-                        <p className="text-lg font-semibold">{metrics.calendarLife || 'N/A'}</p>
-                        <p className="text-xs text-muted-foreground">days</p>
-                      </div>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded">
-                      <Label className="text-xs text-muted-foreground">Thermal Stability</Label>
-                      <p className="text-lg font-semibold">{metrics.thermalStability || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SoH Chart */}
-          <div className="lg:col-span-2">
-            <h3 className="text-lg font-semibold mb-4">State of Health History</h3>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={currentBattery.sohHistory || []}>
-                  <defs>
-                    <linearGradient id="colorSoh" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="cycle" />
-                  <YAxis domain={['dataMin - 1', 'dataMax + 1']} />
-                  <Tooltip />
-                  <Area 
-                    type="monotone" 
-                    dataKey="soh" 
-                    stroke="#8884d8" 
-                    fillOpacity={1} 
-                    fill="url(#colorSoh)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Notes Section */}
-          <div className="lg:col-span-2">
-            <Label htmlFor="notes">Notes & Observations</Label>
-            {isEditing ? (
-              <Textarea
-                id="notes"
-                placeholder="Add any notes or observations about this battery..."
-                className="mt-2"
-                rows={4}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            ) : (
-              <div className="mt-2 p-3 bg-muted/50 rounded-md text-sm">
-                {battery.notes || "No notes available. Click Edit to add observations."}
-              </div>
-            )}
-          </div>
-        </div>
+        ) : (
+          <BatteryAlertSystem batteryId={battery.id} />
+        )}
       </DialogContent>
     </Dialog>
   );
