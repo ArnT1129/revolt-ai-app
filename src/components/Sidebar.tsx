@@ -103,20 +103,6 @@ export default function Sidebar() {
                   <p className="text-xs text-slate-400">Analytics Platform</p>
                 </div>
               </div>
-              
-              {/* Collapse button - only show on desktop */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:flex h-8 w-8 glass-button"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                {isCollapsed ? 
-                  <ChevronRight className="h-4 w-4" /> : 
-                  <ChevronLeft className="h-4 w-4" />
-                }
-              </Button>
-            </div>
             
             {/* Collapsed state - show only the collapse button aligned with other buttons */}
             {isCollapsed && (
