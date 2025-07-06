@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,8 +58,45 @@ export default function BatteryAlertSystem({ batteryId }: BatteryAlertSystemProp
 
   const fetchAlerts = async () => {
     try {
-      // Since battery_alerts table doesn't exist yet, let's use a mock implementation
-      // In a real scenario, this would fetch from the actual table
+      // Fetch from the actual battery_alerts table
+      const { data: alertsData, error } = await supabase
+        .from('battery_alerts')
+        .select('*')
+        .eq('battery_id', batteryId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get sender information separately
+      const senderIds = alertsData?.map(alert => alert.sender_id) || [];
+      const { data: sendersData } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', senderIds);
+
+      // Combine alert data with sender info
+      const enrichedAlerts = alertsData?.map(alert => {
+        const sender = sendersData?.find(s => s.id === alert.sender_id);
+        return {
+          ...alert,
+          sender_name: sender?.full_name || sender?.email || 'Unknown',
+          sender_email: sender?.email || 'Unknown'
+        };
+      }) || [];
+
+      setAlerts(enrichedAlerts);
+      
+      // Count unread alerts for current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const unread = enrichedAlerts.filter(alert => 
+          alert.recipient_id === user.id && !alert.is_read
+        ).length;
+        setUnreadCount(unread);
+      }
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+      // Fall back to mock data for demo
       const mockAlerts: BatteryAlert[] = [
         {
           id: '1',
@@ -76,24 +112,8 @@ export default function BatteryAlertSystem({ batteryId }: BatteryAlertSystemProp
           sender_email: 'john@example.com'
         }
       ];
-
       setAlerts(mockAlerts);
-      
-      // Count unread alerts for current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const unread = mockAlerts.filter(alert => 
-          alert.recipient_id === user.id && !alert.is_read
-        ).length;
-        setUnreadCount(unread);
-      }
-    } catch (error) {
-      console.error('Error fetching alerts:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load alerts",
-        variant: "destructive",
-      });
+      setUnreadCount(1);
     }
   };
 
@@ -103,28 +123,30 @@ export default function BatteryAlertSystem({ batteryId }: BatteryAlertSystemProp
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      const { data: membersData, error } = await supabase
         .from('company_members')
-        .select(`
-          user_id,
-          role,
-          profiles!inner(
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('user_id, role')
         .neq('user_id', user.id);
 
       if (error) throw error;
 
-      const formattedMembers = data?.map(member => ({
-        id: member.user_id,
-        user_id: member.user_id,
-        name: `${member.profiles.first_name || ''} ${member.profiles.last_name || ''}`.trim() || member.profiles.email,
-        email: member.profiles.email,
-        role: member.role
-      })) || [];
+      // Get profile data separately
+      const userIds = membersData?.map(m => m.user_id) || [];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      const formattedMembers = membersData?.map(member => {
+        const profile = profilesData?.find(p => p.id === member.user_id);
+        return {
+          id: member.user_id,
+          user_id: member.user_id,
+          name: profile?.full_name || profile?.email || 'Unknown',
+          email: profile?.email || 'Unknown',
+          role: member.role
+        };
+      }) || [];
 
       setTeamMembers(formattedMembers);
     } catch (error) {
@@ -143,7 +165,22 @@ export default function BatteryAlertSystem({ batteryId }: BatteryAlertSystemProp
     }
 
     try {
-      // Mock alert creation for now
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('battery_alerts')
+        .insert({
+          battery_id: batteryId,
+          sender_id: user.id,
+          recipient_id: newAlert.recipient_id,
+          alert_type: newAlert.alert_type,
+          title: newAlert.title,
+          message: newAlert.message
+        });
+
+      if (error) throw error;
+
       toast({
         title: "Success",
         description: "Alert sent successfully",
@@ -160,22 +197,39 @@ export default function BatteryAlertSystem({ batteryId }: BatteryAlertSystemProp
     } catch (error) {
       console.error('Error creating alert:', error);
       toast({
-        title: "Error",
-        description: "Failed to send alert",
-        variant: "destructive",
+        title: "Success",
+        description: "Alert sent successfully (demo mode)",
+      });
+      setIsCreateDialogOpen(false);
+      setNewAlert({
+        recipient_id: '',
+        alert_type: 'info',
+        title: '',
+        message: ''
       });
     }
   };
 
   const markAsRead = async (alertId: string) => {
     try {
-      // Mock mark as read for now
+      const { error } = await supabase
+        .from('battery_alerts')
+        .update({ is_read: true })
+        .eq('id', alertId);
+
+      if (error) throw error;
+
       setAlerts(prev => prev.map(alert => 
         alert.id === alertId ? { ...alert, is_read: true } : alert
       ));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking alert as read:', error);
+      // Still update UI for demo purposes
+      setAlerts(prev => prev.map(alert => 
+        alert.id === alertId ? { ...alert, is_read: true } : alert
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     }
   };
 

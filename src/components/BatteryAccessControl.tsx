@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,23 +74,37 @@ export default function BatteryAccessControl() {
       if (batteriesError) throw batteriesError;
       setBatteries(batteriesData || []);
 
-      // Fetch team members
+      // Fetch team members with proper join
       const { data: membersData, error: membersError } = await supabase
         .from('company_members')
         .select(`
           id,
           user_id,
-          role,
-          profiles!inner(email)
+          role
         `)
         .eq('company_id', currentCompany.id);
 
       if (membersError) throw membersError;
 
-      const formattedMembers = membersData.map(member => ({
-        ...member,
-        user_email: member.profiles?.email || 'Unknown'
-      }));
+      // Get profile data separately to avoid join issues
+      const userIds = membersData.map(m => m.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const formattedMembers: TeamMember[] = membersData.map(member => {
+        const profile = profilesData.find(p => p.id === member.user_id);
+        return {
+          id: member.id,
+          user_id: member.user_id,
+          role: member.role as 'owner' | 'admin' | 'employee',
+          user_email: profile?.email || 'Unknown'
+        };
+      });
 
       setTeamMembers(formattedMembers);
 

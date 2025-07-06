@@ -113,6 +113,50 @@ export type Database = {
           },
         ]
       }
+      battery_alerts: {
+        Row: {
+          alert_type: string
+          battery_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          recipient_id: string
+          sender_id: string
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          battery_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          recipient_id: string
+          sender_id: string
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          battery_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          recipient_id?: string
+          sender_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battery_alerts_battery_id_fkey"
+            columns: ["battery_id"]
+            isOneToOne: false
+            referencedRelation: "user_batteries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       battery_issues: {
         Row: {
           affected_metrics: string[] | null
@@ -361,6 +405,7 @@ export type Database = {
           created_at: string | null
           email: string
           first_name: string | null
+          full_name: string | null
           id: string
           is_demo: boolean | null
           last_name: string | null
@@ -372,6 +417,7 @@ export type Database = {
           created_at?: string | null
           email: string
           first_name?: string | null
+          full_name?: string | null
           id: string
           is_demo?: boolean | null
           last_name?: string | null
@@ -383,6 +429,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           first_name?: string | null
+          full_name?: string | null
           id?: string
           is_demo?: boolean | null
           last_name?: string | null

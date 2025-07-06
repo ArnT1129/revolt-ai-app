@@ -1,579 +1,512 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Battery, BatteryGrade, BatteryStatus } from "@/types";
-import { ResponsiveContainer, AreaChart, Area } from "recharts";
-import { cn } from "@/lib/utils";
-import { FileText, Trash2, Plus, AlertTriangle, Search, Filter, Download, RefreshCw, Info } from "lucide-react";
-import BatteryPassportModal from "./BatteryPassportModal";
-import ManualBatteryModal from "./ManualBatteryModal";
-import IssueDetailViewer from "./IssueDetailViewer";
-import RootCauseAnalysis from "./RootCauseAnalysis";
-import { toast } from "@/hooks/use-toast";
-import { batteryService } from "@/services/batteryService";
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { 
+  Search, 
+  Filter, 
+  SortAsc, 
+  SortDesc, 
+  Eye, 
+  Trash2, 
+  Download,
+  AlertTriangle,
+  Battery,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react';
+import { useBatteryStore } from '@/services/batteryService';
+import BatteryPassportModal from './BatteryPassportModal';
+import IssueDetailViewer from './IssueDetailViewer';
+import type { Battery as BatteryType, BatteryIssue } from '@/types';
 
-// Mock batteries for demonstration - clearly labeled
-const DEMO_MOCK_BATTERIES: Battery[] = [
-  {
-    id: "MOCK-NMC-001",
-    grade: "A",
-    status: "Healthy",
-    soh: 98.5,
-    rul: 2100,
-    cycles: 200,
-    chemistry: "NMC",
-    uploadDate: new Date().toISOString().split('T')[0],
-    sohHistory: [
-      { cycle: 0, soh: 100 },
-      { cycle: 50, soh: 99.5 },
-      { cycle: 100, soh: 99.0 },
-      { cycle: 150, soh: 98.8 },
-      { cycle: 200, soh: 98.5 }
-    ],
-    issues: [],
-    notes: "Mock Battery - High-performance NMC demonstrating excellent health"
-  },
-  {
-    id: "MOCK-LFP-002",
-    grade: "B",
-    status: "Degrading",
-    soh: 89.2,
-    rul: 650,
-    cycles: 1500,
-    chemistry: "LFP",
-    uploadDate: new Date().toISOString().split('T')[0],
-    sohHistory: [
-      { cycle: 0, soh: 100 },
-      { cycle: 500, soh: 96.0 },
-      { cycle: 1000, soh: 92.5 },
-      { cycle: 1500, soh: 89.2 }
-    ],
-    issues: [
-      {
-        id: "mock-issue-1",
-        category: "Performance",
-        title: "Capacity Fade Detected",
-        description: "Mock issue showing gradual capacity degradation",
-        severity: "Warning",
-        cause: "Simulated aging process",
-        recommendation: "Monitor performance trends",
-        solution: "Consider replacement planning",
-        affectedMetrics: ["soh", "rul"]
-      }
-    ],
-    notes: "Mock Battery - LFP showing typical degradation patterns"
-  },
-  {
-    id: "MOCK-NMC-003",
-    grade: "C",
-    status: "Critical",
-    soh: 78.1,
-    rul: 150,
-    cycles: 2800,
-    chemistry: "NMC",
-    uploadDate: new Date().toISOString().split('T')[0],
-    sohHistory: [
-      { cycle: 0, soh: 100 },
-      { cycle: 1000, soh: 92.0 },
-      { cycle: 2000, soh: 84.5 },
-      { cycle: 2800, soh: 78.1 }
-    ],
-    issues: [
-      {
-        id: "mock-issue-2",
-        category: "Safety",
-        title: "Critical SoH Threshold",
-        description: "Mock critical battery requiring immediate attention",
-        severity: "Critical",
-        cause: "Extensive cycling simulation",
-        recommendation: "Replace immediately",
-        solution: "Battery replacement required",
-        affectedMetrics: ["soh", "rul", "cycles"]
-      }
-    ],
-    notes: "Mock Battery - Critical condition demonstration"
-  }
-];
+type SortField = 'id' | 'soh' | 'rul' | 'cycles' | 'uploadDate' | 'grade' | 'status';
+type SortDirection = 'asc' | 'desc';
 
-const gradeColor: Record<BatteryGrade, string> = {
-  A: "bg-green-500/80 hover:bg-green-500",
-  B: "bg-yellow-500/80 hover:bg-yellow-500",
-  C: "bg-orange-500/80 hover:bg-orange-500",
-  D: "bg-red-500/80 hover:bg-red-500",
-};
-
-const statusColor: Record<BatteryStatus, string> = {
-    Healthy: "text-green-400",
-    Degrading: "text-yellow-400",
-    Critical: "text-red-400",
-    Unknown: "text-gray-400"
+interface TableFilters {
+  search: string;
+  chemistry: string;
+  status: string;
+  grade: string;
 }
 
 export default function OptimizedBatteryTable() {
-  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [viewingIssues, setViewingIssues] = useState<Battery | null>(null);
-  const [viewingRootCause, setViewingRootCause] = useState<Battery | null>(null);
-  const [userBatteries, setUserBatteries] = useState<Battery[]>([]);
-  const [mockBatteries, setMockBatteries] = useState<Battery[]>(DEMO_MOCK_BATTERIES);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [gradeFilter, setGradeFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const { batteries, removeBattery, updateBattery } = useBatteryStore();
+  const [selectedBattery, setSelectedBattery] = useState<BatteryType | null>(null);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<BatteryIssue | null>(null);
+  const [isIssueViewerOpen, setIsIssueViewerOpen] = useState(false);
+  const [selectedBatteries, setSelectedBatteries] = useState<string[]>([]);
+  
+  const [sortField, setSortField] = useState<SortField>('uploadDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  const [filters, setFilters] = useState<TableFilters>({
+    search: '',
+    chemistry: 'all',
+    status: 'all',
+    grade: 'all'
+  });
 
-  // Combine user batteries with mock batteries
-  const allBatteries = useMemo(() => [...userBatteries, ...mockBatteries], [userBatteries, mockBatteries]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
+  // Memoized filtered and sorted data
   const filteredAndSortedBatteries = useMemo(() => {
-    let filtered = allBatteries.filter(battery => {
-      const matchesSearch = battery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           battery.chemistry.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "all" || battery.status === statusFilter;
-      const matchesGrade = gradeFilter === "all" || battery.grade === gradeFilter;
+    let filtered = batteries.filter(battery => {
+      const matchesSearch = filters.search === '' || 
+        battery.id.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (battery.notes?.toLowerCase().includes(filters.search.toLowerCase()) ?? false);
       
-      return matchesSearch && matchesStatus && matchesGrade;
+      const matchesChemistry = filters.chemistry === 'all' || battery.chemistry === filters.chemistry;
+      const matchesStatus = filters.status === 'all' || battery.status === filters.status;
+      const matchesGrade = filters.grade === 'all' || battery.grade === filters.grade;
+      
+      return matchesSearch && matchesChemistry && matchesStatus && matchesGrade;
     });
 
-    return filtered.sort((a, b) => {
-      let aValue: any = a[sortBy as keyof Battery];
-      let bValue: any = b[sortBy as keyof Battery];
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
       
-      if (typeof aValue === "string") {
+      // Convert dates to timestamps for comparison
+      if (sortField === 'uploadDate') {
+        aValue = new Date(aValue).getTime();
+        bValue = new Date(bValue).getTime();
+      }
+      
+      if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
       
-      if (sortOrder === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
     });
-  }, [allBatteries, searchTerm, statusFilter, gradeFilter, sortBy, sortOrder]);
 
-  const updateBatteries = useCallback(async () => {
-    try {
-      setLoading(true);
-      const fetchedBatteries = await batteryService.getUserBatteries();
-      setUserBatteries(fetchedBatteries);
-      return fetchedBatteries;
-    } catch (error) {
-      console.error('Error fetching batteries:', error);
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return filtered;
+  }, [batteries, filters, sortField, sortDirection]);
 
-  useEffect(() => {
-    updateBatteries();
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedBatteries.length / itemsPerPage);
+  const paginatedBatteries = filteredAndSortedBatteries.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-    const handleBatteryUpdate = () => {
-      updateBatteries();
-    };
-
-    window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
-    
-    return () => {
-      window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
-    };
-  }, [updateBatteries]);
-
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  const handleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortBy(column);
-      setSortOrder("asc");
+      setSortField(field);
+      setSortDirection('asc');
     }
   };
 
-  const handleViewPassport = useCallback((battery: Battery) => {
+  const handleFilterChange = (key: keyof TableFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      chemistry: 'all',
+      status: 'all',
+      grade: 'all'
+    });
+    setCurrentPage(1);
+  };
+
+  const handleBatterySelect = (batteryId: string) => {
+    setSelectedBatteries(prev => 
+      prev.includes(batteryId) 
+        ? prev.filter(id => id !== batteryId)
+        : [...prev, batteryId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const allIds = paginatedBatteries.map(b => b.id);
+    const allSelected = allIds.every(id => selectedBatteries.includes(id));
+    
+    if (allSelected) {
+      setSelectedBatteries(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedBatteries(prev => [...new Set([...prev, ...allIds])]);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    selectedBatteries.forEach(id => removeBattery(id));
+    setSelectedBatteries([]);
+  };
+
+  const handleBulkExport = () => {
+    // Implementation for bulk export
+    console.log('Exporting batteries:', selectedBatteries);
+  };
+
+  const viewBattery = (battery: BatteryType) => {
     setSelectedBattery(battery);
-    setIsModalOpen(true);
-  }, []);
-
-  const handleDeleteBattery = useCallback(async (batteryId: string) => {
-    // Handle mock battery deletion
-    if (batteryId.startsWith('MOCK-')) {
-      setMockBatteries(prev => prev.filter(battery => battery.id !== batteryId));
-      toast({
-        title: "Demo Battery Removed",
-        description: `Demo battery ${batteryId} has been removed from the display`,
-      });
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-      return;
-    }
-
-    // Handle real battery deletion
-    const success = await batteryService.deleteBattery(batteryId);
-    if (success) {
-      setUserBatteries(prev => prev.filter(battery => battery.id !== batteryId));
-      toast({
-        title: "Battery Deleted",
-        description: `Battery ${batteryId} has been removed from the system`,
-      });
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to delete battery",
-        variant: "destructive"
-      });
-    }
-  }, []);
-
-  const handleAddManualBattery = useCallback(async (newBattery: Battery) => {
-    const success = await batteryService.addBattery(newBattery);
-    if (success) {
-      setUserBatteries(prev => [...prev, newBattery]);
-      toast({
-        title: "Battery Added",
-        description: `Battery ${newBattery.id} has been added to the system`,
-      });
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to add battery",
-        variant: "destructive"
-      });
-    }
-  }, []);
-
-  const handleSaveBattery = useCallback(async (updatedBattery: Battery) => {
-    // Prevent editing of mock batteries
-    if (updatedBattery.id.startsWith('MOCK-')) {
-      toast({
-        title: "Cannot Edit Mock Battery",
-        description: "Mock batteries are for demonstration only and cannot be edited",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const success = await batteryService.updateBattery(updatedBattery);
-    if (success) {
-      setUserBatteries(prev => 
-        prev.map(battery => 
-          battery.id === updatedBattery.id ? updatedBattery : battery
-        )
-      );
-      setSelectedBattery(updatedBattery);
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to save battery",
-        variant: "destructive"
-      });
-    }
-  }, []);
-
-  const exportData = () => {
-    const csv = [
-      "ID,Grade,Status,SoH,RUL,Cycles,Chemistry,Upload Date,Type",
-      ...filteredAndSortedBatteries.map(b => 
-        `${b.id},${b.grade},${b.status},${b.soh},${b.rul},${b.cycles},${b.chemistry},${b.uploadDate},${b.id.startsWith('MOCK-') ? 'Mock' : 'Real'}`
-      )
-    ].join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'battery-data-with-mock.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    setIsPassportOpen(true);
   };
 
-  if (loading) {
-    return (
-      <Card className="mb-6">
-        <CardContent className="p-8">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mr-3"></div>
-            <span className="text-white">Loading battery data...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const viewIssue = (issue: BatteryIssue) => {
+    setSelectedIssue(issue);
+    setIsIssueViewerOpen(true);
+  };
 
-  if (viewingRootCause) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => setViewingRootCause(null)}>
-            ← Back to Battery Table
-          </Button>
-          <h2 className="text-lg font-semibold text-white">Root Cause Analysis for {viewingRootCause.id}</h2>
-        </div>
-        <RootCauseAnalysis battery={viewingRootCause} />
-      </div>
-    );
-  }
+  const handleSaveBattery = async (updatedBattery: BatteryType) => {
+    updateBattery(updatedBattery);
+  };
 
-  if (viewingIssues) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => setViewingIssues(null)}>
-            ← Back to Battery Table
-          </Button>
-          <h2 className="text-lg font-semibold text-white">Issues for {viewingIssues.id}</h2>
-        </div>
-        <IssueDetailViewer 
-          issues={viewingIssues.issues || []} 
-          batteryId={viewingIssues.id} 
-        />
-      </div>
-    );
-  }
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Healthy': return 'bg-green-600/80 text-green-100';
+      case 'Degrading': return 'bg-yellow-600/80 text-yellow-100';
+      case 'Critical': return 'bg-red-600/80 text-red-100';
+      default: return 'bg-gray-600/80 text-gray-100';
+    }
+  };
+
+  const getGradeColor = (grade: string) => {
+    switch (grade) {
+      case 'A': return 'bg-green-600/80 text-green-100';
+      case 'B': return 'bg-blue-600/80 text-blue-100';
+      case 'C': return 'bg-yellow-600/80 text-yellow-100';
+      case 'D': return 'bg-red-600/80 text-red-100';
+      default: return 'bg-gray-600/80 text-gray-100';
+    }
+  };
+
+  const getSoHTrend = (battery: BatteryType) => {
+    if (battery.sohHistory.length < 2) return null;
+    const recent = battery.sohHistory.slice(-2);
+    const trend = recent[1].soh - recent[0].soh;
+    return trend;
+  };
+
+  const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => handleSort(field)}
+      className="h-auto p-1 text-slate-300 hover:text-white"
+    >
+      {children}
+      {sortField === field && (
+        sortDirection === 'asc' ? 
+          <SortAsc className="h-3 w-3 ml-1" /> : 
+          <SortDesc className="h-3 w-3 ml-1" />
+      )}
+    </Button>
+  );
 
   return (
-    <>
-      {/* Mock Data Notice */}
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4 text-blue-400" />
-          <span className="text-blue-300 text-sm">
-            This table includes mock batteries (marked with DEMO tags) for demonstration purposes
-          </span>
-        </div>
-      </div>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white">Battery Fleet Overview</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button onClick={exportData} size="sm" variant="outline" className="glass-button">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              <Button onClick={updateBatteries} size="sm" variant="outline" className="glass-button">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Button onClick={() => setIsManualModalOpen(true)} size="sm" className="glass-button">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Battery
-              </Button>
+    <div className="space-y-4">
+      {/* Filters and Search */}
+      <Card className="enhanced-card">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search batteries..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  className="glass-input pl-10"
+                />
+              </div>
             </div>
+            
+            <Select value={filters.chemistry} onValueChange={(value) => handleFilterChange('chemistry', value)}>
+              <SelectTrigger className="w-32 glass-input">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Chemistry</SelectItem>
+                <SelectItem value="LFP">LFP</SelectItem>
+                <SelectItem value="NMC">NMC</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+              <SelectTrigger className="w-32 glass-input">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Healthy">Healthy</SelectItem>
+                <SelectItem value="Degrading">Degrading</SelectItem>
+                <SelectItem value="Critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filters.grade} onValueChange={(value) => handleFilterChange('grade', value)}>
+              <SelectTrigger className="w-24 glass-input">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Grades</SelectItem>
+                <SelectItem value="A">Grade A</SelectItem>
+                <SelectItem value="B">Grade B</SelectItem>
+                <SelectItem value="C">Grade C</SelectItem>
+                <SelectItem value="D">Grade D</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button 
+              onClick={clearFilters} 
+              variant="outline" 
+              className="glass-button"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Clear
+            </Button>
           </div>
           
-          {/* Enhanced Filters */}
-          <div className="flex flex-wrap gap-4 mt-4">
-            <div className="flex-1 min-w-64">
-              <Input
-                placeholder="Search batteries by ID or chemistry..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="glass-effect"
-              />
+          {selectedBatteries.length > 0 && (
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-600">
+              <span className="text-sm text-slate-300">
+                {selectedBatteries.length} selected
+              </span>
+              <Button 
+                size="sm" 
+                onClick={handleBulkExport}
+                className="glass-button"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+              <Button 
+                size="sm" 
+                variant="destructive"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-md bg-background border border-input"
-            >
-              <option value="all">All Status</option>
-              <option value="Healthy">Healthy</option>
-              <option value="Degrading">Degrading</option>
-              <option value="Critical">Critical</option>
-            </select>
-            <select
-              value={gradeFilter}
-              onChange={(e) => setGradeFilter(e.target.value)}
-              className="px-3 py-2 rounded-md bg-background border border-input"
-            >
-              <option value="all">All Grades</option>
-              <option value="A">Grade A</option>
-              <option value="B">Grade B</option>
-              <option value="C">Grade C</option>
-              <option value="D">Grade D</option>
-            </select>
-          </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center justify-between">
+            <span>Battery Fleet ({filteredAndSortedBatteries.length})</span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSelectAll}
+                className="glass-button"
+              >
+                {paginatedBatteries.every(b => selectedBatteries.includes(b.id)) ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="text-sm text-slate-400 px-6 pb-2">
-            Showing {filteredAndSortedBatteries.length} of {allBatteries.length} batteries
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  className="text-slate-300 cursor-pointer hover:text-white transition-colors"
-                  onClick={() => handleSort('id')}
-                >
-                  Battery ID {sortBy === 'id' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  className="text-center text-slate-300 cursor-pointer hover:text-white transition-colors"
-                  onClick={() => handleSort('grade')}
-                >
-                  Grade {sortBy === 'grade' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  className="text-slate-300 cursor-pointer hover:text-white transition-colors"
-                  onClick={() => handleSort('status')}
-                >
-                  Status {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  className="text-right text-slate-300 cursor-pointer hover:text-white transition-colors"
-                  onClick={() => handleSort('soh')}
-                >
-                  SoH (%) {sortBy === 'soh' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  className="text-right text-slate-300 cursor-pointer hover:text-white transition-colors"
-                  onClick={() => handleSort('rul')}
-                >
-                  RUL (cycles) {sortBy === 'rul' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  className="text-right text-slate-300 cursor-pointer hover:text-white transition-colors"
-                  onClick={() => handleSort('cycles')}
-                >
-                  Total Cycles {sortBy === 'cycles' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead className="text-slate-300">SoH Trend</TableHead>
-                <TableHead className="text-center text-slate-300">Issues</TableHead>
-                <TableHead className="text-center text-slate-300">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAndSortedBatteries.map((battery, index) => {
-                const isMock = battery.id.startsWith('MOCK-');
+        <CardContent className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-600">
+                <th className="text-left py-3 px-2">
+                  <input
+                    type="checkbox"
+                    checked={paginatedBatteries.length > 0 && paginatedBatteries.every(b => selectedBatteries.includes(b.id))}
+                    onChange={handleSelectAll}
+                    className="rounded"
+                  />
+                </th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="id">Battery ID</SortButton>
+                </th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="grade">Grade</SortButton>
+                </th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="status">Status</SortButton>
+                </th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="soh">SoH</SortButton>
+                </th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="rul">RUL</SortButton>
+                </th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="cycles">Cycles</SortButton>
+                </th>
+                <th className="text-left py-3 px-4">Chemistry</th>
+                <th className="text-left py-3 px-4">Issues</th>
+                <th className="text-left py-3 px-4">
+                  <SortButton field="uploadDate">Upload Date</SortButton>
+                </th>
+                <th className="text-center py-3 px-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedBatteries.map((battery) => {
+                const trend = getSoHTrend(battery);
                 return (
-                  <TableRow 
-                    key={battery.id} 
-                    className={cn(
-                      "border-white/10 hover:bg-white/5 transition-all duration-200 animate-fade-in",
-                      isMock && "bg-blue-500/5"
-                    )}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <TableCell className="font-medium">
+                  <tr key={battery.id} className="border-b border-slate-700/50 hover:bg-slate-800/50">
+                    <td className="py-3 px-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedBatteries.includes(battery.id)}
+                        onChange={() => handleBatterySelect(battery.id)}
+                        className="rounded"
+                      />
+                    </td>
+                    <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <span className={cn("text-white", isMock && "text-blue-300")}>
-                          {battery.id}
-                        </span>
-                        {isMock && (
-                          <Badge variant="outline" className="text-xs border-blue-400 text-blue-300">
-                            DEMO
-                          </Badge>
-                        )}
+                        <Battery className="h-4 w-4 text-blue-400" />
+                        <span className="text-white font-medium">{battery.id}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={cn("text-white transition-all duration-200 cursor-pointer", gradeColor[battery.grade])}>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge className={getGradeColor(battery.grade)}>
                         {battery.grade}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                        <span className={cn("font-semibold", statusColor[battery.status])}>
-                            {battery.status}
-                        </span>
-                    </TableCell>
-                    <TableCell className="text-right text-slate-300">{battery.soh.toFixed(1)}</TableCell>
-                    <TableCell className="text-right text-slate-300">{battery.rul.toLocaleString()}</TableCell>
-                    <TableCell className="text-right text-slate-300">{battery.cycles.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <div className="h-10 w-32">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={battery.sohHistory} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id={`colorSoh-${battery.id}`} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={isMock ? "#3b82f6" : "#8884d8"} stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor={isMock ? "#3b82f6" : "#8884d8"} stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <Area 
-                              type="monotone" 
-                              dataKey="soh" 
-                              stroke={isMock ? "#3b82f6" : "#8884d8"} 
-                              fillOpacity={1} 
-                              fill={`url(#colorSoh-${battery.id})`} 
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge className={getStatusColor(battery.status)}>
+                        {battery.status}
+                      </Badge>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1">
+                        <span className="text-white font-medium">{battery.soh}%</span>
+                        {trend !== null && (
+                          trend > 0 ? 
+                            <TrendingUp className="h-3 w-3 text-green-400" /> :
+                            trend < 0 ?
+                              <TrendingDown className="h-3 w-3 text-red-400" /> :
+                              null
+                        )}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
+                    </td>
+                    <td className="py-3 px-4 text-slate-300">{battery.rul}</td>
+                    <td className="py-3 px-4 text-slate-300">{battery.cycles}</td>
+                    <td className="py-3 px-4 text-slate-300">{battery.chemistry}</td>
+                    <td className="py-3 px-4">
                       {battery.issues && battery.issues.length > 0 ? (
-                        <Button 
-                          variant="ghost" 
+                        <Button
                           size="sm"
-                          onClick={() => setViewingIssues(battery)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200"
+                          variant="outline"
+                          onClick={() => viewIssue(battery.issues![0])}
+                          className="text-yellow-400 border-yellow-400 hover:bg-yellow-400/10"
                         >
-                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          <AlertTriangle className="h-3 w-3 mr-1" />
                           {battery.issues.length}
                         </Button>
                       ) : (
                         <span className="text-green-400 text-sm">None</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
+                    </td>
+                    <td className="py-3 px-4 text-slate-300">
+                      {new Date(battery.uploadDate).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex gap-1">
+                        <Button
                           size="sm"
-                          onClick={() => handleViewPassport(battery)}
-                          className="text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200"
-                          title="View Battery Passport"
+                          variant="outline"
+                          onClick={() => viewBattery(battery)}
+                          className="glass-button h-8 w-8 p-0"
                         >
-                          <FileText className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
                           size="sm"
-                          onClick={() => setViewingRootCause(battery)}
-                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-200"
-                          title="Root Cause Analysis"
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeleteBattery(battery.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200"
-                          title={isMock ? "Remove demo battery" : "Delete Battery"}
+                          variant="outline"
+                          onClick={() => removeBattery(battery.id)}
+                          className="glass-button h-8 w-8 p-0 hover:bg-red-600/20"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 );
               })}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
+
+          {paginatedBatteries.length === 0 && (
+            <div className="text-center py-12 text-slate-400">
+              <Battery className="h-16 w-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg mb-2">No batteries found</p>
+              <p className="text-sm">Try adjusting your search filters</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <BatteryPassportModal
-        battery={selectedBattery}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveBattery}
-      />
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-400">
+            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedBatteries.length)} of {filteredAndSortedBatteries.length} batteries
+          </p>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="glass-button"
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-3 text-slate-300">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="glass-button"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
-      <ManualBatteryModal
-        isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
-        onSave={handleAddManualBattery}
-      />
-    </>
+      {/* Battery Passport Modal */}
+      {selectedBattery && (
+        <BatteryPassportModal
+          battery={selectedBattery}
+          isOpen={isPassportOpen}
+          onClose={() => {
+            setIsPassportOpen(false);
+            setSelectedBattery(null);
+          }}
+          onSave={handleSaveBattery}
+          onNavigateToDashboard={() => {
+            setIsPassportOpen(false);
+            setSelectedBattery(null);
+          }}
+        />
+      )}
+
+      {/* Issue Detail Viewer */}
+      {selectedIssue && (
+        <IssueDetailViewer
+          issue={selectedIssue}
+          isOpen={isIssueViewerOpen}
+          onClose={() => {
+            setIsIssueViewerOpen(false);
+            setSelectedIssue(null);
+          }}
+        />
+      )}
+    </div>
   );
 }

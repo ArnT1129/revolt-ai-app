@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -39,14 +38,15 @@ export default function Auth() {
         });
         navigate('/');
       } else {
-        const metadata = {
+        // Create metadata object for signUp
+        const metadataObj = {
           first_name: firstName,
           last_name: lastName,
           company: accountType === 'company' ? company : undefined,
           account_type: accountType,
         };
         
-        await signUp(email, password, metadata);
+        await signUp(email, password, JSON.stringify(metadataObj));
         toast({
           title: "Account created!",
           description: "Please check your email to verify your account.",
@@ -67,13 +67,13 @@ export default function Auth() {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
-      const metadata = {
+      const metadataObj = {
         first_name: 'Demo',
         last_name: 'User',
         account_type: 'individual',
       };
       
-      await signUp(`demo${Date.now()}@example.com`, 'demopassword123', metadata);
+      await signUp(`demo${Date.now()}@example.com`, 'demopassword123', JSON.stringify(metadataObj));
       toast({
         title: "Demo Account Created!",
         description: "Welcome to the demo experience.",
