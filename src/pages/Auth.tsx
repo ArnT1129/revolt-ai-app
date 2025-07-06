@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, User, Building2 } from 'lucide-react';
+import LiquidGlassAI from '@/components/LiquidGlassAI';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -37,7 +39,6 @@ export default function Auth() {
         });
         navigate('/');
       } else {
-        // For signUp, pass the metadata as the third parameter
         const metadata = {
           first_name: firstName,
           last_name: lastName,
@@ -66,7 +67,6 @@ export default function Auth() {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
-      // For demo, just pass minimal metadata
       const metadata = {
         first_name: 'Demo',
         last_name: 'User',
@@ -92,8 +92,21 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 relative">
+      {/* Aurora Background */}
+      <div className="aurora-background fixed inset-0">
+        <div className="aurora one"></div>
+        <div className="aurora two"></div>
+        <div className="aurora three"></div>
+      </div>
+      
+      {/* LiquidGlassAI Background */}
+      <div className="fixed inset-0 z-[1]">
+        <LiquidGlassAI isActive={true} />
+      </div>
+
+      {/* Main content centered */}
+      <div className="w-full max-w-md space-y-6 relative z-[2]">
         {/* Logo */}
         <div className="text-center">
           <div className="flex items-center justify-center mb-4">

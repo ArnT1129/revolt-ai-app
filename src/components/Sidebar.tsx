@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,7 @@ export default function Sidebar() {
 
   const handleNavigation = (path: string) => {
     navigate(path);
-    setIsMobileMenuOpen(false); // Close mobile menu after navigation
+    setIsMobileMenuOpen(false);
   };
 
   const handleSignOut = async () => {
@@ -95,21 +96,19 @@ export default function Sidebar() {
       <div className={cn(
         "fixed inset-y-0 left-0 z-40 bg-black/20 backdrop-blur-xl border-r border-white/10 transform transition-all duration-300 ease-in-out",
         "md:relative md:translate-x-0",
-        // Mobile responsive
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-        "md:translate-x-0", // Always visible on desktop
-        // Width based on collapsed state
+        "md:translate-x-0",
         isCollapsed ? "w-16" : "w-56"
       )}>
         <div className="flex flex-col h-full relative">
-          {/* Collapse button - positioned absolutely on the sidebar */}
+          {/* Collapse button - aligned with dashboard when collapsed */}
           <Button
             variant="ghost"
             size="icon"
             className={cn(
-              "absolute top-4 z-10 h-8 w-8 glass-button hidden md:flex",
+              "absolute z-10 h-8 w-8 glass-button hidden md:flex",
               "transition-all duration-300 ease-in-out",
-              isCollapsed ? "right-2" : "right-4"
+              isCollapsed ? "top-20 right-2" : "top-4 right-4"
             )}
             onClick={() => setIsCollapsed(!isCollapsed)}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -145,85 +144,99 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Account Mode Toggle */}
-          {!isCollapsed && (
-            <div className="px-4 py-3 border-b border-white/10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-300">Account Mode</span>
-                <div className="relative">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsAccountSelectorOpen(!isAccountSelectorOpen)}
-                    className="glass-button h-8 pr-8"
-                  >
+          {/* Account Selector - expanded to match other buttons */}
+          <div className="px-4 py-3 border-b border-white/10">
+            {!isCollapsed ? (
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAccountSelectorOpen(!isAccountSelectorOpen)}
+                  className="w-full glass-button justify-between h-10"
+                >
+                  <div className="flex items-center">
                     {isCompanyMode ? (
-                      <><Building2 className="h-3 w-3 mr-1" />Company</>
+                      <><Building2 className="h-4 w-4 mr-3" />Company</>
                     ) : (
-                      <><User className="h-3 w-3 mr-1" />Personal</>
+                      <><User className="h-4 w-4 mr-3" />Personal</>
                     )}
-                    <ChevronDown className="h-3 w-3 ml-1 absolute right-2" />
-                  </Button>
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
 
-                  {/* Account Selector Dropdown */}
-                  {isAccountSelectorOpen && (
-                    <Card className="absolute top-10 left-0 right-0 z-50 enhanced-card min-w-[200px]">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-white">Switch Account</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
+                {/* Account Selector Dropdown */}
+                {isAccountSelectorOpen && (
+                  <Card className="absolute top-12 left-0 right-0 z-50 enhanced-card">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-white">Switch Account</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <Button
+                        variant={!isCompanyMode ? "secondary" : "ghost"}
+                        onClick={() => handleAccountSwitch('individual')}
+                        className="w-full justify-start glass-button"
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Individual Account
+                        {!isCompanyMode && <Badge variant="secondary" className="ml-auto">Active</Badge>}
+                      </Button>
+
+                      {userCompanies.length > 0 && (
+                        <>
+                          <div className="text-xs text-slate-400 px-2 py-1">Companies</div>
+                          {userCompanies.map((company) => (
+                            <Button
+                              key={company.id}
+                              variant={currentCompany?.id === company.id ? "secondary" : "ghost"}
+                              onClick={() => handleAccountSwitch('company', company.id)}
+                              className="w-full justify-start glass-button"
+                            >
+                              <Building2 className="h-4 w-4 mr-2" />
+                              {company.name}
+                              {currentCompany?.id === company.id && <Badge variant="secondary" className="ml-auto">Active</Badge>}
+                            </Button>
+                          ))}
+                        </>
+                      )}
+
+                      <div className="pt-2 border-t border-white/10">
                         <Button
-                          variant={!isCompanyMode ? "secondary" : "ghost"}
-                          onClick={() => handleAccountSwitch('individual')}
-                          className="w-full justify-start glass-button"
+                          variant="ghost"
+                          onClick={handleCreateCompany}
+                          className="w-full justify-start glass-button text-blue-400"
                         >
-                          <User className="h-4 w-4 mr-2" />
-                          Individual Account
-                          {!isCompanyMode && <Badge variant="secondary" className="ml-auto">Active</Badge>}
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Company
                         </Button>
-
-                        {userCompanies.length > 0 && (
-                          <>
-                            <div className="text-xs text-slate-400 px-2 py-1">Companies</div>
-                            {userCompanies.map((company) => (
-                              <Button
-                                key={company.id}
-                                variant={currentCompany?.id === company.id ? "secondary" : "ghost"}
-                                onClick={() => handleAccountSwitch('company', company.id)}
-                                className="w-full justify-start glass-button"
-                              >
-                                <Building2 className="h-4 w-4 mr-2" />
-                                {company.name}
-                                {currentCompany?.id === company.id && <Badge variant="secondary" className="ml-auto">Active</Badge>}
-                              </Button>
-                            ))}
-                          </>
-                        )}
-
-                        <div className="pt-2 border-t border-white/10">
-                          <Button
-                            variant="ghost"
-                            onClick={handleCreateCompany}
-                            className="w-full justify-start glass-button text-blue-400"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Company
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
-              
-              {isCompanyMode && currentCompany && (
-                <Badge variant="secondary" className="w-full justify-center">
-                  <Building2 className="h-3 w-3 mr-1" />
-                  {currentCompany.name}
-                </Badge>
-              )}
-            </div>
-          )}
+            ) : (
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsAccountSelectorOpen(!isAccountSelectorOpen)}
+                  className="glass-button h-10 w-10"
+                  title={isCompanyMode ? 'Company Mode' : 'Personal Mode'}
+                >
+                  {isCompanyMode ? (
+                    <Building2 className="h-4 w-4" />
+                  ) : (
+                    <User className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            )}
+            
+            {isCompanyMode && currentCompany && !isCollapsed && (
+              <Badge variant="secondary" className="w-full justify-center mt-2">
+                <Building2 className="h-3 w-3 mr-1" />
+                {currentCompany.name}
+              </Badge>
+            )}
+          </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-3">
@@ -233,7 +246,7 @@ export default function Sidebar() {
                   key={item.path}
                   variant={location.pathname === item.path ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full glass-button",
+                    "w-full glass-button h-10",
                     location.pathname === item.path && "bg-blue-500/20 text-blue-400",
                     isCollapsed ? "justify-center px-0" : "justify-start"
                   )}
