@@ -3,9 +3,13 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Battery } from "@/types";
-import { Calendar, Zap, Thermometer, Activity, FileText, AlertCircle, Users } from "lucide-react";
+import { Calendar, Zap, Thermometer, Activity, FileText, AlertCircle, Users, Flag, Eye } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import BatteryAlertSystem from "./BatteryAlertSystem";
 
 interface BatteryPassportModalProps {
@@ -17,8 +21,41 @@ interface BatteryPassportModalProps {
 
 export default function BatteryPassportModal({ battery, isOpen, onClose, onSave }: BatteryPassportModalProps) {
   const [activeTab, setActiveTab] = useState<'passport' | 'alerts'>('passport');
+  const [isMarkedForReview, setIsMarkedForReview] = useState(false);
+  const { toast } = useToast();
+  const { isCompanyMode } = useCompany();
 
   if (!battery) return null;
+
+  const markForReview = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Add a review flag to the battery's notes or create a review record
+      const reviewNote = `[MARKED FOR REVIEW by ${user.email} on ${new Date().toISOString()}]`;
+      const updatedNotes = battery.notes ? `${battery.notes}\n\n${reviewNote}` : reviewNote;
+      
+      const updatedBattery = { ...battery, notes: updatedNotes };
+      
+      if (onSave) {
+        await onSave(updatedBattery);
+      }
+
+      setIsMarkedForReview(true);
+      toast({
+        title: "Success",
+        description: "Battery passport marked for review",
+      });
+    } catch (error) {
+      console.error('Error marking for review:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark battery for review",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -39,6 +76,8 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
     }
   };
 
+  const isAlreadyMarkedForReview = battery.notes?.includes('[MARKED FOR REVIEW') || isMarkedForReview;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-600">
@@ -46,6 +85,12 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
           <DialogTitle className="text-slate-100 flex items-center gap-2">
             <FileText className="h-5 w-5 text-blue-400" />
             Battery Passport - {battery.id}
+            {isAlreadyMarkedForReview && (
+              <Badge className="bg-orange-600/80 text-orange-100 border-0 ml-2">
+                <Flag className="h-3 w-3 mr-1" />
+                Marked for Review
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -77,12 +122,22 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
 
         {activeTab === 'passport' ? (
           <div className="space-y-6">
-            {/* Header Information */}
+            {/* Header Information with Review Button */}
             <Card className="bg-slate-800/40 border-slate-600/30">
               <CardHeader>
                 <CardTitle className="text-slate-200 flex items-center justify-between">
                   <span>Battery Overview</span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    {!isAlreadyMarkedForReview && (
+                      <Button
+                        onClick={markForReview}
+                        size="sm"
+                        className="bg-orange-600/70 hover:bg-orange-600/85"
+                      >
+                        <Flag className="h-4 w-4 mr-2" />
+                        Mark for Review
+                      </Button>
+                    )}
                     <Badge className={`${getStatusColor(battery.status)} border-0`}>
                       {battery.status}
                     </Badge>
@@ -111,6 +166,18 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
                     <div className="text-sm text-slate-400">Chemistry Type</div>
                   </div>
                 </div>
+
+                {isCompanyMode && (
+                  <div className="mt-4 p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+                    <div className="flex items-center gap-2 text-blue-300">
+                      <Eye className="h-4 w-4" />
+                      <span className="text-sm font-medium">Company Mode Active</span>
+                    </div>
+                    <p className="text-xs text-blue-200 mt-1">
+                      This battery passport can be reviewed by team members with appropriate permissions.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -235,7 +302,7 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
                     <Separator className="my-4 bg-slate-600/30" />
                     <div>
                       <h4 className="font-medium text-slate-300 mb-2">Notes</h4>
-                      <p className="text-slate-400 text-sm">{battery.notes}</p>
+                      <p className="text-slate-400 text-sm whitespace-pre-wrap">{battery.notes}</p>
                     </div>
                   </>
                 )}

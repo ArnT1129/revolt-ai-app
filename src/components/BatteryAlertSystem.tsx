@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,11 +75,12 @@ export default function BatteryAlertSystem({ batteryId }: BatteryAlertSystemProp
         .select('id, full_name, email')
         .in('id', senderIds);
 
-      // Combine alert data with sender info
-      const enrichedAlerts = alertsData?.map(alert => {
+      // Combine alert data with sender info and ensure proper typing
+      const enrichedAlerts: BatteryAlert[] = alertsData?.map(alert => {
         const sender = sendersData?.find(s => s.id === alert.sender_id);
         return {
           ...alert,
+          alert_type: alert.alert_type as 'mistake' | 'concern' | 'info' | 'urgent',
           sender_name: sender?.full_name || sender?.email || 'Unknown',
           sender_email: sender?.email || 'Unknown'
         };
