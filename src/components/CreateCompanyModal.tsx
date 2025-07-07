@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,9 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
     setLoading(true);
     
     try {
+      console.log('Creating company with name:', companyName.trim(), 'and domain:', domain.trim());
       const newCompany = await createCompany(companyName.trim(), domain.trim() || undefined);
+      console.log('Company created successfully:', newCompany);
       
       toast({
         title: "Success",
@@ -58,7 +61,7 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
       console.error('Error creating company:', error);
       toast({
         title: "Error",
-        description: "Failed to create company. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create company. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -74,9 +77,15 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !loading) {
+      handleClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] enhanced-card">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Building2 className="h-5 w-5" />
@@ -100,6 +109,7 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
               disabled={loading}
               className="glass-input"
               required
+              autoFocus
             />
           </div>
           
@@ -129,8 +139,8 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
             </Button>
             <Button
               type="submit"
-              disabled={loading}
-              className="glass-button"
+              disabled={loading || !companyName.trim()}
+              className="glass-button bg-blue-600 hover:bg-blue-700"
             >
               {loading ? (
                 <>

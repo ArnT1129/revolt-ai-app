@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import CompanySelector from "./CompanySelector";
 import CreateCompanyModal from "./CreateCompanyModal";
 import { cn } from "@/lib/utils";
 import { 
@@ -17,7 +16,6 @@ import {
   Menu,
   X,
   Building2,
-  Users,
   User,
   ChevronLeft,
   ChevronRight,
@@ -78,6 +76,11 @@ export default function Sidebar() {
   const handleCreateCompany = () => {
     setShowCreateModal(true);
     setIsAccountSelectorOpen(false);
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -144,8 +147,8 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {/* Account Selector - expanded to match other buttons */}
-          <div className="px-4 py-3 border-b border-white/10">
+          {/* Account Selector - with fixed positioning */}
+          <div className="px-4 py-3 border-b border-white/10 relative">
             {!isCollapsed ? (
               <div className="relative">
                 <Button
@@ -163,53 +166,59 @@ export default function Sidebar() {
                   <ChevronDown className="h-4 w-4" />
                 </Button>
 
-                {/* Account Selector Dropdown */}
+                {/* Account Selector Dropdown - Fixed z-index and positioning */}
                 {isAccountSelectorOpen && (
-                  <Card className="absolute top-12 left-0 right-0 z-50 enhanced-card">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-white">Switch Account</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <Button
-                        variant={!isCompanyMode ? "secondary" : "ghost"}
-                        onClick={() => handleAccountSwitch('individual')}
-                        className="w-full justify-start glass-button"
-                      >
-                        <User className="h-4 w-4 mr-2" />
-                        Individual Account
-                        {!isCompanyMode && <Badge variant="secondary" className="ml-auto">Active</Badge>}
-                      </Button>
-
-                      {userCompanies.length > 0 && (
-                        <>
-                          <div className="text-xs text-slate-400 px-2 py-1">Companies</div>
-                          {userCompanies.map((company) => (
-                            <Button
-                              key={company.id}
-                              variant={currentCompany?.id === company.id ? "secondary" : "ghost"}
-                              onClick={() => handleAccountSwitch('company', company.id)}
-                              className="w-full justify-start glass-button"
-                            >
-                              <Building2 className="h-4 w-4 mr-2" />
-                              {company.name}
-                              {currentCompany?.id === company.id && <Badge variant="secondary" className="ml-auto">Active</Badge>}
-                            </Button>
-                          ))}
-                        </>
-                      )}
-
-                      <div className="pt-2 border-t border-white/10">
+                  <>
+                    <div 
+                      className="fixed inset-0 z-[45]"
+                      onClick={() => setIsAccountSelectorOpen(false)}
+                    />
+                    <Card className="absolute top-12 left-0 right-0 z-[50] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm text-white">Switch Account</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
                         <Button
-                          variant="ghost"
-                          onClick={handleCreateCompany}
-                          className="w-full justify-start glass-button text-blue-400"
+                          variant={!isCompanyMode ? "secondary" : "ghost"}
+                          onClick={() => handleAccountSwitch('individual')}
+                          className="w-full justify-start glass-button"
                         >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create Company
+                          <User className="h-4 w-4 mr-2" />
+                          Individual Account
+                          {!isCompanyMode && <Badge variant="secondary" className="ml-auto">Active</Badge>}
                         </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+
+                        {userCompanies.length > 0 && (
+                          <>
+                            <div className="text-xs text-slate-400 px-2 py-1">Companies</div>
+                            {userCompanies.map((company) => (
+                              <Button
+                                key={company.id}
+                                variant={currentCompany?.id === company.id ? "secondary" : "ghost"}
+                                onClick={() => handleAccountSwitch('company', company.id)}
+                                className="w-full justify-start glass-button"
+                              >
+                                <Building2 className="h-4 w-4 mr-2" />
+                                {company.name}
+                                {currentCompany?.id === company.id && <Badge variant="secondary" className="ml-auto">Active</Badge>}
+                              </Button>
+                            ))}
+                          </>
+                        )}
+
+                        <div className="pt-2 border-t border-white/10">
+                          <Button
+                            variant="ghost"
+                            onClick={handleCreateCompany}
+                            className="w-full justify-start glass-button text-blue-400"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Company
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
                 )}
               </div>
             ) : (
@@ -265,11 +274,17 @@ export default function Sidebar() {
             {!isCollapsed ? (
               <>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 flex items-center justify-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleProfileClick}
+                    className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 hover:from-blue-500 hover:to-cyan-500 transition-all duration-200 p-0"
+                    title="Go to Profile"
+                  >
                     <span className="text-sm font-medium text-white">
                       {user?.email?.charAt(0).toUpperCase()}
                     </span>
-                  </div>
+                  </Button>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">
                       {user?.email}
@@ -291,11 +306,17 @@ export default function Sidebar() {
               </>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 flex items-center justify-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleProfileClick}
+                  className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 hover:from-blue-500 hover:to-cyan-500 transition-all duration-200 p-0"
+                  title="Go to Profile"
+                >
                   <span className="text-sm font-medium text-white">
                     {user?.email?.charAt(0).toUpperCase()}
                   </span>
-                </div>
+                </Button>
                 <Button
                   variant="outline"
                   size="icon"
@@ -316,14 +337,6 @@ export default function Sidebar() {
         <div 
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Overlay for account selector */}
-      {isAccountSelectorOpen && (
-        <div 
-          className="fixed inset-0 z-40"
-          onClick={() => setIsAccountSelectorOpen(false)}
         />
       )}
 

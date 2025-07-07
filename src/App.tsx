@@ -11,6 +11,7 @@ import SearchPage from "./pages/SearchPage";
 import Settings from "./pages/Settings";
 import CompanyManagement from "./pages/CompanyManagement";
 import Review from "./pages/Review";
+import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Sidebar from "./components/Sidebar";
@@ -80,6 +81,7 @@ function AppContent() {
                       <Route path="/review" element={<Review />} />
                       <Route path="/company" element={<CompanyManagement />} />
                       <Route path="/settings" element={<Settings />} />
+                      <Route path="/profile" element={<Profile />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </div>
