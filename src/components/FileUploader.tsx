@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, FileText, AlertCircle, CheckCircle2, X, Eye } from 'lucide-react';
-import { useBatteryStore } from '@/services/batteryService';
-import { parseBatteryData } from '@/services/improvedBatteryDataParser';
+import { batteryService } from '@/services/batteryService';
+import { ImprovedBatteryDataParser } from '@/services/improvedBatteryDataParser';
 import BatteryPassportModal from './BatteryPassportModal';
 import type { Battery } from '@/types';
 
@@ -25,7 +25,6 @@ export default function FileUploader() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
-  const { addBattery } = useBatteryStore();
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -71,10 +70,10 @@ export default function FileUploader() {
         }
 
         // Parse the file
-        const battery = await parseBatteryData(fileData.file);
+        const battery = await ImprovedBatteryDataParser.parseFile(fileData.file);
         
-        // Add to store
-        addBattery(battery);
+        // Add to service
+        await batteryService.addBattery(battery);
         
         // Update status to success
         setFiles(prev => prev.map(f => 
@@ -126,8 +125,8 @@ export default function FileUploader() {
   };
 
   const handleSaveBattery = async (updatedBattery: Battery) => {
-    // Update the battery in the store
-    addBattery(updatedBattery);
+    // Update the battery in the service
+    await batteryService.updateBattery(updatedBattery);
     
     // Update the file record
     setFiles(prev => prev.map(f => 

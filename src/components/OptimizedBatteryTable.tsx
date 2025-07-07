@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
-import { useBatteryStore } from '@/services/batteryService';
+import { batteryService } from '@/services/batteryService';
 import BatteryPassportModal from './BatteryPassportModal';
 import IssueDetailViewer from './IssueDetailViewer';
 import type { Battery as BatteryType, BatteryIssue } from '@/types';
@@ -34,7 +34,7 @@ interface TableFilters {
 }
 
 export default function OptimizedBatteryTable() {
-  const { batteries, removeBattery, updateBattery } = useBatteryStore();
+  const [batteries, setBatteries] = useState<BatteryType[]>([]);
   const [selectedBattery, setSelectedBattery] = useState<BatteryType | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<BatteryIssue | null>(null);
@@ -53,6 +53,20 @@ export default function OptimizedBatteryTable() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Load batteries on component mount
+  useEffect(() => {
+    const loadBatteries = async () => {
+      try {
+        const userBatteries = await batteryService.getUserBatteries();
+        setBatteries(userBatteries);
+      } catch (error) {
+        console.error('Error loading batteries:', error);
+      }
+    };
+    
+    loadBatteries();
+  }, []);
 
   // Memoized filtered and sorted data
   const filteredAndSortedBatteries = useMemo(() => {
@@ -142,9 +156,18 @@ export default function OptimizedBatteryTable() {
     }
   };
 
-  const handleBulkDelete = () => {
-    selectedBatteries.forEach(id => removeBattery(id));
-    setSelectedBatteries([]);
+  const handleBulkDelete = async () => {
+    try {
+      for (const batteryId of selectedBatteries) {
+        await batteryService.deleteBattery(batteryId);
+      }
+      // Refresh the batteries list
+      const userBatteries = await batteryService.getUserBatteries();
+      setBatteries(userBatteries);
+      setSelectedBatteries([]);
+    } catch (error) {
+      console.error('Error deleting batteries:', error);
+    }
   };
 
   const handleBulkExport = () => {
@@ -163,7 +186,25 @@ export default function OptimizedBatteryTable() {
   };
 
   const handleSaveBattery = async (updatedBattery: BatteryType) => {
-    updateBattery(updatedBattery);
+    try {
+      await batteryService.updateBattery(updatedBattery);
+      // Refresh the batteries list
+      const userBatteries = await batteryService.getUserBatteries();
+      setBatteries(userBatteries);
+    } catch (error) {
+      console.error('Error updating battery:', error);
+    }
+  };
+
+  const handleRemoveBattery = async (batteryId: string) => {
+    try {
+      await batteryService.deleteBattery(batteryId);
+      // Refresh the batteries list
+      const userBatteries = await batteryService.getUserBatteries();
+      setBatteries(userBatteries);
+    } catch (error) {
+      console.error('Error removing battery:', error);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -428,7 +469,7 @@ export default function OptimizedBatteryTable() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => removeBattery(battery.id)}
+                          onClick={() => handleRemoveBattery(battery.id)}
                           className="glass-button h-8 w-8 p-0 hover:bg-red-600/20"
                         >
                           <Trash2 className="h-4 w-4" />
