@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,7 +45,7 @@ export default function SearchPage() {
   const loadBatteries = async () => {
     try {
       setLoading(true);
-      const data = await batteryService.getAllBatteries();
+      const data = await batteryService.getUserBatteries();
       setBatteries(data);
     } catch (error) {
       console.error('Error loading batteries:', error);
@@ -140,12 +139,16 @@ export default function SearchPage() {
 
   const handleSaveBattery = async (updatedBattery: BatteryType) => {
     try {
-      await batteryService.updateBattery(updatedBattery);
-      setBatteries(prev => prev.map(b => b.id === updatedBattery.id ? updatedBattery : b));
-      toast({
-        title: "Success",
-        description: "Battery updated successfully",
-      });
+      const success = await batteryService.updateBattery(updatedBattery);
+      if (success) {
+        setBatteries(prev => prev.map(b => b.id === updatedBattery.id ? updatedBattery : b));
+        toast({
+          title: "Success",
+          description: "Battery updated successfully",
+        });
+      } else {
+        throw new Error('Update failed');
+      }
     } catch (error) {
       toast({
         title: "Error",

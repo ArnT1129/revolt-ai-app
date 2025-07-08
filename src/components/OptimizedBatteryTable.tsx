@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, Filter, Eye, Download, AlertTriangle } from 'lucide-react';
 import BatteryPassportModal from './BatteryPassportModal';
+import { batteryService } from '@/services/batteryService';
+import { useToast } from '@/hooks/use-toast';
 import type { Battery } from '@/types';
 
 interface OptimizedBatteryTableProps {
@@ -20,6 +22,7 @@ export default function OptimizedBatteryTable({ batteries }: OptimizedBatteryTab
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const { toast } = useToast();
 
   const filteredBatteries = useMemo(() => {
     return batteries.filter(battery => {
@@ -57,8 +60,25 @@ export default function OptimizedBatteryTable({ batteries }: OptimizedBatteryTab
   };
 
   const handleSaveBattery = async (updatedBattery: Battery) => {
-    // This would typically update the battery in your data store
-    console.log('Saving battery:', updatedBattery);
+    try {
+      const success = await batteryService.updateBattery(updatedBattery);
+      if (success) {
+        toast({
+          title: "Battery Updated",
+          description: "Battery information has been saved successfully.",
+        });
+        // Dispatch event to update other components
+        window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+      } else {
+        throw new Error('Update failed');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update battery information.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportData = () => {

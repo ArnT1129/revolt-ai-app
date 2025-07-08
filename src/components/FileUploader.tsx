@@ -72,28 +72,34 @@ export default function FileUploader() {
         // Parse the file
         const parseResult = await ImprovedBatteryDataParser.parseFile(fileData.file);
         
-        // Convert ParseResult to Battery
+        // Get the first battery from the parse result
+        const parsedBattery = parseResult.batteries[0];
+        
+        if (!parsedBattery) {
+          throw new Error('No battery data found in file');
+        }
+        
+        // Convert ParsedBatteryData to Battery type
         const battery: Battery = {
-          id: parseResult.batteryId || `BAT-${Date.now()}`,
-          grade: parseResult.grade || 'B',
-          status: parseResult.status || 'Unknown',
-          soh: parseResult.soh || 85,
-          rul: parseResult.rul || 500,
-          cycles: parseResult.cycles || 0,
-          chemistry: parseResult.chemistry || 'LFP',
-          uploadDate: new Date().toISOString(),
-          sohHistory: parseResult.sohHistory || [],
-          issues: parseResult.issues || [],
-          rawData: parseResult.rawData || [],
-          notes: parseResult.notes || '',
-          capacity: parseResult.capacity || 50,
-          voltage: parseResult.voltage || 3.7,
-          manufactureDate: parseResult.manufactureDate || new Date().toISOString(),
-          lastUpdated: new Date().toISOString()
+          id: parsedBattery.id,
+          grade: parsedBattery.grade,
+          status: parsedBattery.status,
+          soh: parsedBattery.soh,
+          rul: parsedBattery.rul,
+          cycles: parsedBattery.cycles,
+          chemistry: parsedBattery.chemistry,
+          uploadDate: parsedBattery.uploadDate,
+          sohHistory: parsedBattery.sohHistory,
+          issues: parsedBattery.issues,
+          notes: parsedBattery.notes || '',
         };
         
         // Add to service
-        await batteryService.addBattery(battery);
+        const success = await batteryService.addBattery(battery);
+        
+        if (!success) {
+          throw new Error('Failed to save battery to database');
+        }
         
         // Update status to success
         setFiles(prev => prev.map(f => 
@@ -101,6 +107,9 @@ export default function FileUploader() {
             ? { ...f, status: 'success', progress: 100, battery }
             : f
         ));
+
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
         toast({
           title: "Upload Successful",
@@ -146,19 +155,27 @@ export default function FileUploader() {
 
   const handleSaveBattery = async (updatedBattery: Battery) => {
     // Update the battery in the service
-    await batteryService.updateBattery(updatedBattery);
+    const success = await batteryService.updateBattery(updatedBattery);
     
-    // Update the file record
-    setFiles(prev => prev.map(f => 
-      f.battery?.id === updatedBattery.id 
-        ? { ...f, battery: updatedBattery }
-        : f
-    ));
+    if (success) {
+      // Update the file record
+      setFiles(prev => prev.map(f => 
+        f.battery?.id === updatedBattery.id 
+          ? { ...f, battery: updatedBattery }
+          : f
+      ));
 
-    toast({
-      title: "Battery Updated",
-      description: "Battery information has been saved successfully.",
-    });
+      toast({
+        title: "Battery Updated",
+        description: "Battery information has been saved successfully.",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update battery information.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusIcon = (status: string) => {

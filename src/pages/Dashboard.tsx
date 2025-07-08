@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
-import { dashboardStats } from '@/services/dashboardStats';
+import { DashboardStatsService } from '@/services/dashboardStats';
 import DashboardStats from '@/components/DashboardStats';
 import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
 import BatteryComparison from '@/components/BatteryComparison';
@@ -44,10 +44,10 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const batteryData = await batteryService.getAllBatteries();
+      const batteryData = await batteryService.getUserBatteries();
       setBatteries(batteryData);
       
-      const statsData = await dashboardStats.getOverviewStats(batteryData);
+      const statsData = DashboardStatsService.calculateStats(batteryData);
       setStats(statsData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
