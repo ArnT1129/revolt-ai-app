@@ -41,7 +41,7 @@ export default function Auth() {
     }
   }, [user, navigate]);
 
-  const signUp = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -72,7 +72,6 @@ export default function Auth() {
       if (error) throw error;
 
       if (data.user && enable2FA) {
-        // Enroll MFA
         const { data: mfaData, error: mfaError } = await supabase.auth.mfa.enroll({
           factorType: 'totp',
           friendlyName: 'Battery Analytics Platform'
@@ -97,7 +96,7 @@ export default function Auth() {
     }
   };
 
-  const signIn = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
@@ -110,7 +109,6 @@ export default function Auth() {
 
       if (error) throw error;
 
-      // Check if user has MFA enabled
       const { data: factors } = await supabase.auth.mfa.listFactors();
       if (factors && factors.totp && factors.totp.length > 0) {
         setMfaFactorId(factors.totp[0].id);
@@ -130,12 +128,11 @@ export default function Auth() {
     }
   };
 
-  const tryDemoAccount = async () => {
+  const handleTryDemo = async () => {
     setIsLoading(true);
     setError('');
 
     try {
-      // Demo account credentials
       const demoEmail = 'demo@revolt.ai';
       const demoPassword = 'demo123456';
 
@@ -145,7 +142,6 @@ export default function Auth() {
       });
 
       if (error) {
-        // If demo account doesn't exist, create it
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: demoEmail,
           password: demoPassword,
@@ -162,7 +158,6 @@ export default function Auth() {
 
         if (signUpError) throw signUpError;
 
-        // Set up demo user profile
         if (signUpData.user) {
           await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
         }
@@ -181,7 +176,7 @@ export default function Auth() {
     }
   };
 
-  const verifyMFA = async () => {
+  const handleVerifyMFA = async () => {
     if (!totpCode) {
       setError('Please enter the verification code');
       return;
@@ -192,7 +187,6 @@ export default function Auth() {
 
     try {
       if (qrCodeUrl) {
-        // Complete MFA enrollment
         const { error } = await supabase.auth.mfa.verify({
           factorId: mfaFactorId,
           code: totpCode,
@@ -208,7 +202,6 @@ export default function Auth() {
         setShowMFASetup(false);
         navigate('/');
       } else {
-        // Create challenge and verify for sign in
         const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
           factorId: mfaFactorId
         });
@@ -237,7 +230,7 @@ export default function Auth() {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError('');
 
@@ -301,7 +294,7 @@ export default function Auth() {
             )}
 
             <Button
-              onClick={verifyMFA}
+              onClick={handleVerifyMFA}
               disabled={isLoading || !totpCode}
               className="w-full glass-button"
             >
@@ -314,7 +307,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex">
       <LiquidGlassAI />
       
       {/* Left Side - Branding */}
@@ -394,10 +387,11 @@ export default function Auth() {
           <CardContent>
             {/* Demo Account Button */}
             <Button
-              onClick={tryDemoAccount}
+              onClick={handleTryDemo}
               disabled={isLoading}
               variant="outline"
               className="w-full mb-6 glass-button border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-400"
+              type="button"
             >
               <Battery className="h-4 w-4 mr-2" />
               Try Demo Account
@@ -419,7 +413,7 @@ export default function Auth() {
               </TabsList>
               
               <TabsContent value="signin">
-                <form onSubmit={signIn} className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email" className="text-slate-300">Email</Label>
                     <Input
@@ -430,6 +424,7 @@ export default function Auth() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       className="glass-input"
+                      disabled={isLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -442,6 +437,7 @@ export default function Auth() {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       className="glass-input"
+                      disabled={isLoading}
                     />
                   </div>
 
@@ -451,14 +447,18 @@ export default function Auth() {
                     </Alert>
                   )}
 
-                  <Button type="submit" disabled={isLoading} className="w-full glass-button">
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="w-full glass-button"
+                  >
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
 
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={signInWithGoogle}
+                    onClick={handleGoogleSignIn}
                     disabled={isLoading}
                     className="w-full glass-button"
                   >
@@ -468,8 +468,7 @@ export default function Auth() {
               </TabsContent>
               
               <TabsContent value="signup">
-                <form onSubmit={signUp} className="space-y-4">
-                  {/* Account Type Selection */}
+                <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-3">
                     <Label className="text-slate-300">Account Type</Label>
                     <div className="flex gap-2">
@@ -478,6 +477,7 @@ export default function Auth() {
                         variant={accountType === 'individual' ? 'default' : 'outline'}
                         onClick={() => setAccountType('individual')}
                         className="flex-1 glass-button"
+                        disabled={isLoading}
                       >
                         <User className="h-4 w-4 mr-2" />
                         Individual
@@ -487,6 +487,7 @@ export default function Auth() {
                         variant={accountType === 'company' ? 'default' : 'outline'}
                         onClick={() => setAccountType('company')}
                         className="flex-1 glass-button"
+                        disabled={isLoading}
                       >
                         <Building className="h-4 w-4 mr-2" />
                         Company
@@ -504,6 +505,7 @@ export default function Auth() {
                         onChange={(e) => setFirstName(e.target.value)}
                         required
                         className="glass-input"
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -515,6 +517,7 @@ export default function Auth() {
                         onChange={(e) => setLastName(e.target.value)}
                         required
                         className="glass-input"
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -529,6 +532,7 @@ export default function Auth() {
                         onChange={(e) => setCompany(e.target.value)}
                         required
                         className="glass-input"
+                        disabled={isLoading}
                       />
                     </div>
                   )}
@@ -543,6 +547,7 @@ export default function Auth() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       className="glass-input"
+                      disabled={isLoading}
                     />
                   </div>
 
@@ -556,6 +561,7 @@ export default function Auth() {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       className="glass-input"
+                      disabled={isLoading}
                     />
                   </div>
 
@@ -569,10 +575,10 @@ export default function Auth() {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       className="glass-input"
+                      disabled={isLoading}
                     />
                   </div>
 
-                  {/* 2FA Option */}
                   <div className="flex items-center justify-between p-3 bg-slate-800/40 rounded-lg border border-slate-600/30">
                     <div className="flex items-center gap-3">
                       <Smartphone className="h-5 w-5 text-green-400" />
@@ -584,6 +590,7 @@ export default function Auth() {
                     <Switch
                       checked={enable2FA}
                       onCheckedChange={setEnable2FA}
+                      disabled={isLoading}
                     />
                   </div>
 
@@ -602,14 +609,18 @@ export default function Auth() {
                     </Alert>
                   )}
 
-                  <Button type="submit" disabled={isLoading} className="w-full glass-button">
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="w-full glass-button"
+                  >
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
 
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={signInWithGoogle}
+                    onClick={handleGoogleSignIn}
                     disabled={isLoading}
                     className="w-full glass-button"
                   >
