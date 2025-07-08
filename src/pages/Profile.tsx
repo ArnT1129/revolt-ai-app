@@ -33,9 +33,11 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [loadingMFA, setLoadingMFA] = useState(false);
 
   useEffect(() => {
     fetchProfile();
+    checkMFAStatus();
   }, [user]);
 
   const fetchProfile = async () => {
@@ -62,6 +64,15 @@ export default function Profile() {
     }
   };
 
+  const checkMFAStatus = async () => {
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      setTwoFactorEnabled(factors && factors.totp && factors.totp.length > 0);
+    } catch (error) {
+      console.error('Error checking MFA status:', error);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !user) return;
@@ -73,6 +84,7 @@ export default function Profile() {
         .update({
           first_name: profile.first_name,
           last_name: profile.last_name,
+          full_name: `${profile.first_name} ${profile.last_name}`,
           company: profile.company,
         })
         .eq('id', user.id);
@@ -92,6 +104,66 @@ export default function Profile() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggle2FA = async () => {
+    setLoadingMFA(true);
+    try {
+      if (twoFactorEnabled) {
+        // Disable 2FA
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        if (factors && factors.totp && factors.totp.length > 0) {
+          const { error } = await supabase.auth.mfa.unenroll({
+            factorId: factors.totp[0].id
+          });
+          if (error) throw error;
+          setTwoFactorEnabled(false);
+          toast({
+            title: "2FA Disabled",
+            description: "Two-factor authentication has been disabled",
+          });
+        }
+      } else {
+        // Enable 2FA - redirect to auth page with 2FA setup
+        toast({
+          title: "2FA Setup",
+          description: "Please sign out and sign in again to enable 2FA",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling 2FA:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update 2FA settings",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMFA(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!user?.email) return;
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/auth`
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Sent",
+        description: "Check your email for password reset instructions",
+      });
+    } catch (error) {
+      console.error('Error sending password reset:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send password reset email",
+        variant: "destructive",
+      });
     }
   };
 
@@ -123,12 +195,14 @@ export default function Profile() {
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 flex items-center justify-center">
             <span className="text-2xl font-bold text-white">
-              {profile.email.charAt(0).toUpperCase()}
+              {profile.first_name ? profile.first_name.charAt(0).toUpperCase() : profile.email.charAt(0).toUpperCase()}
             </span>
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white">
-              {profile.full_name || profile.email}
+              {profile.first_name && profile.last_name 
+                ? `${profile.first_name} ${profile.last_name}` 
+                : profile.full_name || profile.email}
             </h1>
             <p className="text-slate-400">
               {isCompanyMode ? `${currentCompany?.name} • ${profile.role || 'Member'}` : 'Individual Account'}
@@ -216,13 +290,18 @@ export default function Profile() {
                   </div>
                   <Switch
                     checked={twoFactorEnabled}
-                    onCheckedChange={setTwoFactorEnabled}
+                    onCheckedChange={handleToggle2FA}
+                    disabled={loadingMFA}
                   />
                 </div>
                 
                 <Separator className="bg-white/10" />
                 
-                <Button variant="outline" className="w-full glass-button">
+                <Button 
+                  variant="outline" 
+                  className="w-full glass-button"
+                  onClick={handleChangePassword}
+                >
                   <Key className="h-4 w-4 mr-2" />
                   Change Password
                 </Button>
@@ -260,6 +339,12 @@ export default function Profile() {
                     <span className="text-white">
                       {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
                     </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">2FA Status</span>
+                    <Badge variant={twoFactorEnabled ? "default" : "outline"}>
+                      {twoFactorEnabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
                   </div>
                 </div>
               </div>

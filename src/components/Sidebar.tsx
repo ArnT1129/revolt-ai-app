@@ -129,16 +129,11 @@ export default function Sidebar() {
               isCollapsed && "opacity-0"
             )}>
               <div className="h-8 w-8 flex items-center justify-center">
-                <svg viewBox="0 0 40 40" className="h-8 w-8">
-                  <defs>
-                    <linearGradient id="revolt-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#00D4FF" />
-                      <stop offset="50%" stopColor="#0099FF" />
-                      <stop offset="100%" stopColor="#6B46C1" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M8 28 L18 8 L16 14 L24 14 L32 12 L22 32 L24 26 L16 26 L8 28 Z" fill="url(#revolt-gradient)" />
-                </svg>
+                <img 
+                  src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
+                  alt="ReVolt Logo" 
+                  className="h-8 w-auto"
+                />
               </div>
               <div className="ml-3">
                 <h1 className="text-xl font-bold text-white">ReVolt</h1>
@@ -173,7 +168,7 @@ export default function Sidebar() {
                       className="fixed inset-0 z-[45]"
                       onClick={() => setIsAccountSelectorOpen(false)}
                     />
-                    <Card className="absolute top-12 left-0 right-0 z-[50] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20">
+                    <Card className="absolute top-12 left-0 right-0 z-[60] enhanced-card bg-black/95 backdrop-blur-xl border border-white/20">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm text-white">Switch Account</CardTitle>
                       </CardHeader>

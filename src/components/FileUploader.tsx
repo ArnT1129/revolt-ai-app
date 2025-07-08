@@ -70,7 +70,27 @@ export default function FileUploader() {
         }
 
         // Parse the file
-        const battery = await ImprovedBatteryDataParser.parseFile(fileData.file);
+        const parseResult = await ImprovedBatteryDataParser.parseFile(fileData.file);
+        
+        // Convert ParseResult to Battery
+        const battery: Battery = {
+          id: parseResult.batteryId || `BAT-${Date.now()}`,
+          grade: parseResult.grade || 'B',
+          status: parseResult.status || 'Unknown',
+          soh: parseResult.soh || 85,
+          rul: parseResult.rul || 500,
+          cycles: parseResult.cycles || 0,
+          chemistry: parseResult.chemistry || 'LFP',
+          uploadDate: new Date().toISOString(),
+          sohHistory: parseResult.sohHistory || [],
+          issues: parseResult.issues || [],
+          rawData: parseResult.rawData || [],
+          notes: parseResult.notes || '',
+          capacity: parseResult.capacity || 50,
+          voltage: parseResult.voltage || 3.7,
+          manufactureDate: parseResult.manufactureDate || new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
         
         // Add to service
         await batteryService.addBattery(battery);
@@ -319,10 +339,6 @@ export default function FileUploader() {
             setSelectedBattery(null);
           }}
           onSave={handleSaveBattery}
-          onNavigateToDashboard={() => {
-            setIsPassportOpen(false);
-            setSelectedBattery(null);
-          }}
         />
       )}
     </div>

@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Battery, Building, Lock, User, Shield, Smartphone } from 'lucide-react';
+import { Building, Lock, User, Shield, Smartphone } from 'lucide-react';
 import LiquidGlassAI from '@/components/LiquidGlassAI';
 
 export default function Auth() {
@@ -29,6 +29,7 @@ export default function Auth() {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [error, setError] = useState('');
   const [showMFASetup, setShowMFASetup] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState('');
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -54,6 +55,7 @@ export default function Auth() {
       const metadata = {
         first_name: firstName,
         last_name: lastName,
+        full_name: `${firstName} ${lastName}`,
         account_type: accountType,
         ...(accountType === 'company' && { company })
       };
@@ -72,12 +74,14 @@ export default function Auth() {
       if (data.user && enable2FA) {
         // Enroll MFA
         const { data: mfaData, error: mfaError } = await supabase.auth.mfa.enroll({
-          factorType: 'totp'
+          factorType: 'totp',
+          friendlyName: 'Battery Analytics Platform'
         });
 
         if (mfaError) throw mfaError;
 
         setQrCodeUrl(mfaData.totp.qr_code);
+        setMfaFactorId(mfaData.id);
         setShowMFASetup(true);
       } else {
         toast({
@@ -109,6 +113,7 @@ export default function Auth() {
       // Check if user has MFA enabled
       const { data: factors } = await supabase.auth.mfa.listFactors();
       if (factors && factors.totp && factors.totp.length > 0) {
+        setMfaFactorId(factors.totp[0].id);
         setShowMFASetup(true);
       } else {
         toast({
@@ -135,25 +140,10 @@ export default function Auth() {
     setError('');
 
     try {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      if (factors && factors.totp && factors.totp.length > 0) {
-        // Verify MFA for sign in
-        const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-          factorId: factors.totp[0].id,
-          code: totpCode,
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Welcome back!",
-          description: "You have been signed in successfully.",
-        });
-        navigate('/');
-      } else {
+      if (qrCodeUrl) {
         // Complete MFA enrollment
-        const { data, error } = await supabase.auth.mfa.verify({
-          factorId: qrCodeUrl ? 'new' : '',
+        const { error } = await supabase.auth.mfa.verify({
+          factorId: mfaFactorId,
           code: totpCode,
           challengeId: ''
         });
@@ -165,6 +155,28 @@ export default function Auth() {
           description: "Your account is now secured with two-factor authentication.",
         });
         setShowMFASetup(false);
+        navigate('/');
+      } else {
+        // Create challenge and verify for sign in
+        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+          factorId: mfaFactorId
+        });
+
+        if (challengeError) throw challengeError;
+
+        const { error: verifyError } = await supabase.auth.mfa.verify({
+          factorId: mfaFactorId,
+          code: totpCode,
+          challengeId: challengeData.id
+        });
+
+        if (verifyError) throw verifyError;
+
+        toast({
+          title: "Welcome back!",
+          description: "You have been signed in successfully.",
+        });
+        navigate('/');
       }
     } catch (error: any) {
       console.error('MFA verification error:', error);
@@ -255,9 +267,13 @@ export default function Auth() {
       <LiquidGlassAI />
       <Card className="w-full max-w-md enhanced-card">
         <CardHeader className="text-center">
-          <CardTitle className="text-white flex items-center justify-center gap-2">
-            <Battery className="h-6 w-6 text-blue-400" />
-            Battery Analytics Platform
+          <CardTitle className="text-white flex items-center justify-center gap-3">
+            <img 
+              src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
+              alt="ReVolt Logo" 
+              className="h-8 w-auto"
+            />
+            ReVolt Analytics
           </CardTitle>
           <CardDescription>
             Advanced battery management and analytics solution

@@ -1,211 +1,36 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  Search, 
-  Filter, 
-  SortAsc, 
-  SortDesc, 
-  Eye, 
-  Trash2, 
-  Download,
-  AlertTriangle,
-  Battery,
-  TrendingUp,
-  TrendingDown
-} from 'lucide-react';
-import { batteryService } from '@/services/batteryService';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Search, Filter, Eye, Download, AlertTriangle } from 'lucide-react';
 import BatteryPassportModal from './BatteryPassportModal';
-import IssueDetailViewer from './IssueDetailViewer';
-import type { Battery as BatteryType, BatteryIssue } from '@/types';
+import type { Battery } from '@/types';
 
-type SortField = 'id' | 'soh' | 'rul' | 'cycles' | 'uploadDate' | 'grade' | 'status';
-type SortDirection = 'asc' | 'desc';
-
-interface TableFilters {
-  search: string;
-  chemistry: string;
-  status: string;
-  grade: string;
+interface OptimizedBatteryTableProps {
+  batteries: Battery[];
 }
 
-export default function OptimizedBatteryTable() {
-  const [batteries, setBatteries] = useState<BatteryType[]>([]);
-  const [selectedBattery, setSelectedBattery] = useState<BatteryType | null>(null);
+export default function OptimizedBatteryTable({ batteries }: OptimizedBatteryTableProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
-  const [selectedIssue, setSelectedIssue] = useState<BatteryIssue | null>(null);
-  const [isIssueViewerOpen, setIsIssueViewerOpen] = useState(false);
-  const [selectedBatteries, setSelectedBatteries] = useState<string[]>([]);
-  
-  const [sortField, setSortField] = useState<SortField>('uploadDate');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  
-  const [filters, setFilters] = useState<TableFilters>({
-    search: '',
-    chemistry: 'all',
-    status: 'all',
-    grade: 'all'
-  });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // Load batteries on component mount
-  useEffect(() => {
-    const loadBatteries = async () => {
-      try {
-        const userBatteries = await batteryService.getUserBatteries();
-        setBatteries(userBatteries);
-      } catch (error) {
-        console.error('Error loading batteries:', error);
-      }
-    };
-    
-    loadBatteries();
-  }, []);
-
-  // Memoized filtered and sorted data
-  const filteredAndSortedBatteries = useMemo(() => {
-    let filtered = batteries.filter(battery => {
-      const matchesSearch = filters.search === '' || 
-        battery.id.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (battery.notes?.toLowerCase().includes(filters.search.toLowerCase()) ?? false);
+  const filteredBatteries = useMemo(() => {
+    return batteries.filter(battery => {
+      const matchesSearch = battery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           battery.chemistry.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || battery.status === statusFilter;
+      const matchesGrade = gradeFilter === 'all' || battery.grade === gradeFilter;
       
-      const matchesChemistry = filters.chemistry === 'all' || battery.chemistry === filters.chemistry;
-      const matchesStatus = filters.status === 'all' || battery.status === filters.status;
-      const matchesGrade = filters.grade === 'all' || battery.grade === filters.grade;
-      
-      return matchesSearch && matchesChemistry && matchesStatus && matchesGrade;
+      return matchesSearch && matchesStatus && matchesGrade;
     });
-
-    // Sort the filtered results
-    filtered.sort((a, b) => {
-      let aValue: any = a[sortField];
-      let bValue: any = b[sortField];
-      
-      // Convert dates to timestamps for comparison
-      if (sortField === 'uploadDate') {
-        aValue = new Date(aValue).getTime();
-        bValue = new Date(bValue).getTime();
-      }
-      
-      if (typeof aValue === 'string') {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-      
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [batteries, filters, sortField, sortDirection]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedBatteries.length / itemsPerPage);
-  const paginatedBatteries = filteredAndSortedBatteries.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const handleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleFilterChange = (key: keyof TableFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page when filtering
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: '',
-      chemistry: 'all',
-      status: 'all',
-      grade: 'all'
-    });
-    setCurrentPage(1);
-  };
-
-  const handleBatterySelect = (batteryId: string) => {
-    setSelectedBatteries(prev => 
-      prev.includes(batteryId) 
-        ? prev.filter(id => id !== batteryId)
-        : [...prev, batteryId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    const allIds = paginatedBatteries.map(b => b.id);
-    const allSelected = allIds.every(id => selectedBatteries.includes(id));
-    
-    if (allSelected) {
-      setSelectedBatteries(prev => prev.filter(id => !allIds.includes(id)));
-    } else {
-      setSelectedBatteries(prev => [...new Set([...prev, ...allIds])]);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    try {
-      for (const batteryId of selectedBatteries) {
-        await batteryService.deleteBattery(batteryId);
-      }
-      // Refresh the batteries list
-      const userBatteries = await batteryService.getUserBatteries();
-      setBatteries(userBatteries);
-      setSelectedBatteries([]);
-    } catch (error) {
-      console.error('Error deleting batteries:', error);
-    }
-  };
-
-  const handleBulkExport = () => {
-    // Implementation for bulk export
-    console.log('Exporting batteries:', selectedBatteries);
-  };
-
-  const viewBattery = (battery: BatteryType) => {
-    setSelectedBattery(battery);
-    setIsPassportOpen(true);
-  };
-
-  const viewIssue = (issue: BatteryIssue) => {
-    setSelectedIssue(issue);
-    setIsIssueViewerOpen(true);
-  };
-
-  const handleSaveBattery = async (updatedBattery: BatteryType) => {
-    try {
-      await batteryService.updateBattery(updatedBattery);
-      // Refresh the batteries list
-      const userBatteries = await batteryService.getUserBatteries();
-      setBatteries(userBatteries);
-    } catch (error) {
-      console.error('Error updating battery:', error);
-    }
-  };
-
-  const handleRemoveBattery = async (batteryId: string) => {
-    try {
-      await batteryService.deleteBattery(batteryId);
-      // Refresh the batteries list
-      const userBatteries = await batteryService.getUserBatteries();
-      setBatteries(userBatteries);
-    } catch (error) {
-      console.error('Error removing battery:', error);
-    }
-  };
+  }, [batteries, searchTerm, statusFilter, gradeFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -218,81 +43,87 @@ export default function OptimizedBatteryTable() {
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
-      case 'A': return 'bg-green-600/80 text-green-100';
-      case 'B': return 'bg-blue-600/80 text-blue-100';
+      case 'A': return 'bg-blue-600/80 text-blue-100';
+      case 'B': return 'bg-green-600/80 text-green-100';
       case 'C': return 'bg-yellow-600/80 text-yellow-100';
       case 'D': return 'bg-red-600/80 text-red-100';
       default: return 'bg-gray-600/80 text-gray-100';
     }
   };
 
-  const getSoHTrend = (battery: BatteryType) => {
-    if (battery.sohHistory.length < 2) return null;
-    const recent = battery.sohHistory.slice(-2);
-    const trend = recent[1].soh - recent[0].soh;
-    return trend;
+  const handleViewBattery = (battery: Battery) => {
+    setSelectedBattery(battery);
+    setIsPassportOpen(true);
   };
 
-  const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => handleSort(field)}
-      className="h-auto p-1 text-slate-300 hover:text-white"
-    >
-      {children}
-      {sortField === field && (
-        sortDirection === 'asc' ? 
-          <SortAsc className="h-3 w-3 ml-1" /> : 
-          <SortDesc className="h-3 w-3 ml-1" />
-      )}
-    </Button>
-  );
+  const handleSaveBattery = async (updatedBattery: Battery) => {
+    // This would typically update the battery in your data store
+    console.log('Saving battery:', updatedBattery);
+  };
+
+  const handleExportData = () => {
+    const csvContent = [
+      ['ID', 'Chemistry', 'Grade', 'Status', 'SoH (%)', 'RUL (cycles)', 'Cycles', 'Upload Date'].join(','),
+      ...filteredBatteries.map(battery => [
+        battery.id,
+        battery.chemistry,
+        battery.grade,
+        battery.status,
+        battery.soh,
+        battery.rul,
+        battery.cycles,
+        new Date(battery.uploadDate).toLocaleDateString()
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'battery-data.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Filters and Search */}
+    <div className="space-y-6">
       <Card className="enhanced-card">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search batteries..."
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="glass-input pl-10"
-                />
-              </div>
+        <CardHeader>
+          <CardTitle className="text-white flex items-center justify-between">
+            <span>Battery Inventory ({filteredBatteries.length})</span>
+            <Button onClick={handleExportData} variant="outline" className="glass-button">
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Input
+                placeholder="Search batteries..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 glass-input"
+              />
             </div>
-            
-            <Select value={filters.chemistry} onValueChange={(value) => handleFilterChange('chemistry', value)}>
-              <SelectTrigger className="w-32 glass-input">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Chemistry</SelectItem>
-                <SelectItem value="LFP">LFP</SelectItem>
-                <SelectItem value="NMC">NMC</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
-              <SelectTrigger className="w-32 glass-input">
-                <SelectValue />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] glass-input">
+                <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Healthy">Healthy</SelectItem>
                 <SelectItem value="Degrading">Degrading</SelectItem>
                 <SelectItem value="Critical">Critical</SelectItem>
+                <SelectItem value="Unknown">Unknown</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Select value={filters.grade} onValueChange={(value) => handleFilterChange('grade', value)}>
-              <SelectTrigger className="w-24 glass-input">
-                <SelectValue />
+            <Select value={gradeFilter} onValueChange={setGradeFilter}>
+              <SelectTrigger className="w-full sm:w-[180px] glass-input">
+                <SelectValue placeholder="Filter by grade" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Grades</SelectItem>
@@ -302,223 +133,101 @@ export default function OptimizedBatteryTable() {
                 <SelectItem value="D">Grade D</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Button 
-              onClick={clearFilters} 
-              variant="outline" 
-              className="glass-button"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Clear
-            </Button>
           </div>
-          
-          {selectedBatteries.length > 0 && (
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-600">
-              <span className="text-sm text-slate-300">
-                {selectedBatteries.length} selected
-              </span>
-              <Button 
-                size="sm" 
-                onClick={handleBulkExport}
-                className="glass-button"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button 
-                size="sm" 
-                variant="destructive"
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Table */}
-      <Card className="enhanced-card">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center justify-between">
-            <span>Battery Fleet ({filteredAndSortedBatteries.length})</span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSelectAll}
-                className="glass-button"
-              >
-                {paginatedBatteries.every(b => selectedBatteries.includes(b.id)) ? 'Deselect All' : 'Select All'}
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-600">
-                <th className="text-left py-3 px-2">
-                  <input
-                    type="checkbox"
-                    checked={paginatedBatteries.length > 0 && paginatedBatteries.every(b => selectedBatteries.includes(b.id))}
-                    onChange={handleSelectAll}
-                    className="rounded"
-                  />
-                </th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="id">Battery ID</SortButton>
-                </th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="grade">Grade</SortButton>
-                </th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="status">Status</SortButton>
-                </th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="soh">SoH</SortButton>
-                </th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="rul">RUL</SortButton>
-                </th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="cycles">Cycles</SortButton>
-                </th>
-                <th className="text-left py-3 px-4">Chemistry</th>
-                <th className="text-left py-3 px-4">Issues</th>
-                <th className="text-left py-3 px-4">
-                  <SortButton field="uploadDate">Upload Date</SortButton>
-                </th>
-                <th className="text-center py-3 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedBatteries.map((battery) => {
-                const trend = getSoHTrend(battery);
-                return (
-                  <tr key={battery.id} className="border-b border-slate-700/50 hover:bg-slate-800/50">
-                    <td className="py-3 px-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedBatteries.includes(battery.id)}
-                        onChange={() => handleBatterySelect(battery.id)}
-                        className="rounded"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Battery className="h-4 w-4 text-blue-400" />
-                        <span className="text-white font-medium">{battery.id}</span>
+          {/* Table */}
+          <div className="rounded-lg border border-white/10 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-white/10 hover:bg-white/5">
+                  <TableHead className="text-slate-300">ID</TableHead>
+                  <TableHead className="text-slate-300">Chemistry</TableHead>
+                  <TableHead className="text-slate-300">Grade</TableHead>
+                  <TableHead className="text-slate-300">Status</TableHead>
+                  <TableHead className="text-slate-300">SoH</TableHead>
+                  <TableHead className="text-slate-300">RUL</TableHead>
+                  <TableHead className="text-slate-300">Cycles</TableHead>
+                  <TableHead className="text-slate-300">Issues</TableHead>
+                  <TableHead className="text-slate-300">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBatteries.map((battery) => (
+                  <TableRow key={battery.id} className="border-white/10 hover:bg-white/5">
+                    <TableCell>
+                      <div className="font-medium text-white">{battery.id}</div>
+                      <div className="text-xs text-slate-400">
+                        {new Date(battery.uploadDate).toLocaleDateString()}
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-slate-300">{battery.chemistry}</span>
+                    </TableCell>
+                    <TableCell>
                       <Badge className={getGradeColor(battery.grade)}>
-                        {battery.grade}
+                        Grade {battery.grade}
                       </Badge>
-                    </td>
-                    <td className="py-3 px-4">
+                    </TableCell>
+                    <TableCell>
                       <Badge className={getStatusColor(battery.status)}>
                         {battery.status}
                       </Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1">
-                        <span className="text-white font-medium">{battery.soh}%</span>
-                        {trend !== null && (
-                          trend > 0 ? 
-                            <TrendingUp className="h-3 w-3 text-green-400" /> :
-                            trend < 0 ?
-                              <TrendingDown className="h-3 w-3 text-red-400" /> :
-                              null
-                        )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-medium">{battery.soh.toFixed(1)}%</span>
+                        <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-300 ${
+                              battery.soh >= 90 ? 'bg-green-500' :
+                              battery.soh >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.max(0, Math.min(100, battery.soh))}%` }}
+                          />
+                        </div>
                       </div>
-                    </td>
-                    <td className="py-3 px-4 text-slate-300">{battery.rul}</td>
-                    <td className="py-3 px-4 text-slate-300">{battery.cycles}</td>
-                    <td className="py-3 px-4 text-slate-300">{battery.chemistry}</td>
-                    <td className="py-3 px-4">
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-slate-300">{battery.rul.toLocaleString()}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-slate-300">{battery.cycles.toLocaleString()}</span>
+                    </TableCell>
+                    <TableCell>
                       {battery.issues && battery.issues.length > 0 ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => viewIssue(battery.issues![0])}
-                          className="text-yellow-400 border-yellow-400 hover:bg-yellow-400/10"
-                        >
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          {battery.issues.length}
-                        </Button>
+                        <div className="flex items-center gap-1 text-yellow-400">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span className="text-sm">{battery.issues.length}</span>
+                        </div>
                       ) : (
-                        <span className="text-green-400 text-sm">None</span>
+                        <span className="text-slate-500 text-sm">None</span>
                       )}
-                    </td>
-                    <td className="py-3 px-4 text-slate-300">
-                      {new Date(battery.uploadDate).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => viewBattery(battery)}
-                          className="glass-button h-8 w-8 p-0"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveBattery(battery.id)}
-                          className="glass-button h-8 w-8 p-0 hover:bg-red-600/20"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewBattery(battery)}
+                        className="glass-button"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-          {paginatedBatteries.length === 0 && (
-            <div className="text-center py-12 text-slate-400">
-              <Battery className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg mb-2">No batteries found</p>
-              <p className="text-sm">Try adjusting your search filters</p>
+          {filteredBatteries.length === 0 && (
+            <div className="text-center py-8 text-slate-400">
+              <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No batteries found matching your filters</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-400">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedBatteries.length)} of {filteredAndSortedBatteries.length} batteries
-          </p>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="glass-button"
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-3 text-slate-300">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="glass-button"
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Battery Passport Modal */}
       {selectedBattery && (
@@ -530,22 +239,6 @@ export default function OptimizedBatteryTable() {
             setSelectedBattery(null);
           }}
           onSave={handleSaveBattery}
-          onNavigateToDashboard={() => {
-            setIsPassportOpen(false);
-            setSelectedBattery(null);
-          }}
-        />
-      )}
-
-      {/* Issue Detail Viewer */}
-      {selectedIssue && (
-        <IssueDetailViewer
-          issue={selectedIssue}
-          isOpen={isIssueViewerOpen}
-          onClose={() => {
-            setIsIssueViewerOpen(false);
-            setSelectedIssue(null);
-          }}
         />
       )}
     </div>
