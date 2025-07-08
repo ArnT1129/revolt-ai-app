@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Building, Lock, User, Shield, Smartphone, Battery, Zap, TrendingUp } from 'lucide-react';
-import LiquidGlassAI from '@/components/LiquidGlassAI';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,18 +34,9 @@ export default function Auth() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Add error boundary for component crashes
-  const [componentError, setComponentError] = useState('');
-
   useEffect(() => {
-    // Add error handling for navigation
-    try {
-      if (user) {
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Navigation error:', error);
-      setComponentError('Navigation error occurred');
+    if (user) {
+      navigate('/');
     }
   }, [user, navigate]);
 
@@ -95,7 +86,6 @@ export default function Auth() {
           }
         } catch (mfaError) {
           console.error('MFA setup error:', mfaError);
-          // Continue without MFA if it fails
           toast({
             title: "Sign up successful!",
             description: "Please check your email to verify your account. (2FA setup failed)",
@@ -128,7 +118,6 @@ export default function Auth() {
 
       if (error) throw error;
 
-      // Check for MFA factors
       try {
         const { data: factors } = await supabase.auth.mfa.listFactors();
         if (factors?.totp && factors.totp.length > 0) {
@@ -143,7 +132,6 @@ export default function Auth() {
         }
       } catch (mfaError) {
         console.error('MFA check error:', mfaError);
-        // Continue without MFA check if it fails
         toast({
           title: "Welcome back!",
           description: "You have been signed in successfully.",
@@ -166,13 +154,11 @@ export default function Auth() {
       const demoEmail = 'demo@revolt.ai';
       const demoPassword = 'demo123456';
 
-      // First try to sign in with demo account
       let { data, error } = await supabase.auth.signInWithPassword({
         email: demoEmail,
         password: demoPassword,
       });
 
-      // If sign in fails, try to create the demo account
       if (error && error.message.includes('Invalid login credentials')) {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: demoEmail,
@@ -193,7 +179,6 @@ export default function Auth() {
           throw new Error('Failed to create demo account');
         }
 
-        // If account was created, try to sign in again
         if (signUpData.user) {
           try {
             await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
@@ -201,7 +186,6 @@ export default function Auth() {
             console.warn('Demo setup function not available:', rpcError);
           }
           
-          // Sign in with the newly created account
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: demoEmail,
             password: demoPassword,
@@ -218,7 +202,6 @@ export default function Auth() {
         description: "Exploring ReVolt Analytics with sample data.",
       });
       
-      // Small delay to ensure auth state updates
       setTimeout(() => {
         navigate('/');
       }, 100);
@@ -242,11 +225,10 @@ export default function Auth() {
 
     try {
       if (qrCodeUrl) {
-        // This is MFA setup during registration
         const { error } = await supabase.auth.mfa.verify({
           factorId: mfaFactorId,
           code: totpCode,
-          challengeId: '' // Empty for enrollment verification
+          challengeId: ''
         });
 
         if (error) throw error;
@@ -258,7 +240,6 @@ export default function Auth() {
         setShowMFASetup(false);
         navigate('/');
       } else {
-        // This is MFA challenge during login
         const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
           factorId: mfaFactorId
         });
@@ -307,36 +288,10 @@ export default function Auth() {
     }
   };
 
-  // Add error boundary display
-  if (componentError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-white">Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-red-300 mb-4">{componentError}</p>
-            <Button 
-              onClick={() => {
-                setComponentError('');
-                window.location.reload();
-              }}
-              className="w-full"
-            >
-              Reload Page
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (showMFASetup) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-        <LiquidGlassAI />
-        <Card className="w-full max-w-md enhanced-card">
+        <Card className="w-full max-w-md backdrop-blur-xl bg-slate-900/80 border-slate-700/50">
           <CardHeader className="text-center">
             <CardTitle className="text-white flex items-center justify-center gap-2">
               <Shield className="h-6 w-6 text-green-400" />
@@ -364,7 +319,7 @@ export default function Auth() {
                 placeholder="Enter 6-digit code"
                 value={totpCode}
                 onChange={(e) => setTotpCode(e.target.value)}
-                className="glass-input text-center text-lg tracking-widest"
+                className="bg-slate-800/50 border-slate-600 text-white text-center text-lg tracking-widest"
                 maxLength={6}
               />
             </div>
@@ -378,7 +333,7 @@ export default function Auth() {
             <Button
               onClick={handleVerifyMFA}
               disabled={isLoading || !totpCode}
-              className="w-full glass-button"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isLoading ? 'Verifying...' : 'Verify Code'}
             </Button>
@@ -390,8 +345,6 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex">
-      <LiquidGlassAI />
-      
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:flex-1 flex-col justify-center px-12 relative">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-3xl" />
@@ -449,8 +402,8 @@ export default function Auth() {
       </div>
 
       {/* Right Side - Auth Form */}
-      <div className="flex-1 lg:flex-none lg:w-[500px] flex items-center justify-center p-6">
-        <Card className="w-full max-w-md enhanced-card">
+      <div className="flex-1 lg:flex-none lg:w-[500px] flex items-center justify-center p-6 relative z-20">
+        <Card className="w-full max-w-md backdrop-blur-xl bg-slate-900/90 border-slate-700/50 shadow-2xl">
           <CardHeader className="text-center pb-4">
             <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
               <img 
@@ -472,7 +425,7 @@ export default function Auth() {
               onClick={handleTryDemo}
               disabled={isLoading}
               variant="outline"
-              className="w-full mb-6 glass-button border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-400"
+              className="w-full mb-6 bg-blue-600/20 border-blue-500/50 text-blue-300 hover:bg-blue-600/30 hover:border-blue-400 backdrop-blur-sm relative z-30"
               type="button"
             >
               <Battery className="h-4 w-4 mr-2" />
@@ -489,9 +442,9 @@ export default function Auth() {
             </div>
             
             <Tabs defaultValue="signin" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 glass-button">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 relative z-30">
+                <TabsTrigger value="signin" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">Sign In</TabsTrigger>
+                <TabsTrigger value="signup" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">Sign Up</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
@@ -505,7 +458,7 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="glass-input"
+                      className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                       disabled={isLoading}
                     />
                   </div>
@@ -518,7 +471,7 @@ export default function Auth() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="glass-input"
+                      className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                       disabled={isLoading}
                     />
                   </div>
@@ -532,7 +485,7 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     disabled={isLoading} 
-                    className="w-full glass-button"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white relative z-30"
                   >
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
@@ -542,7 +495,7 @@ export default function Auth() {
                     variant="outline"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="w-full glass-button"
+                    className="w-full bg-white/10 border-slate-600 text-white hover:bg-white/20 relative z-30"
                   >
                     Sign in with Google
                   </Button>
@@ -558,7 +511,11 @@ export default function Auth() {
                         type="button"
                         variant={accountType === 'individual' ? 'default' : 'outline'}
                         onClick={() => setAccountType('individual')}
-                        className="flex-1 glass-button"
+                        className={`flex-1 relative z-30 ${
+                          accountType === 'individual' 
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                            : 'bg-slate-800/50 border-slate-600 text-slate-300 hover:bg-slate-700/50'
+                        }`}
                         disabled={isLoading}
                       >
                         <User className="h-4 w-4 mr-2" />
@@ -568,7 +525,11 @@ export default function Auth() {
                         type="button"
                         variant={accountType === 'company' ? 'default' : 'outline'}
                         onClick={() => setAccountType('company')}
-                        className="flex-1 glass-button"
+                        className={`flex-1 relative z-30 ${
+                          accountType === 'company' 
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                            : 'bg-slate-800/50 border-slate-600 text-slate-300 hover:bg-slate-700/50'
+                        }`}
                         disabled={isLoading}
                       >
                         <Building className="h-4 w-4 mr-2" />
@@ -586,7 +547,7 @@ export default function Auth() {
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         required
-                        className="glass-input"
+                        className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                         disabled={isLoading}
                       />
                     </div>
@@ -598,7 +559,7 @@ export default function Auth() {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         required
-                        className="glass-input"
+                        className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                         disabled={isLoading}
                       />
                     </div>
@@ -613,7 +574,7 @@ export default function Auth() {
                         value={company}
                         onChange={(e) => setCompany(e.target.value)}
                         required
-                        className="glass-input"
+                        className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                         disabled={isLoading}
                       />
                     </div>
@@ -628,7 +589,7 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="glass-input"
+                      className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                       disabled={isLoading}
                     />
                   </div>
@@ -642,7 +603,7 @@ export default function Auth() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="glass-input"
+                      className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                       disabled={isLoading}
                     />
                   </div>
@@ -656,7 +617,7 @@ export default function Auth() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      className="glass-input"
+                      className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30"
                       disabled={isLoading}
                     />
                   </div>
@@ -673,6 +634,7 @@ export default function Auth() {
                       checked={enable2FA}
                       onCheckedChange={setEnable2FA}
                       disabled={isLoading}
+                      className="relative z-30"
                     />
                   </div>
 
@@ -694,7 +656,7 @@ export default function Auth() {
                   <Button 
                     type="submit" 
                     disabled={isLoading} 
-                    className="w-full glass-button"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white relative z-30"
                   >
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
@@ -704,7 +666,7 @@ export default function Auth() {
                     variant="outline"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="w-full glass-button"
+                    className="w-full bg-white/10 border-slate-600 text-white hover:bg-white/20 relative z-30"
                   >
                     Sign up with Google
                   </Button>
