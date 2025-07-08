@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,46 +11,34 @@ import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
 import BatteryComparison from '@/components/BatteryComparison';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import FileUploader from '@/components/FileUploader';
-import { 
-  Battery, 
-  TrendingUp, 
-  AlertTriangle, 
-  Clock,
-  BarChart3,
-  Upload,
-  Search
-} from 'lucide-react';
+import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Battery as BatteryType } from '@/types';
-
 export default function Dashboard() {
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const navigate = useNavigate();
-
   useEffect(() => {
     loadDashboardData();
-    
+
     // Listen for battery data updates
     const handleBatteryUpdate = () => {
       loadDashboardData();
     };
-    
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
-    
+
     // Also listen for storage changes and focus events
     const handleStorageChange = () => {
       loadDashboardData();
     };
-    
     const handleFocus = () => {
       loadDashboardData();
     };
-    
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('focus', handleFocus);
-    
     return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
     return () => {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
@@ -59,7 +46,6 @@ export default function Dashboard() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
-
   const loadDashboardData = async () => {
     try {
       setLoading(true);
@@ -70,40 +56,29 @@ export default function Dashboard() {
       toast({
         title: "Error",
         description: "Failed to load dashboard data",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
-  const recentBatteries = batteries
-    .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
-    .slice(0, 5);
-
+  const recentBatteries = batteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
   const criticalBatteries = batteries.filter(b => b.status === 'Critical');
   const degradingBatteries = batteries.filter(b => b.status === 'Degrading');
-
   if (loading) {
-    return (
-      <div className="flex-1 p-6">
+    return <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-white/10 rounded w-1/4"></div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-white/10 rounded"></div>
-              ))}
+              {[...Array(4)].map((_, i) => <div key={i} className="h-32 bg-white/10 rounded"></div>)}
             </div>
             <div className="h-96 bg-white/10 rounded"></div>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="flex-1 p-6 overflow-auto">
+  return <div className="flex-1 p-6 overflow-auto">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -139,9 +114,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {recentBatteries.length > 0 ? (
-                recentBatteries.map((battery) => (
-                  <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-white/10">
+              {recentBatteries.length > 0 ? recentBatteries.map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-white/10">
                     <div className="flex items-center gap-3">
                       <Battery className="h-4 w-4 text-blue-400" />
                       <div>
@@ -149,18 +122,10 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-400">{battery.chemistry}</p>
                       </div>
                     </div>
-                    <Badge className={`text-xs ${
-                      battery.status === 'Healthy' ? 'bg-green-600/80 text-green-100' :
-                      battery.status === 'Degrading' ? 'bg-yellow-600/80 text-yellow-100' :
-                      'bg-red-600/80 text-red-100'
-                    }`}>
+                    <Badge className={`text-xs ${battery.status === 'Healthy' ? 'bg-green-600/80 text-green-100' : battery.status === 'Degrading' ? 'bg-yellow-600/80 text-yellow-100' : 'bg-red-600/80 text-red-100'}`}>
                       {battery.status}
                     </Badge>
-                  </div>
-                ))
-              ) : (
-                <p className="text-slate-400 text-sm text-center py-4">No recent uploads</p>
-              )}
+                  </div>) : <p className="text-slate-400 text-sm text-center py-4">No recent uploads</p>}
             </CardContent>
           </Card>
 
@@ -173,9 +138,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {criticalBatteries.length > 0 ? (
-                criticalBatteries.slice(0, 3).map((battery) => (
-                  <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-red-500/50 bg-red-900/20">
+              {criticalBatteries.length > 0 ? criticalBatteries.slice(0, 3).map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-red-500/50 bg-red-900/20">
                     <div className="flex items-center gap-3">
                       <AlertTriangle className="h-4 w-4 text-red-400" />
                       <div>
@@ -186,21 +149,10 @@ export default function Dashboard() {
                     <Badge className="bg-red-600/80 text-red-100 text-xs">
                       Critical
                     </Badge>
-                  </div>
-                ))
-              ) : (
-                <p className="text-slate-400 text-sm text-center py-4">No critical alerts</p>
-              )}
-              {criticalBatteries.length > 3 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full glass-button"
-                  onClick={() => navigate('/search')}
-                >
+                  </div>) : <p className="text-slate-400 text-sm text-center py-4">No critical alerts</p>}
+              {criticalBatteries.length > 3 && <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/search')}>
                   View All ({criticalBatteries.length})
-                </Button>
-              )}
+                </Button>}
             </CardContent>
           </Card>
 
@@ -217,10 +169,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center">
                   <span className="text-slate-300 text-sm">Avg SoH</span>
                   <span className="text-white font-medium">
-                    {batteries.length > 0 
-                      ? (batteries.reduce((acc, b) => acc + b.soh, 0) / batteries.length).toFixed(1)
-                      : '0'
-                    }%
+                    {batteries.length > 0 ? (batteries.reduce((acc, b) => acc + b.soh, 0) / batteries.length).toFixed(1) : '0'}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -236,12 +185,7 @@ export default function Dashboard() {
                   </Badge>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full glass-button"
-                onClick={() => navigate('/search')}
-              >
+              <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/search')}>
                 <BarChart3 className="h-4 w-4 mr-2" />
                 View Analytics
               </Button>
@@ -253,7 +197,7 @@ export default function Dashboard() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 glass-button">
             <TabsTrigger value="overview">Battery Overview</TabsTrigger>
-            <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
             <TabsTrigger value="upload">Upload Data</TabsTrigger>
           </TabsList>
@@ -285,6 +229,5 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
-  );
+    </div>;
 }
