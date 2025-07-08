@@ -198,7 +198,7 @@ export default function Dashboard() {
           <TabsList className="grid w-full grid-cols-4 glass-button">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
+            <TabsTrigger value="comparison">Compare</TabsTrigger>
             <TabsTrigger value="upload">Upload Data</TabsTrigger>
           </TabsList>
 
