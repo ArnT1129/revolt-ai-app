@@ -132,9 +132,11 @@ export default function Sidebar() {
               isCollapsed && "opacity-0"
             )}>
               <div className="h-8 w-8 flex items-center justify-center">
-                <div className="h-8 w-8 bg-slate-600 rounded flex items-center justify-center">
-                  <span className="text-xs text-slate-300">LOGO</span>
-                </div>
+                <img 
+                  src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
+                  alt="ReVolt Logo" 
+                  className="h-8 w-auto"
+                />
               </div>
             </div>
           </div>
