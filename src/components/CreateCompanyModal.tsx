@@ -85,7 +85,7 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20">
+      <DialogContent className="sm:max-w-[425px] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20 fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Building2 className="h-5 w-5" />

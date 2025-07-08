@@ -39,7 +39,25 @@ export default function Dashboard() {
     };
     
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+    
+    // Also listen for storage changes and focus events
+    const handleStorageChange = () => {
+      loadDashboardData();
+    };
+    
+    const handleFocus = () => {
+      loadDashboardData();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', handleFocus);
+    
     return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+    return () => {
+      window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const loadDashboardData = async () => {

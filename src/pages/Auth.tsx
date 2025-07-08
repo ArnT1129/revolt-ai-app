@@ -350,14 +350,8 @@ export default function Auth() {
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-3xl" />
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-8">
-            <img 
-              src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
-              alt="ReVolt Logo" 
-              className="h-16 w-auto"
-            />
-            <div>
-              <h1 className="text-4xl font-bold text-white">ReVolt Analytics</h1>
-              <p className="text-xl text-blue-200">Advanced Battery Intelligence</p>
+            <div className="h-16 w-16 bg-slate-600 rounded-lg flex items-center justify-center">
+              <span className="text-sm text-slate-300">LOGO</span>
             </div>
           </div>
           
@@ -406,12 +400,9 @@ export default function Auth() {
         <Card className="w-full max-w-md backdrop-blur-xl bg-slate-900/90 border-slate-700/50 shadow-2xl">
           <CardHeader className="text-center pb-4">
             <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
-              <img 
-                src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
-                alt="ReVolt Logo" 
-                className="h-8 w-auto"
-              />
-              <span className="text-xl font-bold text-white">ReVolt Analytics</span>
+              <div className="h-8 w-8 bg-slate-600 rounded flex items-center justify-center">
+                <span className="text-xs text-slate-300">LOGO</span>
+              </div>
             </div>
             <CardTitle className="text-2xl text-white">Welcome Back</CardTitle>
             <CardDescription className="text-slate-400">
