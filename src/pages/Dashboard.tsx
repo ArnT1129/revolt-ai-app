@@ -25,7 +25,6 @@ import type { Battery as BatteryType } from '@/types';
 export default function Dashboard() {
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -46,9 +45,6 @@ export default function Dashboard() {
       setLoading(true);
       const batteryData = await batteryService.getUserBatteries();
       setBatteries(batteryData);
-      
-      const statsData = DashboardStatsService.calculateStats(batteryData);
-      setStats(statsData);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -110,7 +106,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Overview */}
-        {stats && <DashboardStats stats={stats} />}
+        <DashboardStats />
 
         {/* Quick Actions & Alerts */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -234,13 +230,13 @@ export default function Dashboard() {
         </div>
 
         {/* Battery Overview Table */}
-        <OptimizedBatteryTable batteries={batteries} />
+        <OptimizedBatteryTable />
 
         {/* Advanced Analytics */}
-        <AdvancedAnalytics batteries={batteries} />
+        <AdvancedAnalytics />
 
         {/* Battery Comparison */}
-        <BatteryComparison batteries={batteries} />
+        <BatteryComparison />
       </div>
     </div>
   );

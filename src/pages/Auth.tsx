@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building, Lock, User, Shield, Smartphone } from 'lucide-react';
+import { Building, Lock, User, Shield, Smartphone, Battery, Zap, TrendingUp } from 'lucide-react';
 import LiquidGlassAI from '@/components/LiquidGlassAI';
 
 export default function Auth() {
@@ -130,6 +130,57 @@ export default function Auth() {
     }
   };
 
+  const tryDemoAccount = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Demo account credentials
+      const demoEmail = 'demo@revolt.ai';
+      const demoPassword = 'demo123456';
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (error) {
+        // If demo account doesn't exist, create it
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: demoEmail,
+          password: demoPassword,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              first_name: 'Demo',
+              last_name: 'User',
+              full_name: 'Demo User',
+              account_type: 'individual'
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+
+        // Set up demo user profile
+        if (signUpData.user) {
+          await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
+        }
+      }
+
+      toast({
+        title: "Demo Account Loaded!",
+        description: "Exploring ReVolt Analytics with sample data.",
+      });
+      navigate('/');
+    } catch (error: any) {
+      console.error('Demo account error:', error);
+      setError('Failed to load demo account. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const verifyMFA = async () => {
     if (!totpCode) {
       setError('Please enter the verification code');
@@ -208,7 +259,7 @@ export default function Auth() {
 
   if (showMFASetup) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
         <LiquidGlassAI />
         <Card className="w-full max-w-md enhanced-card">
           <CardHeader className="text-center">
@@ -263,249 +314,313 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex">
       <LiquidGlassAI />
-      <Card className="w-full max-w-md enhanced-card">
-        <CardHeader className="text-center">
-          <CardTitle className="text-white flex items-center justify-center gap-3">
+      
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:flex-1 flex-col justify-center px-12 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-3xl" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-8">
             <img 
               src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
               alt="ReVolt Logo" 
-              className="h-8 w-auto"
+              className="h-16 w-auto"
             />
-            ReVolt Analytics
-          </CardTitle>
-          <CardDescription>
-            Advanced battery management and analytics solution
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="signin" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 glass-button">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+            <div>
+              <h1 className="text-4xl font-bold text-white">ReVolt Analytics</h1>
+              <p className="text-xl text-blue-200">Advanced Battery Intelligence</p>
+            </div>
+          </div>
+          
+          <div className="space-y-6 mb-12">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-500/20 rounded-lg">
+                <Battery className="h-6 w-6 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Smart Battery Monitoring</h3>
+                <p className="text-slate-300">Real-time health analysis and predictive maintenance</p>
+              </div>
+            </div>
             
-            <TabsContent value="signin">
-              <form onSubmit={signIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email" className="text-slate-300">Email</Label>
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="glass-input"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password" className="text-slate-300">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="glass-input"
-                  />
-                </div>
-
-                {error && (
-                  <Alert className="border-red-600/50 bg-red-900/20">
-                    <AlertDescription className="text-red-300">{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Button type="submit" disabled={isLoading} className="w-full glass-button">
-                  {isLoading ? 'Signing in...' : 'Sign In'}
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-600" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-slate-900 px-2 text-slate-400">Or continue with</span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={signInWithGoogle}
-                  disabled={isLoading}
-                  className="w-full glass-button"
-                >
-                  Sign in with Google
-                </Button>
-              </form>
-            </TabsContent>
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-green-500/20 rounded-lg">
+                <TrendingUp className="h-6 w-6 text-green-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Performance Analytics</h3>
+                <p className="text-slate-300">Advanced insights into battery performance trends</p>
+              </div>
+            </div>
             
-            <TabsContent value="signup">
-              <form onSubmit={signUp} className="space-y-4">
-                {/* Account Type Selection */}
-                <div className="space-y-3">
-                  <Label className="text-slate-300">Account Type</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={accountType === 'individual' ? 'default' : 'outline'}
-                      onClick={() => setAccountType('individual')}
-                      className="flex-1 glass-button"
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      Individual
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={accountType === 'company' ? 'default' : 'outline'}
-                      onClick={() => setAccountType('company')}
-                      className="flex-1 glass-button"
-                    >
-                      <Building className="h-4 w-4 mr-2" />
-                      Company
-                    </Button>
-                  </div>
-                </div>
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-purple-500/20 rounded-lg">
+                <Zap className="h-6 w-6 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">AI-Powered Predictions</h3>
+                <p className="text-slate-300">Machine learning for accurate RUL estimation</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4 text-sm text-slate-400">
+            <Badge variant="outline" className="border-blue-400/50 text-blue-300">Enterprise Ready</Badge>
+            <Badge variant="outline" className="border-green-400/50 text-green-300">ISO Certified</Badge>
+            <Badge variant="outline" className="border-purple-400/50 text-purple-300">AI-Powered</Badge>
+          </div>
+        </div>
+      </div>
 
-                <div className="grid grid-cols-2 gap-4">
+      {/* Right Side - Auth Form */}
+      <div className="flex-1 lg:flex-none lg:w-[500px] flex items-center justify-center p-6">
+        <Card className="w-full max-w-md enhanced-card">
+          <CardHeader className="text-center pb-4">
+            <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
+              <img 
+                src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
+                alt="ReVolt Logo" 
+                className="h-8 w-auto"
+              />
+              <span className="text-xl font-bold text-white">ReVolt Analytics</span>
+            </div>
+            <CardTitle className="text-2xl text-white">Welcome Back</CardTitle>
+            <CardDescription className="text-slate-400">
+              Sign in to your account or create a new one
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            {/* Demo Account Button */}
+            <Button
+              onClick={tryDemoAccount}
+              disabled={isLoading}
+              variant="outline"
+              className="w-full mb-6 glass-button border-blue-500/50 text-blue-300 hover:bg-blue-500/10 hover:border-blue-400"
+            >
+              <Battery className="h-4 w-4 mr-2" />
+              Try Demo Account
+            </Button>
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-600" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-slate-900 px-2 text-slate-400">Or continue with</span>
+              </div>
+            </div>
+            
+            <Tabs defaultValue="signin" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2 glass-button">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="signin">
+                <form onSubmit={signIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
+                    <Label htmlFor="signin-email" className="text-slate-300">Email</Label>
                     <Input
-                      id="firstName"
-                      placeholder="John"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      id="signin-email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       className="glass-input"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-slate-300">Last Name</Label>
+                    <Label htmlFor="signin-password" className="text-slate-300">Password</Label>
                     <Input
-                      id="lastName"
-                      placeholder="Doe"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      id="signin-password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                       className="glass-input"
                     />
                   </div>
-                </div>
 
-                {accountType === 'company' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="company" className="text-slate-300">Company Name</Label>
-                    <Input
-                      id="company"
-                      placeholder="Acme Corp"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      required
-                      className="glass-input"
-                    />
-                  </div>
-                )}
+                  {error && (
+                    <Alert className="border-red-600/50 bg-red-900/20">
+                      <AlertDescription className="text-red-300">{error}</AlertDescription>
+                    </Alert>
+                  )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-300">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="glass-input"
-                  />
-                </div>
+                  <Button type="submit" disabled={isLoading} className="w-full glass-button">
+                    {isLoading ? 'Signing in...' : 'Sign In'}
+                  </Button>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-300">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Create a strong password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="glass-input"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-slate-300">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="glass-input"
-                  />
-                </div>
-
-                {/* 2FA Option */}
-                <div className="flex items-center justify-between p-3 bg-slate-800/40 rounded-lg border border-slate-600/30">
-                  <div className="flex items-center gap-3">
-                    <Smartphone className="h-5 w-5 text-green-400" />
-                    <div>
-                      <Label className="text-slate-300 font-medium">Two-Factor Authentication</Label>
-                      <p className="text-xs text-slate-400">Secure your account with 2FA</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={signInWithGoogle}
+                    disabled={isLoading}
+                    className="w-full glass-button"
+                  >
+                    Sign in with Google
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="signup">
+                <form onSubmit={signUp} className="space-y-4">
+                  {/* Account Type Selection */}
+                  <div className="space-y-3">
+                    <Label className="text-slate-300">Account Type</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={accountType === 'individual' ? 'default' : 'outline'}
+                        onClick={() => setAccountType('individual')}
+                        className="flex-1 glass-button"
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Individual
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={accountType === 'company' ? 'default' : 'outline'}
+                        onClick={() => setAccountType('company')}
+                        className="flex-1 glass-button"
+                      >
+                        <Building className="h-4 w-4 mr-2" />
+                        Company
+                      </Button>
                     </div>
                   </div>
-                  <Switch
-                    checked={enable2FA}
-                    onCheckedChange={setEnable2FA}
-                  />
-                </div>
 
-                {enable2FA && (
-                  <Alert className="border-green-600/50 bg-green-900/20">
-                    <Shield className="h-4 w-4" />
-                    <AlertDescription className="text-green-300">
-                      You'll be guided through 2FA setup after creating your account.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {error && (
-                  <Alert className="border-red-600/50 bg-red-900/20">
-                    <AlertDescription className="text-red-300">{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Button type="submit" disabled={isLoading} className="w-full glass-button">
-                  {isLoading ? 'Creating account...' : 'Create Account'}
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-600" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName" className="text-slate-300">First Name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="John"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                        className="glass-input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="text-slate-300">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Doe"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                        className="glass-input"
+                      />
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-slate-900 px-2 text-slate-400">Or continue with</span>
-                  </div>
-                </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={signInWithGoogle}
-                  disabled={isLoading}
-                  className="w-full glass-button"
-                >
-                  Sign up with Google
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                  {accountType === 'company' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="company" className="text-slate-300">Company Name</Label>
+                      <Input
+                        id="company"
+                        placeholder="Acme Corp"
+                        value={company}
+                        onChange={(e) => setCompany(e.target.value)}
+                        required
+                        className="glass-input"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-300">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="john@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="glass-input"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-slate-300">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Create a strong password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="glass-input"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-slate-300">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      className="glass-input"
+                    />
+                  </div>
+
+                  {/* 2FA Option */}
+                  <div className="flex items-center justify-between p-3 bg-slate-800/40 rounded-lg border border-slate-600/30">
+                    <div className="flex items-center gap-3">
+                      <Smartphone className="h-5 w-5 text-green-400" />
+                      <div>
+                        <Label className="text-slate-300 font-medium">Two-Factor Authentication</Label>
+                        <p className="text-xs text-slate-400">Secure your account with 2FA</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={enable2FA}
+                      onCheckedChange={setEnable2FA}
+                    />
+                  </div>
+
+                  {enable2FA && (
+                    <Alert className="border-green-600/50 bg-green-900/20">
+                      <Shield className="h-4 w-4" />
+                      <AlertDescription className="text-green-300">
+                        You'll be guided through 2FA setup after creating your account.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {error && (
+                    <Alert className="border-red-600/50 bg-red-900/20">
+                      <AlertDescription className="text-red-300">{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button type="submit" disabled={isLoading} className="w-full glass-button">
+                    {isLoading ? 'Creating account...' : 'Create Account'}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={signInWithGoogle}
+                    disabled={isLoading}
+                    className="w-full glass-button"
+                  >
+                    Sign up with Google
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
