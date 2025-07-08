@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +20,9 @@ import {
   ChevronRight,
   ChevronDown,
   Plus,
-  MessageCircleWarning
+  MessageCircleWarning,
+  BarChart3,
+  GitCompare
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -39,6 +40,8 @@ export default function Sidebar() {
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: Upload, label: "Upload", path: "/upload" },
     { icon: Search, label: "Search", path: "/search" },
+    { icon: BarChart3, label: "Analytics", path: "/analytics" },
+    { icon: GitCompare, label: "Comparison", path: "/comparison" },
     { icon: MessageCircleWarning, label: "Review", path: "/review" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];

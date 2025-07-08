@@ -12,6 +12,8 @@ import Settings from "./pages/Settings";
 import CompanyManagement from "./pages/CompanyManagement";
 import Review from "./pages/Review";
 import Profile from "./pages/Profile";
+import Analytics from "./pages/Analytics";
+import Comparison from "./pages/Comparison";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Sidebar from "./components/Sidebar";
@@ -78,6 +80,8 @@ function AppContent() {
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/upload" element={<Upload />} />
                       <Route path="/search" element={<SearchPage />} />
+                      <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/comparison" element={<Comparison />} />
                       <Route path="/review" element={<Review />} />
                       <Route path="/company" element={<CompanyManagement />} />
                       <Route path="/settings" element={<Settings />} />

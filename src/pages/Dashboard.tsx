@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
 import { DashboardStatsService } from '@/services/dashboardStats';
@@ -10,6 +11,7 @@ import DashboardStats from '@/components/DashboardStats';
 import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
 import BatteryComparison from '@/components/BatteryComparison';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
+import FileUploader from '@/components/FileUploader';
 import { 
   Battery, 
   TrendingUp, 
@@ -229,14 +231,41 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Battery Overview Table */}
-        <OptimizedBatteryTable />
+        {/* Tabbed Content */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4 glass-button">
+            <TabsTrigger value="overview">Battery Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
+            <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
+            <TabsTrigger value="upload">Upload Data</TabsTrigger>
+          </TabsList>
 
-        {/* Advanced Analytics */}
-        <AdvancedAnalytics />
+          <TabsContent value="overview" className="space-y-6">
+            <OptimizedBatteryTable />
+          </TabsContent>
 
-        {/* Battery Comparison */}
-        <BatteryComparison />
+          <TabsContent value="analytics" className="space-y-6">
+            <AdvancedAnalytics />
+          </TabsContent>
+
+          <TabsContent value="comparison" className="space-y-6">
+            <BatteryComparison />
+          </TabsContent>
+
+          <TabsContent value="upload" className="space-y-6">
+            <Card className="enhanced-card">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Upload Battery Data
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FileUploader />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
