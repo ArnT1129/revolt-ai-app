@@ -34,9 +34,18 @@ export default function Auth() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Add error boundary for component crashes
+  const [componentError, setComponentError] = useState('');
+
   useEffect(() => {
-    if (user) {
-      navigate('/');
+    // Add error handling for navigation
+    try {
+      if (user) {
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Navigation error:', error);
+      setComponentError('Navigation error occurred');
     }
   }, [user, navigate]);
 
@@ -157,13 +166,14 @@ export default function Auth() {
       const demoEmail = 'demo@revolt.ai';
       const demoPassword = 'demo123456';
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // First try to sign in with demo account
+      let { data, error } = await supabase.auth.signInWithPassword({
         email: demoEmail,
         password: demoPassword,
       });
 
-      if (error) {
-        // Try to create demo account if it doesn't exist
+      // If sign in fails, try to create the demo account
+      if (error && error.message.includes('Invalid login credentials')) {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: demoEmail,
           password: demoPassword,
@@ -178,23 +188,41 @@ export default function Auth() {
           }
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.error('Demo signup error:', signUpError);
+          throw new Error('Failed to create demo account');
+        }
 
+        // If account was created, try to sign in again
         if (signUpData.user) {
-          // Only call setup_demo_user if the function exists
           try {
             await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
           } catch (rpcError) {
             console.warn('Demo setup function not available:', rpcError);
           }
+          
+          // Sign in with the newly created account
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: demoEmail,
+            password: demoPassword,
+          });
+          
+          if (signInError) throw signInError;
         }
+      } else if (error) {
+        throw error;
       }
 
       toast({
         title: "Demo Account Loaded!",
         description: "Exploring ReVolt Analytics with sample data.",
       });
-      navigate('/');
+      
+      // Small delay to ensure auth state updates
+      setTimeout(() => {
+        navigate('/');
+      }, 100);
+      
     } catch (error: any) {
       console.error('Demo account error:', error);
       setError('Failed to load demo account. Please try again.');
@@ -278,6 +306,31 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
+
+  // Add error boundary display
+  if (componentError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-white">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-red-300 mb-4">{componentError}</p>
+            <Button 
+              onClick={() => {
+                setComponentError('');
+                window.location.reload();
+              }}
+              className="w-full"
+            >
+              Reload Page
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (showMFASetup) {
     return (
