@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,16 +71,27 @@ export default function Auth() {
       if (error) throw error;
 
       if (data.user && enable2FA) {
-        const { data: mfaData, error: mfaError } = await supabase.auth.mfa.enroll({
-          factorType: 'totp',
-          friendlyName: 'Battery Analytics Platform'
-        });
+        try {
+          const { data: mfaData, error: mfaError } = await supabase.auth.mfa.enroll({
+            factorType: 'totp',
+            friendlyName: 'Battery Analytics Platform'
+          });
 
-        if (mfaError) throw mfaError;
+          if (mfaError) throw mfaError;
 
-        setQrCodeUrl(mfaData.totp.qr_code);
-        setMfaFactorId(mfaData.id);
-        setShowMFASetup(true);
+          if (mfaData?.totp?.qr_code) {
+            setQrCodeUrl(mfaData.totp.qr_code);
+            setMfaFactorId(mfaData.id);
+            setShowMFASetup(true);
+          }
+        } catch (mfaError) {
+          console.error('MFA setup error:', mfaError);
+          // Continue without MFA if it fails
+          toast({
+            title: "Sign up successful!",
+            description: "Please check your email to verify your account. (2FA setup failed)",
+          });
+        }
       } else {
         toast({
           title: "Sign up successful!",
@@ -109,11 +119,22 @@ export default function Auth() {
 
       if (error) throw error;
 
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      if (factors && factors.totp && factors.totp.length > 0) {
-        setMfaFactorId(factors.totp[0].id);
-        setShowMFASetup(true);
-      } else {
+      // Check for MFA factors
+      try {
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        if (factors?.totp && factors.totp.length > 0) {
+          setMfaFactorId(factors.totp[0].id);
+          setShowMFASetup(true);
+        } else {
+          toast({
+            title: "Welcome back!",
+            description: "You have been signed in successfully.",
+          });
+          navigate('/');
+        }
+      } catch (mfaError) {
+        console.error('MFA check error:', mfaError);
+        // Continue without MFA check if it fails
         toast({
           title: "Welcome back!",
           description: "You have been signed in successfully.",
@@ -142,6 +163,7 @@ export default function Auth() {
       });
 
       if (error) {
+        // Try to create demo account if it doesn't exist
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: demoEmail,
           password: demoPassword,
@@ -159,7 +181,12 @@ export default function Auth() {
         if (signUpError) throw signUpError;
 
         if (signUpData.user) {
-          await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
+          // Only call setup_demo_user if the function exists
+          try {
+            await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
+          } catch (rpcError) {
+            console.warn('Demo setup function not available:', rpcError);
+          }
         }
       }
 
@@ -187,10 +214,11 @@ export default function Auth() {
 
     try {
       if (qrCodeUrl) {
+        // This is MFA setup during registration
         const { error } = await supabase.auth.mfa.verify({
           factorId: mfaFactorId,
           code: totpCode,
-          challengeId: ''
+          challengeId: '' // Empty for enrollment verification
         });
 
         if (error) throw error;
@@ -202,6 +230,7 @@ export default function Auth() {
         setShowMFASetup(false);
         navigate('/');
       } else {
+        // This is MFA challenge during login
         const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
           factorId: mfaFactorId
         });
