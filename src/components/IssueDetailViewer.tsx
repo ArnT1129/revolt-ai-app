@@ -1,170 +1,162 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { 
-  AlertTriangle, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Lightbulb,
-  Wrench,
-  TrendingUp
-} from 'lucide-react';
-
-interface Issue {
-  id: string;
-  title: string;
-  description: string;
-  severity: 'Critical' | 'Warning' | 'Info';
-  category: string;
-  cause?: string;
-  recommendation?: string;
-  solution?: string;
-  affectedMetrics?: string[];
-  resolved?: boolean;
-}
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertTriangle, AlertCircle, Info, ChevronDown, ChevronRight } from "lucide-react";
+import { BatteryIssue } from "@/services/issueAnalysis";
+import { cn } from "@/lib/utils";
 
 interface IssueDetailViewerProps {
-  issue: Issue;
-  onClose?: () => void;
-  onResolve?: (issueId: string) => void;
+  issues: BatteryIssue[];
+  batteryId: string;
 }
 
-export default function IssueDetailViewer({ issue, onClose, onResolve }: IssueDetailViewerProps) {
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'Critical': return <XCircle className="h-5 w-5 text-red-400" />;
-      case 'Warning': return <AlertTriangle className="h-5 w-5 text-orange-400" />;
-      case 'Info': return <CheckCircle className="h-5 w-5 text-blue-400" />;
-      default: return <AlertTriangle className="h-5 w-5 text-gray-400" />;
+const severityIcons = {
+  Critical: AlertTriangle,
+  Warning: AlertCircle,
+  Info: Info,
+};
+
+const severityColors = {
+  Critical: "text-red-400 bg-red-900/20 border-red-500/20",
+  Warning: "text-yellow-400 bg-yellow-900/20 border-yellow-500/20",
+  Info: "text-blue-400 bg-blue-900/20 border-blue-500/20",
+};
+
+export default function IssueDetailViewer({ issues, batteryId }: IssueDetailViewerProps) {
+  const [expandedIssues, setExpandedIssues] = useState<Set<string>>(new Set());
+
+  const toggleIssue = (issueId: string) => {
+    const newExpanded = new Set(expandedIssues);
+    if (newExpanded.has(issueId)) {
+      newExpanded.delete(issueId);
+    } else {
+      newExpanded.add(issueId);
     }
+    setExpandedIssues(newExpanded);
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'Critical': return 'bg-red-500/20 text-red-400';
-      case 'Warning': return 'bg-orange-500/20 text-orange-400';
-      case 'Info': return 'bg-blue-500/20 text-blue-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+  const groupedIssues = issues.reduce((groups, issue) => {
+    if (!groups[issue.severity]) {
+      groups[issue.severity] = [];
     }
-  };
+    groups[issue.severity].push(issue);
+    return groups;
+  }, {} as Record<string, BatteryIssue[]>);
+
+  if (issues.length === 0) {
+    return (
+      <Card className="enhanced-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Info className="h-5 w-5 text-green-400" />
+            No Issues Detected
+          </CardTitle>
+          <CardDescription className="text-slate-300">
+            Battery {batteryId} is operating within normal parameters
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="enhanced-card">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            {getSeverityIcon(issue.severity)}
-            Issue Details
-          </CardTitle>
-          {onClose && (
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              ×
-            </Button>
-          )}
-        </div>
+        <CardTitle className="flex items-center gap-2 text-white">
+          <AlertTriangle className="h-5 w-5 text-red-400" />
+          Battery Issues Analysis
+        </CardTitle>
+        <CardDescription className="text-slate-300">
+          Detailed analysis of {issues.length} issues detected for battery {batteryId}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Issue Header */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold text-white">{issue.title}</h3>
-            <div className="flex items-center gap-2">
-              <Badge className={getSeverityColor(issue.severity)}>
-                {issue.severity}
-              </Badge>
-              <Badge variant="outline" className="text-slate-300">
-                {issue.category}
-              </Badge>
-            </div>
-          </div>
+      <CardContent className="space-y-4">
+        {Object.entries(groupedIssues).map(([severity, severityIssues]) => {
+          const SeverityIcon = severityIcons[severity as keyof typeof severityIcons];
           
-          <p className="text-slate-300 leading-relaxed">{issue.description}</p>
-        </div>
-
-        {/* Affected Metrics */}
-        {issue.affectedMetrics && issue.affectedMetrics.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Affected Metrics
-            </h4>
-            <div className="flex flex-wrap gap-2">
-              {issue.affectedMetrics.map((metric, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
-                  {metric}
-                </Badge>
-              ))}
+          return (
+            <div key={severity} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <SeverityIcon className={cn("h-4 w-4", severityColors[severity as keyof typeof severityColors].split(' ')[0])} />
+                <h3 className="font-semibold text-white">{severity} Issues ({severityIssues.length})</h3>
+              </div>
+              
+              {severityIssues.map((issue) => {
+                const isExpanded = expandedIssues.has(issue.id);
+                
+                return (
+                  <Collapsible key={issue.id}>
+                    <CollapsibleTrigger asChild>
+                      <Card className={cn("cursor-pointer transition-colors hover:bg-white/5 border", 
+                        severityColors[issue.severity as keyof typeof severityColors])}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Badge variant="outline" className="text-xs border-white/20 text-slate-300">
+                                {issue.category}
+                              </Badge>
+                              <span className="font-medium text-white">{issue.title}</span>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => toggleIssue(issue.id)}
+                              className="text-slate-300 hover:text-white"
+                            >
+                              {isExpanded ? 
+                                <ChevronDown className="h-4 w-4" /> : 
+                                <ChevronRight className="h-4 w-4" />
+                              }
+                            </Button>
+                          </div>
+                          <p className="text-sm text-slate-400 mt-1">
+                            {issue.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent>
+                      <Card className="ml-4 mt-2 border border-white/10 bg-black/20">
+                        <CardContent className="p-4 space-y-3">
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1 text-white">Root Cause</h4>
+                            <p className="text-sm text-slate-300">{issue.cause}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1 text-white">Recommended Solution</h4>
+                            <p className="text-sm text-slate-300">{issue.solution}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1 text-white">Action Required</h4>
+                            <p className="text-sm text-slate-300">{issue.recommendation}</p>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-sm mb-1 text-white">Affected Metrics</h4>
+                            <div className="flex gap-1 flex-wrap">
+                              {issue.affectedMetrics.map((metric) => (
+                                <Badge key={metric} variant="secondary" className="text-xs bg-white/10 text-slate-300 border-white/20">
+                                  {metric}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
-          </div>
-        )}
-
-        {/* Root Cause */}
-        {issue.cause && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Root Cause
-            </h4>
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <p className="text-slate-300 text-sm">{issue.cause}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Recommendation */}
-        {issue.recommendation && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Lightbulb className="h-4 w-4" />
-              Recommendation
-            </h4>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-              <p className="text-blue-300 text-sm">{issue.recommendation}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Solution */}
-        {issue.solution && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
-              Solution
-            </h4>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-              <p className="text-green-300 text-sm">{issue.solution}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-white/10">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Clock className="h-4 w-4" />
-            Issue ID: {issue.id}
-          </div>
-          
-          {onResolve && !issue.resolved && (
-            <Button
-              onClick={() => onResolve(issue.id)}
-              className="glass-button"
-              size="sm"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Mark as Resolved
-            </Button>
-          )}
-          
-          {issue.resolved && (
-            <Badge className="bg-green-500/20 text-green-400">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Resolved
-            </Badge>
-          )}
-        </div>
+          );
+        })}
       </CardContent>
     </Card>
   );

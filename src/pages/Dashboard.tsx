@@ -1,218 +1,207 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { batteryService } from '@/services/batteryService';
-import { DashboardStatsService } from '@/services/dashboardStats';
-import DashboardStats from '@/components/DashboardStats';
-import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
-import BatteryComparison from '@/components/BatteryComparison';
-import AdvancedAnalytics from '@/components/AdvancedAnalytics';
-import FileUploader from '@/components/FileUploader';
-import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import type { Battery as BatteryType } from '@/types';
-export default function Dashboard() {
-  const [batteries, setBatteries] = useState<BatteryType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const {
-    toast
-  } = useToast();
-  const navigate = useNavigate();
-  useEffect(() => {
-    loadDashboardData();
+import DashboardStats from "@/components/DashboardStats";
+import OptimizedBatteryTable from "@/components/OptimizedBatteryTable";
+import AdvancedAnalytics from "@/components/AdvancedAnalytics";
+import BatteryComparison from "@/components/BatteryComparison";
+import DataExporter from "@/components/DataExporter";
+import BatteryPassportModal from "@/components/BatteryPassportModal";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, BarChart3, GitCompare, Download, Activity } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Battery } from "@/types";
+import { batteryService } from "@/services/batteryService";
+import { useAuth } from "@/contexts/AuthContext";
 
-    // Listen for battery data updates
-    const handleBatteryUpdate = () => {
-      loadDashboardData();
-    };
-    window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
-    return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
-  }, []);
-  const loadDashboardData = async () => {
+export default function Dashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [allBatteries, setAllBatteries] = useState<Battery[]>([]);
+  const [activeTab, setActiveTab] = useState("fleet");
+  const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
+  const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const { user } = useAuth();
+
+  const updateBatteries = async () => {
     try {
-      setLoading(true);
-      const batteryData = await batteryService.getUserBatteries();
-      setBatteries(batteryData);
+      console.log('Fetching batteries...');
+      const batteries = await batteryService.getUserBatteries();
+      console.log('Fetched batteries:', batteries.length);
+      setAllBatteries(batteries);
+      return batteries;
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+      console.error('Error fetching batteries:', error);
+      return [];
     }
   };
-  const recentBatteries = batteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
-  const criticalBatteries = batteries.filter(b => b.status === 'Critical');
-  const degradingBatteries = batteries.filter(b => b.status === 'Degrading');
+
+  const handleSaveBattery = async (updatedBattery: Battery) => {
+    const success = await batteryService.updateBattery(updatedBattery);
+    if (success) {
+      setSelectedBattery(updatedBattery);
+      setIsPassportOpen(false);
+      await updateBatteries();
+    }
+  };
+
+  // Initial data load
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setLoading(true);
+      console.log('Loading initial battery data...');
+      
+      try {
+        const batteries = await updateBatteries();
+        
+        // Handle URL parameters after data is loaded
+        const tabParam = searchParams.get('tab');
+        const batteryId = searchParams.get('battery');
+
+        // Set active tab from URL or default to fleet
+        if (tabParam && ['fleet', 'analytics', 'comparison', 'export'].includes(tabParam)) {
+          setActiveTab(tabParam);
+        } else {
+          setActiveTab('fleet');
+        }
+
+        // Handle battery passport from URL
+        if (batteryId && batteries.length > 0) {
+          const battery = batteries.find(b => b.id === batteryId);
+          if (battery) {
+            setSelectedBattery(battery);
+            setIsPassportOpen(true);
+            // Clean up URL
+            setSearchParams(prev => {
+              const newParams = new URLSearchParams(prev);
+              newParams.delete('battery');
+              return newParams;
+            });
+          }
+        }
+        
+        setInitialLoadComplete(true);
+      } catch (error) {
+        console.error('Failed to load initial data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!initialLoadComplete) {
+      loadInitialData();
+    }
+  }, [initialLoadComplete, searchParams, setSearchParams]);
+
+  // Event listeners for updates
+  useEffect(() => {
+    const handleBatteryUpdate = async () => {
+      if (initialLoadComplete) {
+        console.log('Battery data updated, refreshing...');
+        await updateBatteries();
+      }
+    };
+
+    const handleSettingsChanged = (event: CustomEvent) => {
+      const settings = event.detail;
+      if (settings.defaultView) {
+        setActiveTab(settings.defaultView);
+      }
+    };
+
+    window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+    window.addEventListener('settingsChanged', handleSettingsChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+      window.removeEventListener('settingsChanged', handleSettingsChanged as EventListener);
+    };
+  }, [initialLoadComplete]);
+
   if (loading) {
-    return <div className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-white/10 rounded w-1/4"></div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {[...Array(4)].map((_, i) => <div key={i} className="h-32 bg-white/10 rounded"></div>)}
-            </div>
-            <div className="h-96 bg-white/10 rounded"></div>
-          </div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white">Loading your battery data...</p>
+          <p className="text-slate-400 text-sm mt-2">This may take a moment...</p>
         </div>
-      </div>;
+      </div>
+    );
   }
-  return <div className="flex-1 p-6 overflow-auto">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-            <p className="text-slate-400">
-              Monitor and analyze your battery fleet performance
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate('/upload')} className="glass-button">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Data
-            </Button>
-            <Button onClick={() => navigate('/search')} variant="outline" className="glass-button">
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </Button>
-          </div>
+
+  return (
+    <main className="flex-1 p-4 md:p-8 animate-fade-in">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent mb-2">
+            ReVolt Dashboard
+          </h1>
+          <p className="text-muted-foreground text-lg">Battery Intelligence Platform</p>
         </div>
-
-        {/* Stats Overview */}
-        <DashboardStats />
-
-        {/* Quick Actions & Alerts */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Uploads */}
-          <Card className="enhanced-card">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Recent Uploads
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {recentBatteries.length > 0 ? recentBatteries.map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-white/10">
-                    <div className="flex items-center gap-3">
-                      <Battery className="h-4 w-4 text-blue-400" />
-                      <div>
-                        <p className="text-sm font-medium text-white">{battery.id}</p>
-                        <p className="text-xs text-slate-400">{battery.chemistry}</p>
-                      </div>
-                    </div>
-                    <Badge className={`text-xs ${battery.status === 'Healthy' ? 'bg-green-600/80 text-green-100' : battery.status === 'Degrading' ? 'bg-yellow-600/80 text-yellow-100' : 'bg-red-600/80 text-red-100'}`}>
-                      {battery.status}
-                    </Badge>
-                  </div>) : <p className="text-slate-400 text-sm text-center py-4">No recent uploads</p>}
-            </CardContent>
-          </Card>
-
-          {/* Critical Alerts */}
-          <Card className="enhanced-card">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-                Critical Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {criticalBatteries.length > 0 ? criticalBatteries.slice(0, 3).map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-red-500/50 bg-red-900/20">
-                    <div className="flex items-center gap-3">
-                      <AlertTriangle className="h-4 w-4 text-red-400" />
-                      <div>
-                        <p className="text-sm font-medium text-white">{battery.id}</p>
-                        <p className="text-xs text-red-300">SoH: {battery.soh.toFixed(1)}%</p>
-                      </div>
-                    </div>
-                    <Badge className="bg-red-600/80 text-red-100 text-xs">
-                      Critical
-                    </Badge>
-                  </div>) : <p className="text-slate-400 text-sm text-center py-4">No critical alerts</p>}
-              {criticalBatteries.length > 3 && <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/search')}>
-                  View All ({criticalBatteries.length})
-                </Button>}
-            </CardContent>
-          </Card>
-
-          {/* Performance Trends */}
-          <Card className="enhanced-card">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-400" />
-                Performance Trends
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300 text-sm">Avg SoH</span>
-                  <span className="text-white font-medium">
-                    {batteries.length > 0 ? (batteries.reduce((acc, b) => acc + b.soh, 0) / batteries.length).toFixed(1) : '0'}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300 text-sm">Degrading</span>
-                  <Badge className="bg-yellow-600/80 text-yellow-100 text-xs">
-                    {degradingBatteries.length}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300 text-sm">Critical</span>
-                  <Badge className="bg-red-600/80 text-red-100 text-xs">
-                    {criticalBatteries.length}
-                  </Badge>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/search')}>
-                <BarChart3 className="h-4 w-4 mr-2" />
-                View Analytics
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="flex items-center justify-center">
+          <Link to="/upload">
+            <Button className="glass-button border-blue-500/40 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
+              <FileText className="mr-2 h-4 w-4" />
+              Create Passport
+            </Button>
+          </Link>
         </div>
-
-        {/* Tabbed Content */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 glass-button">
-            <TabsTrigger value="overview">Fleet</TabsTrigger>
-            <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
-            <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
-            <TabsTrigger value="upload">Upload Data</TabsTrigger>
+      </div>
+      
+      <DashboardStats />
+      
+      <div className="mt-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 bg-black/20 border border-white/10 mb-6">
+            <TabsTrigger value="fleet" className="flex items-center gap-2 transition-all duration-200">
+              <Activity className="h-4 w-4" />
+              Fleet
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2 transition-all duration-200">
+              <BarChart3 className="h-4 w-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="comparison" className="flex items-center gap-2 transition-all duration-200">
+              <GitCompare className="h-4 w-4" />
+              Compare
+            </TabsTrigger>
+            <TabsTrigger value="export" className="flex items-center gap-2 transition-all duration-200">
+              <Download className="h-4 w-4" />
+              Export
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <OptimizedBatteryTable />
+          <TabsContent value="fleet" className="animate-fade-in">
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold text-white">Battery Fleet Overview</h2>
+              <OptimizedBatteryTable />
+            </div>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
-            <AdvancedAnalytics />
+          <TabsContent value="analytics" className="animate-fade-in">
+            <AdvancedAnalytics batteries={allBatteries} />
           </TabsContent>
 
-          <TabsContent value="comparison" className="space-y-6">
-            <BatteryComparison />
+          <TabsContent value="comparison" className="animate-fade-in">
+            <BatteryComparison batteries={allBatteries} />
           </TabsContent>
 
-          <TabsContent value="upload" className="space-y-6">
-            <Card className="enhanced-card">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  Upload Battery Data
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FileUploader />
-              </CardContent>
-            </Card>
+          <TabsContent value="export" className="animate-fade-in">
+            <DataExporter batteries={allBatteries} />
           </TabsContent>
         </Tabs>
       </div>
-    </div>;
+
+      {/* Battery Passport Modal */}
+      {selectedBattery && (
+        <BatteryPassportModal
+          battery={selectedBattery}
+          isOpen={isPassportOpen}
+          onClose={() => setIsPassportOpen(false)}
+          onSave={handleSaveBattery}
+        />
+      )}
+    </main>
+  );
 }
