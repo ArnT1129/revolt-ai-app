@@ -82,3 +82,8 @@ export class DashboardStatsService {
     };
   }
 }
+
+// Export both the class and an instance for backward compatibility
+export const dashboardStats = {
+  getOverviewStats: (batteries: Battery[]) => DashboardStatsService.calculateStats(batteries)
+};
