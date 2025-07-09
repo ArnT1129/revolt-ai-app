@@ -52,7 +52,48 @@ export default function FileUploader() {
         throw new Error('Failed to parse battery data from file');
       }
 
-      const batteryData = parseResult.batteries[0];
+      const parsedData = parseResult.batteries[0];
+
+      // Convert parsed data to Battery type
+      const batteryData: Battery = {
+        id: parsedData.id,
+        grade: parsedData.grade,
+        status: parsedData.status,
+        soh: parsedData.soh,
+        rul: parsedData.rul,
+        cycles: parsedData.cycles,
+        chemistry: parsedData.chemistry,
+        uploadDate: parsedData.uploadDate,
+        sohHistory: parsedData.sohHistory,
+        issues: parsedData.issues || [],
+        notes: parsedData.notes,
+        rawData: parsedData.rawData,
+        metrics: {
+          capacityRetention: parsedData.soh,
+          energyEfficiency: parsedData.metrics.coulombicEfficiency,
+          powerFadeRate: parsedData.computedMetrics.capacityFadeRate,
+          internalResistance: parsedData.metrics.internalResistance,
+          temperatureRange: {
+            min: parsedData.metrics.temperatureProfile.min,
+            max: parsedData.metrics.temperatureProfile.max,
+            average: parsedData.metrics.temperatureProfile.mean
+          },
+          voltageRange: {
+            min: parsedData.computedMetrics.averageMaxVoltage * 0.8, // Estimate
+            max: parsedData.computedMetrics.averageMaxVoltage,
+            average: parsedData.computedMetrics.averageMaxVoltage * 0.9
+          },
+          chargingEfficiency: parsedData.metrics.coulombicEfficiency,
+          dischargingEfficiency: parsedData.metrics.coulombicEfficiency * 0.95,
+          cycleLife: parsedData.computedMetrics.totalCycles,
+          calendarLife: Math.round(parsedData.computedMetrics.totalCycles * 1.5),
+          peakPower: 100, // Default value
+          energyDensity: 250, // Default value
+          selfDischargeRate: 2.5, // Default value
+          impedanceGrowth: 15, // Default value
+          thermalStability: 'Good'
+        }
+      };
 
       // Update progress
       setUploadResults(prev => prev.map(r => 

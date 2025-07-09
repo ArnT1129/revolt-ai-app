@@ -20,13 +20,17 @@ export default function DashboardStats() {
   const [isDemo, setIsDemo] = useState(false);
   const [showDemoBatteries, setShowDemoBatteries] = useState(false);
   const [demoBatteriesAdded, setDemoBatteriesAdded] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const updateStats = async () => {
     try {
+      console.log('DashboardStats: Updating stats...');
+      
       // Get real user batteries
       const realBatteries = await batteryService.getUserBatteries();
+      console.log('DashboardStats: Loaded batteries:', realBatteries);
       setUserBatteries(realBatteries);
       
       // Check if user is demo
@@ -42,6 +46,7 @@ export default function DashboardStats() {
         
         // Auto-add demo batteries for demo users if they don't have any batteries
         if (isDemoUser && realBatteries.length === 0 && !demoBatteriesAdded) {
+          console.log('DashboardStats: Demo user with no batteries, adding demo batteries...');
           await addDemoBatteries();
           return; // Exit early as addDemoBatteries will trigger another updateStats
         }
@@ -58,19 +63,28 @@ export default function DashboardStats() {
         averageSoH: dashboardStats.averageSoH,
         criticalIssues: dashboardStats.criticalIssues,
       });
+      
+      console.log('DashboardStats: Stats calculated:', {
+        totalBatteries: dashboardStats.totalBatteries,
+        averageSoH: dashboardStats.averageSoH,
+        criticalIssues: dashboardStats.criticalIssues,
+      });
     } catch (error) {
-      console.error('Error calculating stats:', error);
+      console.error('DashboardStats: Error calculating stats:', error);
       // Set default values for empty state
       setStats({
         totalBatteries: 0,
         averageSoH: 0,
         criticalIssues: 0,
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const addDemoBatteries = async () => {
     try {
+      console.log('DashboardStats: Adding demo batteries...');
       setDemoBatteriesAdded(true);
       
       const demoBatteries: Battery[] = [
@@ -169,8 +183,9 @@ export default function DashboardStats() {
         description: "3 demo batteries have been added to help you explore the app's features.",
       });
 
+      console.log('DashboardStats: Demo batteries added successfully');
     } catch (error) {
-      console.error('Error adding demo batteries:', error);
+      console.error('DashboardStats: Error adding demo batteries:', error);
       setDemoBatteriesAdded(false);
       toast({
         title: "Error",
@@ -181,20 +196,23 @@ export default function DashboardStats() {
   };
 
   useEffect(() => {
+    console.log('DashboardStats: Initial load or user change');
     updateStats();
 
     const handleBatteryUpdate = () => {
-      console.log('Battery data updated, refreshing dashboard stats...');
+      console.log('DashboardStats: Battery data updated, refreshing dashboard stats...');
       updateStats();
     };
 
     // Listen for various update events
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+    window.addEventListener('passportCreated', handleBatteryUpdate);
     window.addEventListener('storage', handleBatteryUpdate);
     window.addEventListener('focus', handleBatteryUpdate);
 
     return () => {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+      window.removeEventListener('passportCreated', handleBatteryUpdate);
       window.removeEventListener('storage', handleBatteryUpdate);
       window.removeEventListener('focus', handleBatteryUpdate);
     };
@@ -223,6 +241,24 @@ export default function DashboardStats() {
       bgColor: "bg-orange-500/10"
     },
   ], [stats]);
+
+  if (loading) {
+    return (
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className="enhanced-card animate-pulse">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <div className="h-4 bg-white/10 rounded w-1/2"></div>
+              <div className="h-8 w-8 bg-white/10 rounded"></div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 bg-white/10 rounded w-1/3"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
