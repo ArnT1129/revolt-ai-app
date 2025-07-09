@@ -49,8 +49,8 @@ export default function LandingPageModal({ isOpen, onClose }: LandingPageModalPr
         <DialogHeader className="text-center pb-6">
           <div className="flex justify-center mb-4">
             <img 
-              src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
-              alt="ReVolt Logo" 
+              src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
+              alt="ReVolt" 
               className="h-16 w-auto"
             />
           </div>

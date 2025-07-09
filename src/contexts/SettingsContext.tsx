@@ -83,12 +83,10 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       const savedSettings = localStorage.getItem('batteryAnalysisSettings');
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        // Merge with defaults to ensure all keys exist
         setSettings({ ...defaultSettings, ...parsed });
       }
     } catch (error) {
       console.error('Error loading settings:', error);
-      setSettings(defaultSettings);
     }
   }, []);
 
@@ -133,29 +131,11 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, [settings]);
 
   const updateSetting = (key: keyof AppSettings, value: any) => {
-    setSettings(prev => {
-      const newSettings = { ...prev, [key]: value };
-      // Auto-save on change
-      try {
-        localStorage.setItem('batteryAnalysisSettings', JSON.stringify(newSettings));
-      } catch (error) {
-        console.error('Error auto-saving settings:', error);
-      }
-      return newSettings;
-    });
+    setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
-    setSettings(prev => {
-      const updatedSettings = { ...prev, ...newSettings };
-      // Auto-save on change
-      try {
-        localStorage.setItem('batteryAnalysisSettings', JSON.stringify(updatedSettings));
-      } catch (error) {
-        console.error('Error auto-saving settings:', error);
-      }
-      return updatedSettings;
-    });
+    setSettings(prev => ({ ...prev, ...newSettings }));
   };
 
   const resetSettings = () => {

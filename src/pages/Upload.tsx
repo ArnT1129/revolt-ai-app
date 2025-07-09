@@ -9,10 +9,8 @@ import ManualBatteryModal from "@/components/ManualBatteryModal";
 import { toast } from "@/hooks/use-toast";
 import { batteryService } from "@/services/batteryService";
 import { Battery } from "@/types";
-import { useNavigate } from "react-router-dom";
 
 export default function Upload() {
-  const navigate = useNavigate();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadedBatteries, setUploadedBatteries] = useState<Battery[]>([]);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -129,8 +127,8 @@ export default function Upload() {
                 <Button onClick={resetUpload} className="glass-button">
                   Create More
                 </Button>
-                <Button variant="outline" className="glass-button" onClick={() => navigate('/')}>
-                  View Dashboard
+                <Button variant="outline" className="glass-button" asChild>
+                  <a href="/">View Dashboard</a>
                 </Button>
               </div>
             </CardContent>

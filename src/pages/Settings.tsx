@@ -8,23 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useEffect } from "react";
 
 export default function Settings() {
   const { settings, updateSetting, resetSettings, saveSettings } = useSettings();
-
-  // Auto-save settings when they change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      try {
-        saveSettings();
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timeoutId);
-  }, [settings, saveSettings]);
 
   const handleSaveSettings = async () => {
     try {
@@ -60,27 +46,6 @@ export default function Settings() {
     }
   };
 
-  const handleVoltageThresholdChange = (value: string) => {
-    const numValue = parseFloat(value);
-    if (!isNaN(numValue) && numValue >= 0 && numValue <= 5) {
-      updateSetting('voltageThreshold', numValue);
-    }
-  };
-
-  const handleCapacityThresholdChange = (value: string) => {
-    const numValue = parseInt(value);
-    if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-      updateSetting('capacityThreshold', numValue);
-    }
-  };
-
-  const handleDecimalPlacesChange = (value: string) => {
-    const numValue = parseInt(value);
-    if (!isNaN(numValue) && numValue >= 0 && numValue <= 6) {
-      updateSetting('decimalPlaces', numValue);
-    }
-  };
-
   return (
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -101,10 +66,7 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="defaultChemistry">Default Battery Chemistry</Label>
-                <Select 
-                  value={settings.defaultChemistry} 
-                  onValueChange={(value) => updateSetting('defaultChemistry', value)}
-                >
+                <Select value={settings.defaultChemistry} onValueChange={(value) => updateSetting('defaultChemistry', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select chemistry" />
                   </SelectTrigger>
@@ -124,10 +86,8 @@ export default function Settings() {
                   id="voltageThreshold"
                   type="number"
                   step="0.1"
-                  min="0"
-                  max="5"
                   value={settings.voltageThreshold}
-                  onChange={(e) => handleVoltageThresholdChange(e.target.value)}
+                  onChange={(e) => updateSetting('voltageThreshold', parseFloat(e.target.value) || 0)}
                 />
               </div>
               
@@ -136,19 +96,14 @@ export default function Settings() {
                 <Input
                   id="capacityThreshold"
                   type="number"
-                  min="0"
-                  max="100"
                   value={settings.capacityThreshold}
-                  onChange={(e) => handleCapacityThresholdChange(e.target.value)}
+                  onChange={(e) => updateSetting('capacityThreshold', parseInt(e.target.value) || 0)}
                 />
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="temperatureUnit">Temperature Unit</Label>
-                <Select 
-                  value={settings.temperatureUnit} 
-                  onValueChange={(value) => updateSetting('temperatureUnit', value)}
-                >
+                <Select value={settings.temperatureUnit} onValueChange={(value) => updateSetting('temperatureUnit', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -207,10 +162,7 @@ export default function Settings() {
             
             <div className="space-y-2">
               <Label>Interpolation Method</Label>
-              <Select 
-                value={settings.interpolationMethod} 
-                onValueChange={(value) => updateSetting('interpolationMethod', value)}
-              >
+              <Select value={settings.interpolationMethod} onValueChange={(value) => updateSetting('interpolationMethod', value)}>
                 <SelectTrigger className="w-full md:w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -266,10 +218,7 @@ export default function Settings() {
             
             <div className="space-y-2">
               <Label>Default Dashboard View</Label>
-              <Select 
-                value={settings.defaultView} 
-                onValueChange={(value) => updateSetting('defaultView', value)}
-              >
+              <Select value={settings.defaultView} onValueChange={(value) => updateSetting('defaultView', value)}>
                 <SelectTrigger className="w-full md:w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -294,10 +243,7 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Default Export Format</Label>
-                <Select 
-                  value={settings.exportFormat} 
-                  onValueChange={(value) => updateSetting('exportFormat', value)}
-                >
+                <Select value={settings.exportFormat} onValueChange={(value) => updateSetting('exportFormat', value)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -316,7 +262,7 @@ export default function Settings() {
                   min="0"
                   max="6"
                   value={settings.decimalPlaces}
-                  onChange={(e) => handleDecimalPlacesChange(e.target.value)}
+                  onChange={(e) => updateSetting('decimalPlaces', parseInt(e.target.value) || 0)}
                 />
               </div>
             </div>
@@ -329,48 +275,6 @@ export default function Settings() {
               <Switch
                 checked={settings.includeMetadata}
                 onCheckedChange={(checked) => updateSetting('includeMetadata', checked)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notifications Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Configure alert and notification preferences</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Analysis Complete Notifications</Label>
-                <p className="text-sm text-muted-foreground">Get notified when analysis is complete</p>
-              </div>
-              <Switch
-                checked={settings.analysisComplete}
-                onCheckedChange={(checked) => updateSetting('analysisComplete', checked)}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Error Alerts</Label>
-                <p className="text-sm text-muted-foreground">Show alerts for errors and issues</p>
-              </div>
-              <Switch
-                checked={settings.errorAlerts}
-                onCheckedChange={(checked) => updateSetting('errorAlerts', checked)}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Email Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-              </div>
-              <Switch
-                checked={settings.emailNotifications}
-                onCheckedChange={(checked) => updateSetting('emailNotifications', checked)}
               />
             </div>
           </CardContent>
