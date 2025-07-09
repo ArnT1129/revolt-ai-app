@@ -62,8 +62,16 @@ export default function DashboardStats() {
 
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
     
+    // Also listen for storage changes to catch updates from other tabs/components
+    const handleStorageChange = () => {
+      updateStats();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
     return () => {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [user]);
 

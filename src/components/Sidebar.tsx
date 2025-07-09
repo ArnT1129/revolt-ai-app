@@ -138,10 +138,6 @@ export default function Sidebar() {
                   className="h-8 w-auto"
                 />
               </div>
-              <div className="ml-3">
-                <h1 className="text-xl font-bold text-white">ReVolt</h1>
-                <p className="text-xs text-slate-400">Analytics Platform</p>
-              </div>
             </div>
           </div>
 

@@ -116,6 +116,11 @@ export default function FileUploader() {
           description: `Battery ${battery.id} has been processed and added.`,
         });
 
+        // Navigate to dashboard after successful upload
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+
       } catch (error) {
         console.error('Error processing file:', error);
         setFiles(prev => prev.map(f => 

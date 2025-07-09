@@ -29,7 +29,22 @@ export default function Dashboard() {
       loadDashboardData();
     };
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+
+    // Also listen for storage changes and focus events
+    const handleStorageChange = () => {
+      loadDashboardData();
+    };
+    const handleFocus = () => {
+      loadDashboardData();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+    return () => {
+      window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
   const loadDashboardData = async () => {
     try {
@@ -181,9 +196,9 @@ export default function Dashboard() {
         {/* Tabbed Content */}
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 glass-button">
-            <TabsTrigger value="overview">Fleet</TabsTrigger>
-            <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
-            <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="comparison">Compare</TabsTrigger>
             <TabsTrigger value="upload">Upload Data</TabsTrigger>
           </TabsList>
 

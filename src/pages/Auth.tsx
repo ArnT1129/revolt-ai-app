@@ -353,12 +353,8 @@ export default function Auth() {
             <img 
               src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
               alt="ReVolt Logo" 
-              className="h-16 w-auto"
+              className="h-12 w-auto"
             />
-            <div>
-              <h1 className="text-4xl font-bold text-white">ReVolt Analytics</h1>
-              <p className="text-xl text-blue-200">Advanced Battery Intelligence</p>
-            </div>
           </div>
           
           <div className="space-y-6 mb-12">
@@ -411,7 +407,6 @@ export default function Auth() {
                 alt="ReVolt Logo" 
                 className="h-8 w-auto"
               />
-              <span className="text-xl font-bold text-white">ReVolt Analytics</span>
             </div>
             <CardTitle className="text-2xl text-white">Welcome Back</CardTitle>
             <CardDescription className="text-slate-400">
