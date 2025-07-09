@@ -35,9 +35,9 @@ class BatteryService {
         chemistry: battery.chemistry as 'LFP' | 'NMC',
         uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
         sohHistory: Array.isArray(battery.soh_history) ? 
-          (battery.soh_history as SoHDataPoint[]) : [],
+          (battery.soh_history as unknown as SoHDataPoint[]) : [],
         issues: Array.isArray(battery.issues) ? 
-          (battery.issues as BatteryIssue[]) : [],
+          (battery.issues as unknown as BatteryIssue[]) : [],
         notes: battery.notes || '',
         rawData: Array.isArray(battery.raw_data) ? battery.raw_data : []
       }));
@@ -70,8 +70,8 @@ class BatteryService {
         cycles: battery.cycles,
         chemistry: battery.chemistry,
         upload_date: battery.uploadDate,
-        soh_history: battery.sohHistory as any, // Cast to Json type
-        issues: battery.issues as any, // Cast to Json type
+        soh_history: battery.sohHistory as any,
+        issues: battery.issues as any,
         notes: battery.notes || '',
         raw_data: battery.rawData || []
       };
@@ -123,8 +123,8 @@ class BatteryService {
           rul: battery.rul,
           cycles: battery.cycles,
           chemistry: battery.chemistry,
-          soh_history: battery.sohHistory as any, // Cast to Json type
-          issues: battery.issues as any, // Cast to Json type
+          soh_history: battery.sohHistory as any,
+          issues: battery.issues as any,
           notes: battery.notes,
           raw_data: battery.rawData,
           updated_at: new Date().toISOString()
