@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   className?: string;
@@ -25,7 +26,7 @@ interface SidebarProps {
 export default function Sidebar({ className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   const navigation = [
     {
@@ -78,6 +79,13 @@ export default function Sidebar({ className }: SidebarProps) {
     }
   ];
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
   return (
     <div className={cn(
       "h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-r border-white/10 transition-all duration-300 flex flex-col",
@@ -122,6 +130,14 @@ export default function Sidebar({ className }: SidebarProps) {
               </p>
             </div>
           </div>
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            size="sm"
+            className="w-full mt-3 glass-button text-xs"
+          >
+            Sign Out
+          </Button>
         </div>
       )}
 
@@ -153,14 +169,6 @@ export default function Sidebar({ className }: SidebarProps) {
                   <p className="text-xs text-slate-500 group-hover:text-slate-400">
                     {item.description}
                   </p>
-                </div>
-              )}
-              
-              {isActive && (
-                <div className="absolute right-2">
-                  <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 text-xs">
-                    Active
-                  </Badge>
                 </div>
               )}
             </NavLink>

@@ -26,6 +26,7 @@ export default function FileUploader() {
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [showPassportModal, setShowPassportModal] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const processFile = async (file: File): Promise<FileUploadResult> => {
     try {
@@ -219,6 +220,9 @@ export default function FileUploader() {
     setShowPassportModal(true);
   };
 
+  const handleGoToDashboard = () => {
+    navigate('/');
+  };
   return (
     <div className="space-y-6">
       {/* Upload Area */}
@@ -268,16 +272,26 @@ export default function FileUploader() {
         <Card className="enhanced-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-white">Upload Results</CardTitle>
-            {!isProcessing && (
-              <Button 
-                onClick={clearAll} 
-                variant="outline" 
-                size="sm"
-                className="glass-button"
-              >
-                Clear All
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {uploadResults.some(r => r.status === 'success') && (
+                <Button 
+                  onClick={handleGoToDashboard}
+                  className="glass-button bg-green-600/70 hover:bg-green-600/85"
+                >
+                  See on Dashboard
+                </Button>
+              )}
+              {!isProcessing && (
+                <Button 
+                  onClick={clearAll} 
+                  variant="outline" 
+                  size="sm"
+                  className="glass-button"
+                >
+                  Clear All
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {uploadResults.map((result, index) => (

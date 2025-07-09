@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
 import DashboardStats from '@/components/DashboardStats';
-import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
+import BatteryFleetTable from '@/components/BatteryFleetTable';
 import BatteryComparison from '@/components/BatteryComparison';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import FileUploader from '@/components/FileUploader';
@@ -244,41 +244,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Tabbed Content */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 glass-button">
-            <TabsTrigger value="overview">Battery Overview</TabsTrigger>
-            <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
-            <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
-            <TabsTrigger value="upload">Upload Data</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <OptimizedBatteryTable />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <AdvancedAnalytics />
-          </TabsContent>
-
-          <TabsContent value="comparison" className="space-y-6">
-            <BatteryComparison />
-          </TabsContent>
-
-          <TabsContent value="upload" className="space-y-6">
-            <Card className="enhanced-card">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  Upload Battery Data
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FileUploader />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Battery Fleet Table */}
+        <BatteryFleetTable />
       </div>
     </div>
   );

@@ -126,11 +126,11 @@ export default function Upload() {
                 ))}
               </div>
               <div className="flex gap-3">
+                <Button onClick={() => navigate('/')} className="glass-button bg-green-600/70 hover:bg-green-600/85">
+                  See on Dashboard
+                </Button>
                 <Button onClick={resetUpload} className="glass-button">
                   Create More
-                </Button>
-                <Button variant="outline" className="glass-button" onClick={() => navigate('/')}>
-                  View Dashboard
                 </Button>
               </div>
             </CardContent>

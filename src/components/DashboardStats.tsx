@@ -44,11 +44,10 @@ export default function DashboardStats() {
         const isDemoUser = profile?.is_demo || false;
         setIsDemo(isDemoUser);
         
-        // Auto-add demo batteries for demo users if they don't have any batteries
-        if (isDemoUser && realBatteries.length === 0 && !demoBatteriesAdded) {
-          console.log('DashboardStats: Demo user with no batteries, adding demo batteries...');
-          await addDemoBatteries();
-          return; // Exit early as addDemoBatteries will trigger another updateStats
+        // Always show demo batteries for demo users
+        if (isDemoUser && !demoBatteriesAdded) {
+          console.log('DashboardStats: Demo user, ensuring demo batteries are available...');
+          setDemoBatteriesAdded(true);
         }
       }
       
