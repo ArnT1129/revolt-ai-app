@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -107,6 +108,10 @@ export default function FileUploader() {
             ? { ...f, status: 'success', progress: 100, battery }
             : f
         ));
+
+        // Automatically show the passport modal for the newly created battery
+        setSelectedBattery(battery);
+        setIsPassportOpen(true);
 
         // Dispatch custom event to notify dashboard and other components
         window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
