@@ -241,19 +241,6 @@ p, span, div {
   border: 1px solid rgba(71, 85, 105, 0.4) !important;
   border-radius: 12px !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
-  position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  z-index: 100 !important;
-}
-
-/* Modal overlay */
-[data-radix-dialog-overlay] {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 99 !important;
-  background: rgba(0, 0, 0, 0.8) !important;
 }
 
 @keyframes fade-in {

@@ -1,15 +1,33 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { Battery, SoHDataPoint, BatteryIssue } from '@/types';
+import { Battery, BatteryGrade, BatteryStatus, BatteryIssue } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+
+interface BatteryUpdate {
+  grade?: BatteryGrade;
+  status?: BatteryStatus;
+  soh?: number;
+  rul?: number;
+  cycles?: number;
+  chemistry?: "LFP" | "NMC";
+  uploadDate?: string;
+  sohHistory?: { cycle: number; soh: number }[];
+  issues?: BatteryIssue[];
+  notes?: string;
+}
 
 class BatteryService {
   async getUserBatteries(): Promise<Battery[]> {
     try {
-      console.log('Fetching user batteries...');
-      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return [];
+      }
+
       const { data: batteries, error } = await supabase
         .from('user_batteries')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -17,75 +35,53 @@ class BatteryService {
         return [];
       }
 
-      console.log('Raw batteries from database:', batteries);
-
-      if (!batteries || batteries.length === 0) {
-        console.log('No batteries found in database');
-        return [];
-      }
-
-      // Transform database data to Battery type
-      const transformedBatteries: Battery[] = batteries.map(battery => ({
+      return batteries.map(battery => ({
         id: battery.id,
-        grade: battery.grade as 'A' | 'B' | 'C' | 'D',
-        status: battery.status as 'Healthy' | 'Degrading' | 'Critical' | 'Unknown',
-        soh: Number(battery.soh),
+        grade: battery.grade as BatteryGrade,
+        status: battery.status as BatteryStatus,
+        soh: battery.soh,
         rul: battery.rul,
         cycles: battery.cycles,
-        chemistry: battery.chemistry as 'LFP' | 'NMC',
+        chemistry: battery.chemistry as "LFP" | "NMC",
         uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
-        sohHistory: Array.isArray(battery.soh_history) ? 
-          (battery.soh_history as unknown as SoHDataPoint[]) : [],
-        issues: Array.isArray(battery.issues) ? 
-          (battery.issues as unknown as BatteryIssue[]) : [],
-        notes: battery.notes || '',
-        rawData: Array.isArray(battery.raw_data) ? battery.raw_data : []
+        sohHistory: Array.isArray(battery.soh_history) ? (battery.soh_history as unknown as { cycle: number; soh: number }[]) : [],
+        issues: Array.isArray(battery.issues) ? (battery.issues as unknown as BatteryIssue[]) : [],
+        notes: battery.notes
       }));
-
-      console.log('Transformed batteries:', transformedBatteries);
-      return transformedBatteries;
     } catch (error) {
       console.error('Error in getUserBatteries:', error);
       return [];
     }
   }
 
-  async addBattery(battery: Battery): Promise<boolean> {
+  async addBattery(newBattery: Battery): Promise<boolean> {
     try {
-      console.log('Adding battery to database:', battery);
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.error('No authenticated user found');
         return false;
       }
 
-      const batteryData = {
-        id: battery.id,
+      const { error } = await supabase.from('user_batteries').insert({
+        id: newBattery.id,
         user_id: user.id,
-        grade: battery.grade,
-        status: battery.status,
-        soh: battery.soh,
-        rul: battery.rul,
-        cycles: battery.cycles,
-        chemistry: battery.chemistry,
-        upload_date: battery.uploadDate,
-        soh_history: battery.sohHistory as any,
-        issues: battery.issues as any,
-        notes: battery.notes || '',
-        raw_data: battery.rawData || []
-      };
-
-      const { error } = await supabase
-        .from('user_batteries')
-        .insert(batteryData);
+        grade: newBattery.grade,
+        status: newBattery.status,
+        soh: newBattery.soh,
+        rul: newBattery.rul,
+        cycles: newBattery.cycles,
+        chemistry: newBattery.chemistry,
+        upload_date: newBattery.uploadDate,
+        soh_history: JSON.parse(JSON.stringify(newBattery.sohHistory)),
+        issues: JSON.parse(JSON.stringify(newBattery.issues || [])),
+        notes: newBattery.notes
+      });
 
       if (error) {
-        console.error('Error inserting battery:', error);
+        console.error('Error adding battery:', error);
         return false;
       }
 
-      console.log('Battery added successfully');
       return true;
     } catch (error) {
       console.error('Error in addBattery:', error);
@@ -93,12 +89,56 @@ class BatteryService {
     }
   }
 
+  async updateBattery(updatedBattery: Battery): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('user_batteries')
+        .update({
+          grade: updatedBattery.grade,
+          status: updatedBattery.status,
+          soh: updatedBattery.soh,
+          rul: updatedBattery.rul,
+          cycles: updatedBattery.cycles,
+          chemistry: updatedBattery.chemistry,
+          upload_date: updatedBattery.uploadDate,
+          soh_history: JSON.parse(JSON.stringify(updatedBattery.sohHistory)),
+          issues: JSON.parse(JSON.stringify(updatedBattery.issues || [])),
+          notes: updatedBattery.notes
+        })
+        .eq('id', updatedBattery.id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error updating battery:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateBattery:', error);
+      return false;
+    }
+  }
+
   async deleteBattery(batteryId: string): Promise<boolean> {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
+      }
+
       const { error } = await supabase
         .from('user_batteries')
         .delete()
-        .eq('id', batteryId);
+        .eq('id', batteryId)
+        .eq('user_id', user.id);
 
       if (error) {
         console.error('Error deleting battery:', error);
@@ -112,33 +152,40 @@ class BatteryService {
     }
   }
 
-  async updateBattery(battery: Battery): Promise<boolean> {
+  async updateBatteryFields(batteryId: string, updates: BatteryUpdate): Promise<boolean> {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return false;
+      }
+
+      const dbUpdates: any = {};
+      if (updates.grade !== undefined) dbUpdates.grade = updates.grade;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.soh !== undefined) dbUpdates.soh = updates.soh;
+      if (updates.rul !== undefined) dbUpdates.rul = updates.rul;
+      if (updates.cycles !== undefined) dbUpdates.cycles = updates.cycles;
+      if (updates.chemistry !== undefined) dbUpdates.chemistry = updates.chemistry;
+      if (updates.uploadDate !== undefined) dbUpdates.upload_date = updates.uploadDate;
+      if (updates.sohHistory !== undefined) dbUpdates.soh_history = JSON.parse(JSON.stringify(updates.sohHistory));
+      if (updates.issues !== undefined) dbUpdates.issues = JSON.parse(JSON.stringify(updates.issues));
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
       const { error } = await supabase
         .from('user_batteries')
-        .update({
-          grade: battery.grade,
-          status: battery.status,
-          soh: battery.soh,
-          rul: battery.rul,
-          cycles: battery.cycles,
-          chemistry: battery.chemistry,
-          soh_history: battery.sohHistory as any,
-          issues: battery.issues as any,
-          notes: battery.notes,
-          raw_data: battery.rawData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', battery.id);
+        .update(dbUpdates)
+        .eq('id', batteryId)
+        .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error updating battery:', error);
+        console.error('Error updating battery fields:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Error in updateBattery:', error);
+      console.error('Error in updateBatteryFields:', error);
       return false;
     }
   }

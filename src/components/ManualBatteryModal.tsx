@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Battery, BatteryGrade, BatteryStatus } from "@/types";
-import { useNavigate } from "react-router-dom";
 
 interface ManualBatteryModalProps {
   isOpen: boolean;
@@ -15,7 +14,6 @@ interface ManualBatteryModalProps {
 }
 
 export default function ManualBatteryModal({ isOpen, onClose, onSave }: ManualBatteryModalProps) {
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     id: '',
     grade: 'A' as BatteryGrade,
@@ -60,11 +58,6 @@ export default function ManualBatteryModal({ isOpen, onClose, onSave }: ManualBa
       chemistry: 'NMC'
     });
     onClose();
-    
-    // Navigate to dashboard after creating battery
-    setTimeout(() => {
-      navigate('/');
-    }, 1000);
   };
 
   return (
