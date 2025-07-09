@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Upload, FileText, CheckCircle, AlertCircle, X, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
-import { improvedBatteryDataParser } from '@/services/improvedBatteryDataParser';
+import { ImprovedBatteryDataParser } from '@/services/improvedBatteryDataParser';
 import { Battery } from '@/types';
 import BatteryPassportModal from './BatteryPassportModal';
 
@@ -42,16 +41,18 @@ export default function FileUploader() {
       ));
 
       // Parse the file
-      const batteryData = await improvedBatteryDataParser.parseFile(file);
+      const parseResult = await ImprovedBatteryDataParser.parseFile(file);
       
       // Update progress
       setUploadResults(prev => prev.map(r => 
         r.file === file ? { ...r, progress: 50 } : r
       ));
 
-      if (!batteryData) {
+      if (!parseResult || parseResult.batteries.length === 0) {
         throw new Error('Failed to parse battery data from file');
       }
+
+      const batteryData = parseResult.batteries[0];
 
       // Update progress
       setUploadResults(prev => prev.map(r => 
