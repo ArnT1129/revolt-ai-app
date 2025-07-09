@@ -108,18 +108,13 @@ export default function FileUploader() {
             : f
         ));
 
-        // Dispatch custom event to notify other components
+        // Dispatch custom event to notify dashboard and other components
         window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
         toast({
           title: "Upload Successful",
-          description: `Battery ${battery.id} has been processed and added.`,
+          description: `Battery ${battery.id} has been processed and added to your dashboard.`,
         });
-
-        // Navigate to dashboard after successful upload
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 2000);
 
       } catch (error) {
         console.error('Error processing file:', error);
@@ -169,6 +164,9 @@ export default function FileUploader() {
           ? { ...f, battery: updatedBattery }
           : f
       ));
+
+      // Dispatch event to update dashboard
+      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
       toast({
         title: "Battery Updated",
