@@ -76,21 +76,21 @@ export default function FileUploader() {
           temperatureRange: {
             min: parsedData.metrics.temperatureProfile.min,
             max: parsedData.metrics.temperatureProfile.max,
-            average: parsedData.metrics.temperatureProfile.mean
+            avg: parsedData.metrics.temperatureProfile.mean
           },
           voltageRange: {
-            min: parsedData.computedMetrics.averageMaxVoltage * 0.8, // Estimate
+            min: parsedData.computedMetrics.averageMaxVoltage * 0.8,
             max: parsedData.computedMetrics.averageMaxVoltage,
-            average: parsedData.computedMetrics.averageMaxVoltage * 0.9
+            avg: parsedData.computedMetrics.averageMaxVoltage * 0.9
           },
           chargingEfficiency: parsedData.metrics.coulombicEfficiency,
           dischargingEfficiency: parsedData.metrics.coulombicEfficiency * 0.95,
           cycleLife: parsedData.computedMetrics.totalCycles,
           calendarLife: Math.round(parsedData.computedMetrics.totalCycles * 1.5),
-          peakPower: 100, // Default value
-          energyDensity: 250, // Default value
-          selfDischargeRate: 2.5, // Default value
-          impedanceGrowth: 15, // Default value
+          peakPower: 100,
+          energyDensity: 250,
+          selfDischargeRate: 2.5,
+          impedanceGrowth: 15,
           thermalStability: 'Good'
         }
       };

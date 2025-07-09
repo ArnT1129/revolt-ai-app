@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Battery } from '@/types';
+import { Battery, SoHDataPoint, BatteryIssue } from '@/types';
 
 class BatteryService {
   async getUserBatteries(): Promise<Battery[]> {
@@ -25,7 +25,7 @@ class BatteryService {
       }
 
       // Transform database data to Battery type
-      const transformedBatteries = batteries.map(battery => ({
+      const transformedBatteries: Battery[] = batteries.map(battery => ({
         id: battery.id,
         grade: battery.grade as 'A' | 'B' | 'C' | 'D',
         status: battery.status as 'Healthy' | 'Degrading' | 'Critical' | 'Unknown',
@@ -34,8 +34,10 @@ class BatteryService {
         cycles: battery.cycles,
         chemistry: battery.chemistry as 'LFP' | 'NMC',
         uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
-        sohHistory: Array.isArray(battery.soh_history) ? battery.soh_history : [],
-        issues: Array.isArray(battery.issues) ? battery.issues : [],
+        sohHistory: Array.isArray(battery.soh_history) ? 
+          (battery.soh_history as SoHDataPoint[]) : [],
+        issues: Array.isArray(battery.issues) ? 
+          (battery.issues as BatteryIssue[]) : [],
         notes: battery.notes || '',
         rawData: Array.isArray(battery.raw_data) ? battery.raw_data : []
       }));
@@ -68,15 +70,15 @@ class BatteryService {
         cycles: battery.cycles,
         chemistry: battery.chemistry,
         upload_date: battery.uploadDate,
-        soh_history: battery.sohHistory || [],
-        issues: battery.issues || [],
+        soh_history: battery.sohHistory as any, // Cast to Json type
+        issues: battery.issues as any, // Cast to Json type
         notes: battery.notes || '',
         raw_data: battery.rawData || []
       };
 
       const { error } = await supabase
         .from('user_batteries')
-        .insert([batteryData]);
+        .insert(batteryData);
 
       if (error) {
         console.error('Error inserting battery:', error);
@@ -121,8 +123,8 @@ class BatteryService {
           rul: battery.rul,
           cycles: battery.cycles,
           chemistry: battery.chemistry,
-          soh_history: battery.sohHistory,
-          issues: battery.issues,
+          soh_history: battery.sohHistory as any, // Cast to Json type
+          issues: battery.issues as any, // Cast to Json type
           notes: battery.notes,
           raw_data: battery.rawData,
           updated_at: new Date().toISOString()
