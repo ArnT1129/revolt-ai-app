@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,19 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
-import { DashboardStatsService } from '@/services/dashboardStats';
 import DashboardStats from '@/components/DashboardStats';
 import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
 import BatteryComparison from '@/components/BatteryComparison';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import FileUploader from '@/components/FileUploader';
-import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search } from 'lucide-react';
+import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Battery as BatteryType } from '@/types';
 
 export default function Dashboard() {
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -30,30 +31,28 @@ export default function Dashboard() {
       loadDashboardData();
     };
 
+    // Listen for passport creation events
+    const handlePassportCreated = () => {
+      console.log('New passport created, refreshing dashboard...');
+      loadDashboardData();
+    };
+
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
-
-    // Also listen for storage changes and focus events
-    const handleStorageChange = () => {
-      loadDashboardData();
-    };
-    
-    const handleFocus = () => {
-      loadDashboardData();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('passportCreated', handlePassportCreated);
+    window.addEventListener('storage', handleBatteryUpdate);
+    window.addEventListener('focus', handleBatteryUpdate);
 
     return () => {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('passportCreated', handlePassportCreated);
+      window.removeEventListener('storage', handleBatteryUpdate);
+      window.removeEventListener('focus', handleBatteryUpdate);
     };
   }, []);
 
   const loadDashboardData = async () => {
     try {
-      setLoading(true);
+      if (!loading) setRefreshing(true);
       const batteryData = await batteryService.getUserBatteries();
       console.log('Loaded battery data:', batteryData.length, 'batteries');
       setBatteries(batteryData);
@@ -66,7 +65,16 @@ export default function Dashboard() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    await loadDashboardData();
+    toast({
+      title: "Dashboard Refreshed",
+      description: "Battery data has been updated",
+    });
   };
 
   const recentBatteries = batteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
@@ -103,6 +111,15 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              onClick={handleRefresh} 
+              variant="outline" 
+              className="glass-button"
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button onClick={() => navigate('/upload')} className="glass-button">
               <Upload className="h-4 w-4 mr-2" />
               Upload Data

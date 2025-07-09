@@ -19,6 +19,7 @@ export default function DashboardStats() {
   const [userBatteries, setUserBatteries] = useState<Battery[]>([]);
   const [isDemo, setIsDemo] = useState(false);
   const [showDemoBatteries, setShowDemoBatteries] = useState(false);
+  const [demoBatteriesAdded, setDemoBatteriesAdded] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -36,11 +37,18 @@ export default function DashboardStats() {
           .eq('id', user.id)
           .single();
         
-        setIsDemo(profile?.is_demo || false);
+        const isDemoUser = profile?.is_demo || false;
+        setIsDemo(isDemoUser);
+        
+        // Auto-add demo batteries for demo users if they don't have any batteries
+        if (isDemoUser && realBatteries.length === 0 && !demoBatteriesAdded) {
+          await addDemoBatteries();
+          return; // Exit early as addDemoBatteries will trigger another updateStats
+        }
       }
       
-      // Show demo batteries option if user has no batteries
-      setShowDemoBatteries(realBatteries.length === 0);
+      // Show demo batteries option if user has no batteries and is not demo
+      setShowDemoBatteries(!isDemo && realBatteries.length === 0);
       
       // Calculate stats from real batteries only
       const dashboardStats = DashboardStatsService.calculateStats(realBatteries);
@@ -63,6 +71,8 @@ export default function DashboardStats() {
 
   const addDemoBatteries = async () => {
     try {
+      setDemoBatteriesAdded(true);
+      
       const demoBatteries: Battery[] = [
         {
           id: 'DEMO-HEALTHY-001',
@@ -149,7 +159,8 @@ export default function DashboardStats() {
         await batteryService.addBattery(battery);
       }
 
-      // Refresh the dashboard
+      // Refresh the dashboard immediately
+      await updateStats();
       window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
       setShowDemoBatteries(false);
 
@@ -160,6 +171,7 @@ export default function DashboardStats() {
 
     } catch (error) {
       console.error('Error adding demo batteries:', error);
+      setDemoBatteriesAdded(false);
       toast({
         title: "Error",
         description: "Failed to add demo batteries. Please try again.",
@@ -172,29 +184,21 @@ export default function DashboardStats() {
     updateStats();
 
     const handleBatteryUpdate = () => {
+      console.log('Battery data updated, refreshing dashboard stats...');
       updateStats();
     };
 
+    // Listen for various update events
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
-    
-    // Also listen for storage changes and focus events
-    const handleStorageChange = () => {
-      updateStats();
-    };
-    
-    const handleFocus = () => {
-      updateStats();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleBatteryUpdate);
+    window.addEventListener('focus', handleBatteryUpdate);
 
     return () => {
       window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleBatteryUpdate);
+      window.removeEventListener('focus', handleBatteryUpdate);
     };
-  }, [user]);
+  }, [user, demoBatteriesAdded]);
 
   const statsData = useMemo(() => [
     { 
@@ -234,8 +238,8 @@ export default function DashboardStats() {
         </div>
       )}
 
-      {/* Demo Batteries CTA - Show when user has no batteries */}
-      {showDemoBatteries && (
+      {/* Demo Batteries CTA - Show when user has no batteries and not demo user */}
+      {showDemoBatteries && !isDemo && (
         <Card className="enhanced-card border-green-500/30">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -250,6 +254,7 @@ export default function DashboardStats() {
               <Button 
                 onClick={addDemoBatteries}
                 className="glass-button border-green-500/40 hover:border-green-400"
+                disabled={demoBatteriesAdded}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Demo Batteries

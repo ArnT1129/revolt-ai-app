@@ -1,43 +1,156 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Upload, FileText, CheckCircle, AlertCircle, X, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, AlertCircle, CheckCircle2, X, Eye } from 'lucide-react';
 import { batteryService } from '@/services/batteryService';
-import { ImprovedBatteryDataParser } from '@/services/improvedBatteryDataParser';
+import { improvedBatteryDataParser } from '@/services/improvedBatteryDataParser';
+import { Battery } from '@/types';
 import BatteryPassportModal from './BatteryPassportModal';
-import type { Battery } from '@/types';
 
-interface UploadedFile {
+interface FileUploadResult {
   file: File;
-  id: string;
   status: 'pending' | 'processing' | 'success' | 'error';
-  progress: number;
-  error?: string;
   battery?: Battery;
+  error?: string;
+  progress: number;
 }
 
 export default function FileUploader() {
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [uploadResults, setUploadResults] = useState<FileUploadResult[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
-  const [isPassportOpen, setIsPassportOpen] = useState(false);
+  const [showPassportModal, setShowPassportModal] = useState(false);
   const { toast } = useToast();
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map(file => ({
+  const processFile = async (file: File): Promise<FileUploadResult> => {
+    try {
+      const result: FileUploadResult = {
+        file,
+        status: 'processing',
+        progress: 0
+      };
+
+      // Update progress to show processing started
+      setUploadResults(prev => prev.map(r => 
+        r.file === file ? { ...r, status: 'processing', progress: 25 } : r
+      ));
+
+      // Parse the file
+      const batteryData = await improvedBatteryDataParser.parseFile(file);
+      
+      // Update progress
+      setUploadResults(prev => prev.map(r => 
+        r.file === file ? { ...r, progress: 50 } : r
+      ));
+
+      if (!batteryData) {
+        throw new Error('Failed to parse battery data from file');
+      }
+
+      // Update progress
+      setUploadResults(prev => prev.map(r => 
+        r.file === file ? { ...r, progress: 75 } : r
+      ));
+
+      // Save to database
+      const success = await batteryService.addBattery(batteryData);
+      
+      if (!success) {
+        throw new Error('Failed to save battery data to database');
+      }
+
+      // Complete
+      result.status = 'success';
+      result.battery = batteryData;
+      result.progress = 100;
+
+      return result;
+    } catch (error) {
+      console.error('Error processing file:', error);
+      return {
+        file,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        progress: 0
+      };
+    }
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+
+    setIsProcessing(true);
+    
+    // Initialize upload results
+    const initialResults: FileUploadResult[] = acceptedFiles.map(file => ({
       file,
-      id: Math.random().toString(36).substr(2, 9),
       status: 'pending' as const,
-      progress: 0,
+      progress: 0
     }));
     
-    setFiles(prev => [...prev, ...newFiles]);
-  }, []);
+    setUploadResults(initialResults);
+
+    try {
+      // Process files sequentially to avoid overwhelming the system
+      const results: FileUploadResult[] = [];
+      
+      for (const file of acceptedFiles) {
+        const result = await processFile(file);
+        results.push(result);
+        
+        // Update the results state after each file
+        setUploadResults(prev => prev.map(r => 
+          r.file === file ? result : r
+        ));
+      }
+
+      // Check if any files were processed successfully
+      const successfulUploads = results.filter(r => r.status === 'success');
+      const failedUploads = results.filter(r => r.status === 'error');
+
+      if (successfulUploads.length > 0) {
+        // Dispatch events to update dashboard and other components
+        window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
+        window.dispatchEvent(new CustomEvent('passportCreated'));
+        
+        // Show the first successful battery passport
+        const firstBattery = successfulUploads[0].battery;
+        if (firstBattery) {
+          setSelectedBattery(firstBattery);
+          setShowPassportModal(true);
+        }
+
+        toast({
+          title: "Upload Successful",
+          description: `Successfully processed ${successfulUploads.length} battery file(s)`,
+        });
+      }
+
+      if (failedUploads.length > 0) {
+        toast({
+          title: "Some uploads failed",
+          description: `${failedUploads.length} file(s) could not be processed`,
+          variant: "destructive",
+        });
+      }
+
+    } catch (error) {
+      console.error('Error during file upload:', error);
+      toast({
+        title: "Upload Error",
+        description: "An unexpected error occurred during upload",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -45,325 +158,188 @@ export default function FileUploader() {
       'text/csv': ['.csv'],
       'application/vnd.ms-excel': ['.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/json': ['.json']
     },
-    multiple: true,
+    maxSize: 50 * 1024 * 1024, // 50MB
+    disabled: isProcessing
   });
 
-  const processFiles = async () => {
-    setIsProcessing(true);
-    const pendingFiles = files.filter(f => f.status === 'pending');
-    
-    for (const fileData of pendingFiles) {
-      try {
-        // Update status to processing
-        setFiles(prev => prev.map(f => 
-          f.id === fileData.id 
-            ? { ...f, status: 'processing', progress: 20 }
-            : f
-        ));
-
-        // Simulate progress
-        for (let progress = 40; progress <= 80; progress += 20) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          setFiles(prev => prev.map(f => 
-            f.id === fileData.id ? { ...f, progress } : f
-          ));
-        }
-
-        // Parse the file
-        const parseResult = await ImprovedBatteryDataParser.parseFile(fileData.file);
-        
-        // Get the first battery from the parse result
-        const parsedBattery = parseResult.batteries[0];
-        
-        if (!parsedBattery) {
-          throw new Error('No battery data found in file');
-        }
-        
-        // Convert ParsedBatteryData to Battery type
-        const battery: Battery = {
-          id: parsedBattery.id,
-          grade: parsedBattery.grade,
-          status: parsedBattery.status,
-          soh: parsedBattery.soh,
-          rul: parsedBattery.rul,
-          cycles: parsedBattery.cycles,
-          chemistry: parsedBattery.chemistry,
-          uploadDate: parsedBattery.uploadDate,
-          sohHistory: parsedBattery.sohHistory,
-          issues: parsedBattery.issues,
-          notes: parsedBattery.notes || '',
-        };
-        
-        // Add to service
-        const success = await batteryService.addBattery(battery);
-        
-        if (!success) {
-          throw new Error('Failed to save battery to database');
-        }
-        
-        // Update status to success
-        setFiles(prev => prev.map(f => 
-          f.id === fileData.id 
-            ? { ...f, status: 'success', progress: 100, battery }
-            : f
-        ));
-
-        // Automatically show the passport modal for the newly created battery
-        setSelectedBattery(battery);
-        setIsPassportOpen(true);
-
-        // Dispatch custom event to notify dashboard and other components
-        window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-
-        toast({
-          title: "Upload Successful",
-          description: `Battery ${battery.id} has been processed and added to your dashboard.`,
-        });
-
-      } catch (error) {
-        console.error('Error processing file:', error);
-        setFiles(prev => prev.map(f => 
-          f.id === fileData.id 
-            ? { 
-                ...f, 
-                status: 'error', 
-                progress: 0,
-                error: error instanceof Error ? error.message : 'Unknown error'
-              }
-            : f
-        ));
-
-        toast({
-          title: "Upload Failed",
-          description: `Failed to process ${fileData.file.name}`,
-          variant: "destructive",
-        });
-      }
-    }
-    
-    setIsProcessing(false);
+  const removeFile = (fileToRemove: File) => {
+    setUploadResults(prev => prev.filter(result => result.file !== fileToRemove));
   };
 
-  const removeFile = (id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
+  const clearAll = () => {
+    setUploadResults([]);
   };
 
-  const clearCompleted = () => {
-    setFiles(prev => prev.filter(f => f.status === 'pending' || f.status === 'processing'));
-  };
-
-  const viewBattery = (battery: Battery) => {
+  const handleViewPassport = (battery: Battery) => {
     setSelectedBattery(battery);
-    setIsPassportOpen(true);
+    setShowPassportModal(true);
   };
-
-  const handleSaveBattery = async (updatedBattery: Battery) => {
-    // Update the battery in the service
-    const success = await batteryService.updateBattery(updatedBattery);
-    
-    if (success) {
-      // Update the file record
-      setFiles(prev => prev.map(f => 
-        f.battery?.id === updatedBattery.id 
-          ? { ...f, battery: updatedBattery }
-          : f
-      ));
-
-      // Dispatch event to update dashboard
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-
-      toast({
-        title: "Battery Updated",
-        description: "Battery information has been saved successfully.",
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to update battery information.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success':
-        return <CheckCircle2 className="h-4 w-4 text-green-400" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-400" />;
-      case 'processing':
-        return <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent" />;
-      default:
-        return <FileText className="h-4 w-4 text-slate-400" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return 'border-green-500/50 bg-green-900/20';
-      case 'error': return 'border-red-500/50 bg-red-900/20';
-      case 'processing': return 'border-blue-500/50 bg-blue-900/20';
-      default: return 'border-slate-600/50 bg-slate-800/40';
-    }
-  };
-
-  const pendingCount = files.filter(f => f.status === 'pending').length;
-  const successCount = files.filter(f => f.status === 'success').length;
-  const errorCount = files.filter(f => f.status === 'error').length;
 
   return (
     <div className="space-y-6">
       {/* Upload Area */}
-      <Card className="enhanced-card">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Battery Data
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="enhanced-card border-dashed border-2 border-white/20 hover:border-white/40 transition-colors">
+        <CardContent className="p-8">
           <div
             {...getRootProps()}
-            className={`
-              border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-              ${isDragActive 
-                ? 'border-blue-400 bg-blue-900/20' 
-                : 'border-slate-600 hover:border-slate-500 hover:bg-slate-800/50'
-              }
-            `}
+            className={`text-center cursor-pointer transition-all duration-200 ${
+              isDragActive 
+                ? 'scale-105 text-white' 
+                : 'text-slate-300 hover:text-white'
+            } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <input {...getInputProps()} />
-            <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-            {isDragActive ? (
-              <p className="text-blue-400 text-lg mb-2">Drop the files here...</p>
-            ) : (
-              <p className="text-white text-lg mb-2">Drag & drop files here, or click to select</p>
-            )}
-            <p className="text-slate-400 text-sm">
-              Supports CSV, XLS, and XLSX files containing battery cycling data
-            </p>
-          </div>
-
-          {files.length > 0 && (
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex gap-4 text-sm">
-                  <span className="text-slate-300">
-                    {files.length} file{files.length !== 1 ? 's' : ''} total
-                  </span>
-                  {pendingCount > 0 && (
-                    <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-                      {pendingCount} pending
-                    </Badge>
-                  )}
-                  {successCount > 0 && (
-                    <Badge className="bg-green-600/80 text-green-100">
-                      {successCount} success
-                    </Badge>
-                  )}
-                  {errorCount > 0 && (
-                    <Badge className="bg-red-600/80 text-red-100">
-                      {errorCount} error
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {pendingCount > 0 && (
-                    <Button 
-                      onClick={processFiles}
-                      disabled={isProcessing}
-                      className="glass-button"
-                    >
-                      {isProcessing ? 'Processing...' : `Process ${pendingCount} Files`}
-                    </Button>
-                  )}
-                  {(successCount > 0 || errorCount > 0) && (
-                    <Button 
-                      onClick={clearCompleted}
-                      variant="outline"
-                      className="glass-button"
-                    >
-                      Clear Completed
-                    </Button>
-                  )}
-                </div>
+            <div className="flex flex-col items-center space-y-4">
+              <div className={`p-4 rounded-full bg-blue-500/20 border border-blue-500/30 ${
+                isDragActive ? 'animate-pulse' : ''
+              }`}>
+                <Upload className="h-8 w-8 text-blue-400" />
               </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-2">
+                  {isDragActive 
+                    ? 'Drop files here to upload' 
+                    : 'Upload Battery Data Files'
+                  }
+                </h3>
+                <p className="text-sm text-slate-400 mb-2">
+                  Drop files here or click to browse
+                </p>
+                <p className="text-xs text-slate-500">
+                  Supports CSV, Excel (.xlsx, .xls), and JSON files up to 50MB
+                </p>
+              </div>
+              {!isProcessing && (
+                <Button className="glass-button border-blue-500/40 hover:border-blue-400">
+                  Select Files
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {files.map((fileData) => (
-                  <div 
-                    key={fileData.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border ${getStatusColor(fileData.status)}`}
-                  >
-                    {getStatusIcon(fileData.status)}
+      {/* Upload Results */}
+      {uploadResults.length > 0 && (
+        <Card className="enhanced-card">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-white">Upload Results</CardTitle>
+            {!isProcessing && (
+              <Button 
+                onClick={clearAll} 
+                variant="outline" 
+                size="sm"
+                className="glass-button"
+              >
+                Clear All
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {uploadResults.map((result, index) => (
+              <div 
+                key={index}
+                className="flex items-center justify-between p-4 rounded-lg border border-white/10 bg-white/5"
+              >
+                <div className="flex items-center space-x-3 flex-1">
+                  <FileText className="h-5 w-5 text-blue-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {result.file.name}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {(result.file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
                     
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium truncate">
-                        {fileData.file.name}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span>{(fileData.file.size / 1024).toFixed(1)} KB</span>
-                        {fileData.status === 'success' && fileData.battery && (
-                          <>
-                            <span>•</span>
-                            <span>Battery ID: {fileData.battery.id}</span>
-                          </>
-                        )}
-                        {fileData.error && (
-                          <>
-                            <span>•</span>
-                            <span className="text-red-400">{fileData.error}</span>
-                          </>
-                        )}
+                    {result.status === 'processing' && (
+                      <div className="mt-2">
+                        <Progress value={result.progress} className="h-2" />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Processing... {result.progress}%
+                        </p>
                       </div>
-                      
-                      {fileData.status === 'processing' && (
-                        <Progress 
-                          value={fileData.progress} 
-                          className="mt-2 h-2"
-                        />
-                      )}
-                    </div>
-
-                    <div className="flex gap-1">
-                      {fileData.status === 'success' && fileData.battery && (
+                    )}
+                    
+                    {result.status === 'error' && result.error && (
+                      <Alert className="mt-2 p-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <p className="text-xs">{result.error}</p>
+                      </Alert>
+                    )}
+                    
+                    {result.status === 'success' && result.battery && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Badge className="text-xs bg-green-600/80 text-green-100">
+                          {result.battery.id}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {result.battery.chemistry}
+                        </Badge>
+                        <Badge variant="outline" className={`text-xs ${
+                          result.battery.status === 'Healthy' 
+                            ? 'border-green-500/50 text-green-400' 
+                            : result.battery.status === 'Degrading'
+                            ? 'border-yellow-500/50 text-yellow-400'
+                            : 'border-red-500/50 text-red-400'
+                        }`}>
+                          {result.battery.status}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 ml-4">
+                  {result.status === 'success' && (
+                    <>
+                      <CheckCircle className="h-5 w-5 text-green-400" />
+                      {result.battery && (
                         <Button
+                          onClick={() => handleViewPassport(result.battery!)}
                           size="sm"
                           variant="outline"
-                          onClick={() => viewBattery(fileData.battery!)}
-                          className="glass-button h-8 w-8 p-0"
+                          className="glass-button"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => removeFile(fileData.id)}
-                        className="glass-button h-8 w-8 p-0 hover:bg-red-600/20"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                    </>
+                  )}
+                  {result.status === 'error' && (
+                    <AlertCircle className="h-5 w-5 text-red-400" />
+                  )}
+                  {result.status === 'processing' && (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                  )}
+                  
+                  {!isProcessing && (
+                    <Button
+                      onClick={() => removeFile(result.file)}
+                      size="sm"
+                      variant="outline"
+                      className="glass-button p-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Battery Passport Modal */}
       {selectedBattery && (
         <BatteryPassportModal
-          battery={selectedBattery}
-          isOpen={isPassportOpen}
+          isOpen={showPassportModal}
           onClose={() => {
-            setIsPassportOpen(false);
+            setShowPassportModal(false);
             setSelectedBattery(null);
           }}
-          onSave={handleSaveBattery}
+          battery={selectedBattery}
         />
       )}
     </div>
