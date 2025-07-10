@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Battery } from "@/types";
-import { Calendar, Zap, Thermometer, Activity, FileText, AlertCircle, Users, Flag, Eye } from "lucide-react";
+import { Calendar, Zap, Thermometer, Activity, FileText, AlertCircle, Users, Flag, Eye, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import BatteryAlertSystem from "./BatteryAlertSystem";
+import RootCauseAnalysis from "./RootCauseAnalysis";
 
 interface BatteryPassportModalProps {
   battery: Battery | null;
@@ -20,7 +20,7 @@ interface BatteryPassportModalProps {
 }
 
 export default function BatteryPassportModal({ battery, isOpen, onClose, onSave }: BatteryPassportModalProps) {
-  const [activeTab, setActiveTab] = useState<'passport' | 'alerts'>('passport');
+  const [activeTab, setActiveTab] = useState<'passport' | 'alerts' | 'insights'>('passport');
   const [isMarkedForReview, setIsMarkedForReview] = useState(false);
   const { toast } = useToast();
   const { isCompanyMode } = useCompany();
@@ -32,7 +32,6 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Add a review flag to the battery's notes or create a review record
       const reviewNote = `[MARKED FOR REVIEW by ${user.email} on ${new Date().toISOString()}]`;
       const updatedNotes = battery.notes ? `${battery.notes}\n\n${reviewNote}` : reviewNote;
       
@@ -106,6 +105,17 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
           >
             <FileText className="h-4 w-4 inline mr-2" />
             Passport Details
+          </button>
+          <button
+            onClick={() => setActiveTab('insights')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'insights'
+                ? 'bg-blue-600/80 text-white'
+                : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/50'
+            }`}
+          >
+            <Search className="h-4 w-4 inline mr-2" />
+            AI Insights
           </button>
           <button
             onClick={() => setActiveTab('alerts')}
@@ -309,6 +319,8 @@ export default function BatteryPassportModal({ battery, isOpen, onClose, onSave 
               </CardContent>
             </Card>
           </div>
+        ) : activeTab === 'insights' ? (
+          <RootCauseAnalysis battery={battery} />
         ) : (
           <BatteryAlertSystem batteryId={battery.id} />
         )}

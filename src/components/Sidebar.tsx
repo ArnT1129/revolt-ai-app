@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -83,38 +84,13 @@ export default function Sidebar() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 flex items-center justify-center">
-                <svg viewBox="0 0 640 320" className="h-8 w-auto">
-                  {/* Lightning bolt */}
-                  <path d="M60 20 L120 20 L80 120 L140 120 L60 280 L20 180 L80 180 L60 20 Z" fill="url(#lightning-gradient)" />
-                  
-                  {/* ReVolt text */}
-                  <text x="200" y="100" fill="url(#text-gradient)" fontSize="80" fontWeight="bold" fontFamily="Arial, sans-serif">
-                    Re
-                  </text>
-                  <text x="340" y="100" fill="url(#text-gradient-2)" fontSize="80" fontWeight="bold" fontFamily="Arial, sans-serif">
-                    Volt
-                  </text>
-                  
-                  {/* Gradient definitions */}
-                  <defs>
-                    <linearGradient id="lightning-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" style={{stopColor: '#A855F7', stopOpacity: 1}} />
-                      <stop offset="100%" style={{stopColor: '#EC4899', stopOpacity: 1}} />
-                    </linearGradient>
-                    <linearGradient id="text-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" style={{stopColor: '#06B6D4', stopOpacity: 1}} />
-                      <stop offset="100%" style={{stopColor: '#3B82F6', stopOpacity: 1}} />
-                    </linearGradient>
-                    <linearGradient id="text-gradient-2" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" style={{stopColor: '#3B82F6', stopOpacity: 1}} />
-                      <stop offset="100%" style={{stopColor: '#8B5CF6', stopOpacity: 1}} />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-              <span className="text-xl font-bold text-white">ReVolt</span>
+            <div className="flex items-center justify-center flex-1">
+              <img 
+                src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
+                alt="ReVolt" 
+                className="h-12 w-auto object-contain"
+                style={{ background: 'transparent' }}
+              />
             </div>
           )}
           <Button
@@ -126,6 +102,18 @@ export default function Sidebar() {
             {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
           </Button>
         </div>
+
+        {/* Collapsed state logo */}
+        {isCollapsed && (
+          <div className="flex justify-center p-2 border-b border-white/10">
+            <img 
+              src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
+              alt="ReVolt" 
+              className="h-8 w-auto object-contain"
+              style={{ background: 'transparent' }}
+            />
+          </div>
+        )}
 
         {/* User Info */}
         {!isCollapsed && user && (
