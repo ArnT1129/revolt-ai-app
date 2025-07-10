@@ -1,9 +1,11 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BatteryFull, BatteryMedium, AlertTriangle } from "lucide-react";
 import { Battery } from "@/types";
 import { DashboardStatsService } from "@/services/dashboardStats";
 import { batteryService } from "@/services/batteryService";
+import { DemoService } from "@/services/demoService";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,24 +33,30 @@ export default function DashboardStats() {
           .eq('id', user.id)
           .single();
         
-        setIsDemo(profile?.is_demo || false);
+        const isDemoUser = profile?.is_demo || false;
+        setIsDemo(isDemoUser);
+        
+        // Get combined batteries (real + demo if appropriate)
+        const combinedBatteries = DemoService.getCombinedBatteries(realBatteries, isDemoUser);
+        
+        // Calculate stats from combined batteries
+        const dashboardStats = DashboardStatsService.calculateStats(combinedBatteries);
+        
+        setStats({
+          totalBatteries: dashboardStats.totalBatteries,
+          averageSoH: dashboardStats.averageSoH,
+          criticalIssues: dashboardStats.criticalIssues,
+        });
       }
-      
-      // Calculate stats from real batteries only
-      const dashboardStats = DashboardStatsService.calculateStats(realBatteries);
-      
-      setStats({
-        totalBatteries: dashboardStats.totalBatteries,
-        averageSoH: dashboardStats.averageSoH,
-        criticalIssues: dashboardStats.criticalIssues,
-      });
     } catch (error) {
       console.error('Error calculating stats:', error);
-      // Set default values for empty state
+      // Fallback to demo batteries if there's an error
+      const demoBatteries = DemoService.getDemoBatteries();
+      const demoStats = DashboardStatsService.calculateStats(demoBatteries);
       setStats({
-        totalBatteries: 0,
-        averageSoH: 0,
-        criticalIssues: 0,
+        totalBatteries: demoStats.totalBatteries,
+        averageSoH: demoStats.averageSoH,
+        criticalIssues: demoStats.criticalIssues,
       });
     }
   };

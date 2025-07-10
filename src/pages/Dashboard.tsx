@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
-import { DashboardStatsService } from '@/services/dashboardStats';
+import { DemoService } from '@/services/demoService';
 import DashboardStats from '@/components/DashboardStats';
 import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
 import BatteryComparison from '@/components/BatteryComparison';
@@ -13,98 +14,17 @@ import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import FileUploader from '@/components/FileUploader';
 import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import type { Battery as BatteryType } from '@/types';
-
-// Mock batteries for demonstration (same as DashboardStats)
-const DEMO_MOCK_BATTERIES: BatteryType[] = [
-  {
-    id: "MOCK-NMC-001",
-    grade: "A",
-    status: "Healthy",
-    soh: 98.5,
-    rul: 2100,
-    cycles: 200,
-    chemistry: "NMC",
-    uploadDate: new Date().toISOString().split('T')[0],
-    sohHistory: [
-      { cycle: 0, soh: 100 },
-      { cycle: 50, soh: 99.5 },
-      { cycle: 100, soh: 99.0 },
-      { cycle: 150, soh: 98.8 },
-      { cycle: 200, soh: 98.5 }
-    ],
-    issues: [],
-    notes: "Mock Battery - High-performance NMC demonstrating excellent health"
-  },
-  {
-    id: "MOCK-LFP-002",
-    grade: "B",
-    status: "Degrading",
-    soh: 89.2,
-    rul: 650,
-    cycles: 1500,
-    chemistry: "LFP",
-    uploadDate: new Date().toISOString().split('T')[0],
-    sohHistory: [
-      { cycle: 0, soh: 100 },
-      { cycle: 500, soh: 96.0 },
-      { cycle: 1000, soh: 92.5 },
-      { cycle: 1500, soh: 89.2 }
-    ],
-    issues: [
-      {
-        id: "mock-issue-1",
-        category: "Performance",
-        title: "Capacity Fade Detected",
-        description: "Mock issue showing gradual capacity degradation",
-        severity: "Warning",
-        cause: "Simulated aging process",
-        recommendation: "Monitor performance trends",
-        solution: "Consider replacement planning",
-        affectedMetrics: ["soh", "rul"]
-      }
-    ],
-    notes: "Mock Battery - LFP showing typical degradation patterns"
-  },
-  {
-    id: "MOCK-NMC-003",
-    grade: "C",
-    status: "Critical",
-    soh: 78.1,
-    rul: 150,
-    cycles: 2800,
-    chemistry: "NMC",
-    uploadDate: new Date().toISOString().split('T')[0],
-    sohHistory: [
-      { cycle: 0, soh: 100 },
-      { cycle: 1000, soh: 92.0 },
-      { cycle: 2000, soh: 84.5 },
-      { cycle: 2800, soh: 78.1 }
-    ],
-    issues: [
-      {
-        id: "mock-issue-2",
-        category: "Safety",
-        title: "Critical SoH Threshold",
-        description: "Mock critical battery requiring immediate attention",
-        severity: "Critical",
-        cause: "Extensive cycling simulation",
-        recommendation: "Replace immediately",
-        solution: "Battery replacement required",
-        affectedMetrics: ["soh", "rul", "cycles"]
-      }
-    ],
-    notes: "Mock Battery - Critical condition demonstration"
-  }
-];
 
 export default function Dashboard() {
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
   const [allBatteries, setAllBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(true);
-  const {
-    toast
-  } = useToast();
+  const [isDemo, setIsDemo] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -116,7 +36,7 @@ export default function Dashboard() {
     };
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
     return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
-  }, []);
+  }, [user]);
   
   const loadDashboardData = async () => {
     try {
@@ -124,8 +44,21 @@ export default function Dashboard() {
       const batteryData = await batteryService.getUserBatteries();
       setBatteries(batteryData);
       
-      // Combine real batteries with mock batteries for display
-      const combined = [...batteryData, ...DEMO_MOCK_BATTERIES];
+      // Check if user is demo
+      let isDemoUser = false;
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_demo')
+          .eq('id', user.id)
+          .single();
+        
+        isDemoUser = profile?.is_demo || false;
+        setIsDemo(isDemoUser);
+      }
+      
+      // Combine real batteries with demo batteries when appropriate
+      const combined = DemoService.getCombinedBatteries(batteryData, isDemoUser);
       setAllBatteries(combined);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -134,14 +67,15 @@ export default function Dashboard() {
         description: "Failed to load dashboard data",
         variant: "destructive"
       });
-      // Fallback to just mock data if there's an error
-      setAllBatteries(DEMO_MOCK_BATTERIES);
+      // Fallback to demo data if there's an error
+      const demoBatteries = DemoService.getDemoBatteries();
+      setAllBatteries(demoBatteries);
     } finally {
       setLoading(false);
     }
   };
   
-  // Use allBatteries (real + mock) for all calculations
+  // Use allBatteries for all calculations
   const recentBatteries = allBatteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
   const criticalBatteries = allBatteries.filter(b => b.status === 'Critical');
   const degradingBatteries = allBatteries.filter(b => b.status === 'Degrading');

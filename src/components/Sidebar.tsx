@@ -1,348 +1,196 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
-import CreateCompanyModal from "./CreateCompanyModal";
-import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Upload, 
+import { useState } from 'react';
+import { useLocation, useNavigate, NavLink } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import {
+  LayoutDashboard,
+  Upload,
   Search,
-  Settings, 
-  LogOut, 
+  BarChart3,
+  GitCompare,
+  FileText,
+  Building2,
+  Settings,
+  User,
   Menu,
   X,
-  Building2,
-  User,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  Plus,
-  MessageCircleWarning,
-  BarChart3,
-  GitCompare
-} from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+  LogOut,
+  Battery
+} from 'lucide-react';
+
+const navigation = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Upload', href: '/upload', icon: Upload },
+  { name: 'Search', href: '/search', icon: Search },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Comparison', href: '/comparison', icon: GitCompare },
+  { name: 'Review', href: '/review', icon: FileText },
+];
+
+const bottomNavigation = [
+  { name: 'Company', href: '/company', icon: Building2 },
+  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Profile', href: '/profile', icon: User },
+];
 
 export default function Sidebar() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const { user, signOut } = useAuth();
-  const { isCompanyMode, currentCompany, userCompanies, switchToCompany, switchToIndividual } = useCompany();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-    { icon: Upload, label: "Upload", path: "/upload" },
-    { icon: Search, label: "Search", path: "/search" },
-    { icon: BarChart3, label: "Analytics", path: "/analytics" },
-    { icon: GitCompare, label: "Comparison", path: "/comparison" },
-    { icon: MessageCircleWarning, label: "Review", path: "/review" },
-    { icon: Settings, label: "Settings", path: "/settings" },
-  ];
-
-  // Add company management for company mode
-  const companyMenuItems = isCompanyMode ? [
-    { icon: Building2, label: "Company", path: "/company" },
-  ] : [];
-
-  const allMenuItems = [...menuItems, ...companyMenuItems];
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    setIsMobileMenuOpen(false);
-  };
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      setIsSigningOut(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out successfully",
+        description: "You have been signed out of your account",
+      });
+      
       navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
-  const handleAccountSwitch = (type: 'individual' | 'company', companyId?: string) => {
-    if (type === 'individual') {
-      switchToIndividual();
-    } else if (type === 'company' && companyId) {
-      switchToCompany(companyId);
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/';
     }
-    setIsAccountSelectorOpen(false);
-  };
-
-  const handleCreateCompany = () => {
-    setShowCreateModal(true);
-    setIsAccountSelectorOpen(false);
-  };
-
-  const handleProfileClick = () => {
-    navigate('/profile');
-    setIsMobileMenuOpen(false);
+    return location.pathname.startsWith(path);
   };
 
   return (
     <>
-      {/* Mobile menu button */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden glass-button"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-      </Button>
-
-      {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-40 bg-black/20 backdrop-blur-xl border-r border-white/10 transform transition-all duration-300 ease-in-out",
-        "md:relative md:translate-x-0",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-        "md:translate-x-0",
-        isCollapsed ? "w-16" : "w-56"
-      )}>
-        <div className="flex flex-col h-full relative">
-          {/* Collapse button - aligned with dashboard when collapsed */}
+      <div className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-gray-900/95 backdrop-blur-md border-r border-white/10 transition-all duration-300 ${
+        isCollapsed ? 'w-16' : 'w-64'
+      }`}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          {!isCollapsed && (
+            <div className="flex items-center gap-2">
+              <Battery className="h-8 w-8 text-blue-400" />
+              <span className="text-xl font-bold text-white">BatteryAI</span>
+            </div>
+          )}
           <Button
             variant="ghost"
-            size="icon"
-            className={cn(
-              "absolute z-10 h-8 w-8 glass-button hidden md:flex",
-              "transition-all duration-300 ease-in-out",
-              isCollapsed ? "top-20 right-2" : "top-4 right-4"
-            )}
+            size="sm"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="text-slate-400 hover:text-white hover:bg-white/10"
           >
-            {isCollapsed ? 
-              <ChevronRight className="h-4 w-4" /> : 
-              <ChevronLeft className="h-4 w-4" />
-            }
+            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
           </Button>
+        </div>
 
-          {/* Header */}
+        {/* User Info */}
+        {!isCollapsed && user && (
           <div className="p-4 border-b border-white/10">
-            <div className={cn(
-              "flex items-center transition-opacity duration-200",
-              isCollapsed && "opacity-0"
-            )}>
-              <div className="h-8 w-8 flex items-center justify-center">
-                <img 
-                  src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
-                  alt="ReVolt Logo" 
-                  className="h-8 w-auto"
-                />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                <User className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3">
-                <h1 className="text-xl font-bold text-white">ReVolt</h1>
-                <p className="text-xs text-slate-400">Analytics Platform</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user.email}
+                </p>
+                <p className="text-xs text-slate-400">
+                  Battery Engineer
+                </p>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Account Selector - with fixed positioning */}
-          <div className="px-4 py-3 border-b border-white/10 relative">
-            {!isCollapsed ? (
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAccountSelectorOpen(!isAccountSelectorOpen)}
-                  className="w-full glass-button justify-between h-10"
-                >
-                  <div className="flex items-center">
-                    {isCompanyMode ? (
-                      <><Building2 className="h-4 w-4 mr-3" />Company</>
-                    ) : (
-                      <><User className="h-4 w-4 mr-3" />Personal</>
-                    )}
-                  </div>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-
-                {/* Account Selector Dropdown - Fixed z-index and positioning */}
-                {isAccountSelectorOpen && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-[45]"
-                      onClick={() => setIsAccountSelectorOpen(false)}
-                    />
-                    <Card className="absolute top-12 left-0 right-0 z-[60] enhanced-card bg-black/95 backdrop-blur-xl border border-white/20">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm text-white">Switch Account</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <Button
-                          variant={!isCompanyMode ? "secondary" : "ghost"}
-                          onClick={() => handleAccountSwitch('individual')}
-                          className="w-full justify-start glass-button"
-                        >
-                          <User className="h-4 w-4 mr-2" />
-                          Individual Account
-                          {!isCompanyMode && <Badge variant="secondary" className="ml-auto">Active</Badge>}
-                        </Button>
-
-                        {userCompanies.length > 0 && (
-                          <>
-                            <div className="text-xs text-slate-400 px-2 py-1">Companies</div>
-                            {userCompanies.map((company) => (
-                              <Button
-                                key={company.id}
-                                variant={currentCompany?.id === company.id ? "secondary" : "ghost"}
-                                onClick={() => handleAccountSwitch('company', company.id)}
-                                className="w-full justify-start glass-button"
-                              >
-                                <Building2 className="h-4 w-4 mr-2" />
-                                {company.name}
-                                {currentCompany?.id === company.id && <Badge variant="secondary" className="ml-auto">Active</Badge>}
-                              </Button>
-                            ))}
-                          </>
-                        )}
-
-                        <div className="pt-2 border-t border-white/10">
-                          <Button
-                            variant="ghost"
-                            onClick={handleCreateCompany}
-                            className="w-full justify-start glass-button text-blue-400"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Company
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsAccountSelectorOpen(!isAccountSelectorOpen)}
-                  className="glass-button h-10 w-10"
-                  title={isCompanyMode ? 'Company Mode' : 'Personal Mode'}
-                >
-                  {isCompanyMode ? (
-                    <Building2 className="h-4 w-4" />
-                  ) : (
-                    <User className="h-4 w-4" />
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {navigation.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              className={({ isActive: linkIsActive }) =>
+                `group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  linkIsActive || isActive(item.href)
+                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
+                }`
+              }
+            >
+              <item.icon className={`${isCollapsed ? 'h-5 w-5' : 'h-5 w-5 mr-3'} flex-shrink-0`} />
+              {!isCollapsed && (
+                <>
+                  <span className="truncate">{item.name}</span>
+                  {item.name === 'Review' && (
+                    <Badge variant="secondary" className="ml-auto bg-orange-500/20 text-orange-400 border-orange-500/30">
+                      New
+                    </Badge>
                   )}
-                </Button>
-              </div>
-            )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Bottom Navigation */}
+        <div className="border-t border-white/10">
+          <nav className="px-4 py-4 space-y-2">
+            {bottomNavigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                className={({ isActive: linkIsActive }) =>
+                  `group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    linkIsActive || isActive(item.href)
+                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  }`
+                }
+              >
+                <item.icon className={`${isCollapsed ? 'h-5 w-5' : 'h-5 w-5 mr-3'} flex-shrink-0`} />
+                {!isCollapsed && <span className="truncate">{item.name}</span>}
+              </NavLink>
+            ))}
             
-            {isCompanyMode && currentCompany && !isCollapsed && (
-              <Badge variant="secondary" className="w-full justify-center mt-2">
-                <Building2 className="h-3 w-3 mr-1" />
-                {currentCompany.name}
-              </Badge>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-3">
-            <div className="space-y-2">
-              {allMenuItems.map((item) => (
-                <Button
-                  key={item.path}
-                  variant={location.pathname === item.path ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full glass-button h-10",
-                    location.pathname === item.path && "bg-blue-500/20 text-blue-400",
-                    isCollapsed ? "justify-center px-0" : "justify-start"
-                  )}
-                  onClick={() => handleNavigation(item.path)}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
-                  {!isCollapsed && item.label}
-                </Button>
-              ))}
-            </div>
+            <Separator className="my-2 bg-white/10" />
+            
+            {/* Sign Out Button */}
+            <Button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              variant="ghost"
+              className={`w-full justify-start text-slate-300 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 ${
+                isCollapsed ? 'px-3' : 'px-3'
+              }`}
+            >
+              <LogOut className={`${isCollapsed ? 'h-5 w-5' : 'h-5 w-5 mr-3'} flex-shrink-0`} />
+              {!isCollapsed && (
+                <span className="truncate">
+                  {isSigningOut ? 'Signing out...' : 'Sign Out'}
+                </span>
+              )}
+            </Button>
           </nav>
-
-          {/* User Profile */}
-          <div className="p-4 border-t border-white/10">
-            {!isCollapsed ? (
-              <>
-                <div className="flex items-center gap-3 mb-4">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleProfileClick}
-                    className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 hover:from-blue-500 hover:to-cyan-500 transition-all duration-200 p-0"
-                    title="Go to Profile"
-                  >
-                    <span className="text-sm font-medium text-white">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </span>
-                  </Button>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      {user?.email}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {isCompanyMode ? 'Company Account' : 'Personal Account'}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full glass-button"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </Button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleProfileClick}
-                  className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 hover:from-blue-500 hover:to-cyan-500 transition-all duration-200 p-0"
-                  title="Go to Profile"
-                >
-                  <span className="text-sm font-medium text-white">
-                    {user?.email?.charAt(0).toUpperCase()}
-                  </span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="w-8 h-8 glass-button"
-                  onClick={handleSignOut}
-                  title="Sign Out"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Overlay for mobile */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Create Company Modal */}
-      <CreateCompanyModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-      />
+      {/* Spacer for fixed sidebar */}
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} flex-shrink-0 transition-all duration-300`} />
     </>
   );
 }

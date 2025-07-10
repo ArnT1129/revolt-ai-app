@@ -35,6 +35,11 @@ class BatteryService {
         return [];
       }
 
+      if (!batteries) {
+        console.log('No batteries found for user');
+        return [];
+      }
+
       return batteries.map(battery => ({
         id: battery.id,
         grade: battery.grade as BatteryGrade,
@@ -44,8 +49,10 @@ class BatteryService {
         cycles: battery.cycles,
         chemistry: battery.chemistry as "LFP" | "NMC",
         uploadDate: battery.upload_date || new Date().toISOString().split('T')[0],
-        sohHistory: Array.isArray(battery.soh_history) ? (battery.soh_history as unknown as { cycle: number; soh: number }[]) : [],
-        issues: Array.isArray(battery.issues) ? (battery.issues as unknown as BatteryIssue[]) : [],
+        sohHistory: Array.isArray(battery.soh_history) ? 
+          (battery.soh_history as unknown as { cycle: number; soh: number }[]) : [],
+        issues: Array.isArray(battery.issues) ? 
+          (battery.issues as unknown as BatteryIssue[]) : [],
         notes: battery.notes
       }));
     } catch (error) {

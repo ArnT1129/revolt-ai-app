@@ -672,6 +672,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_admin_or_owner: {
+        Args: { p_company_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_company_owner_or_admin: {
+        Args: { company_id_param: string; user_id_param: string }
+        Returns: boolean
+      }
       setup_demo_user: {
         Args: { user_id: string }
         Returns: undefined

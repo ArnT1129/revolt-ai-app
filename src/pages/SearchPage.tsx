@@ -7,7 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { batteryService } from '@/services/batteryService';
+import { DemoService } from '@/services/demoService';
 import BatteryPassportModal from '@/components/BatteryPassportModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Search, 
   Filter, 
@@ -37,16 +40,32 @@ export default function SearchPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadBatteries();
-  }, []);
+  }, [user]);
 
   const loadBatteries = async () => {
     try {
       setLoading(true);
-      const data = await batteryService.getUserBatteries();
-      setBatteries(data);
+      const realBatteries = await batteryService.getUserBatteries();
+      
+      // Check if user is demo
+      let isDemoUser = false;
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_demo')
+          .eq('id', user.id)
+          .single();
+        
+        isDemoUser = profile?.is_demo || false;
+      }
+      
+      // Get combined batteries (real + demo if appropriate)
+      const combinedBatteries = DemoService.getCombinedBatteries(realBatteries, isDemoUser);
+      setBatteries(combinedBatteries);
     } catch (error) {
       console.error('Error loading batteries:', error);
       toast({
@@ -54,6 +73,8 @@ export default function SearchPage() {
         description: "Failed to load battery data",
         variant: "destructive",
       });
+      // Fallback to demo batteries
+      setBatteries(DemoService.getDemoBatteries());
     } finally {
       setLoading(false);
     }
@@ -138,6 +159,16 @@ export default function SearchPage() {
   };
 
   const handleSaveBattery = async (updatedBattery: BatteryType) => {
+    // Only allow saving if it's not a demo battery
+    if (updatedBattery.id.startsWith('DEMO-')) {
+      toast({
+        title: "Demo Battery",
+        description: "Cannot modify demo batteries",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const success = await batteryService.updateBattery(updatedBattery);
       if (success) {
@@ -370,6 +401,11 @@ export default function SearchPage() {
                     <Badge variant="outline" className="text-slate-300">
                       {battery.chemistry}
                     </Badge>
+                    {battery.id.startsWith('DEMO-') && (
+                      <Badge variant="outline" className="text-amber-300 border-amber-500/50">
+                        Demo
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
