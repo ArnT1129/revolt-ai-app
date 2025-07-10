@@ -93,29 +93,19 @@ export class DemoService {
   }
 
   /**
-   * Check if we should show demo batteries (only for demo users with no real batteries)
+   * Check if we should show demo batteries (when user has no real batteries)
    */
   static shouldShowDemoBatteries(userBatteries: Battery[], isDemo: boolean): boolean {
-    return isDemo && userBatteries.length === 0;
+    return isDemo || userBatteries.length === 0;
   }
 
   /**
    * Combine real user batteries with demo batteries when appropriate
-   * For demo users: always show real batteries + demo batteries if no real batteries exist
-   * For regular users: only show real batteries
    */
   static getCombinedBatteries(userBatteries: Battery[], isDemo: boolean): Battery[] {
-    if (isDemo) {
-      // For demo users, always include real batteries they've uploaded
-      // Only add demo batteries if they have no real batteries
-      if (userBatteries.length === 0) {
-        return DEMO_BATTERIES;
-      } else {
-        // Show both real batteries and demo batteries for demo users
-        return [...userBatteries, ...DEMO_BATTERIES];
-      }
+    if (this.shouldShowDemoBatteries(userBatteries, isDemo)) {
+      return [...userBatteries, ...DEMO_BATTERIES];
     }
-    // For regular users, only show their real batteries
     return userBatteries;
   }
 }

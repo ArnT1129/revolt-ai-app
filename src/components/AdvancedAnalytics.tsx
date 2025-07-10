@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, BarChart3, PieChart as PieChartIcon, Activity, AlertTriangle, TrendingDown, Lightbulb, Target, Clock, Battery } from 'lucide-react';
+import { TrendingUp, BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
 import { batteryService } from '@/services/batteryService';
 import { DemoService } from '@/services/demoService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,12 +65,7 @@ export default function AdvancedAnalytics() {
     }
   };
 
-  // Analytics calculations
-  const avgSoH = allBatteries.length > 0 ? allBatteries.reduce((acc, b) => acc + b.soh, 0) / allBatteries.length : 0;
-  const avgRUL = allBatteries.length > 0 ? allBatteries.reduce((acc, b) => acc + b.rul, 0) / allBatteries.length : 0;
-  const avgCycles = allBatteries.length > 0 ? allBatteries.reduce((acc, b) => acc + b.cycles, 0) / allBatteries.length : 0;
-
-  // Data processing using allBatteries
+  // Data processing using allBatteries (which includes demo data for demo users)
   const sohDistribution = allBatteries.reduce((acc, battery) => {
     const range = Math.floor(battery.soh / 10) * 10;
     const key = `${range}-${range + 10}%`;
@@ -78,9 +73,10 @@ export default function AdvancedAnalytics() {
     return acc;
   }, {} as Record<string, number>);
 
-  const sohData = Object.entries(sohDistribution)
-    .map(([range, count]) => ({ range, count }))
-    .sort((a, b) => parseInt(a.range) - parseInt(b.range));
+  const sohData = Object.entries(sohDistribution).map(([range, count]) => ({
+    range,
+    count
+  }));
 
   const statusDistribution = allBatteries.reduce((acc, battery) => {
     acc[battery.status] = (acc[battery.status] || 0) + 1;
@@ -112,50 +108,18 @@ export default function AdvancedAnalytics() {
     value: count
   }));
 
-  // Generate comprehensive trend data
+  // Generate trend data based on actual batteries for demo users
   const trendData = allBatteries.length > 0 ? 
-    Array.from({ length: 12 }, (_, i) => {
-      const monthsAgo = 11 - i;
-      const month = new Date();
-      month.setMonth(month.getMonth() - monthsAgo);
-      
-      // Simulate degradation over time for demonstration
-      return {
-        month: month.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        avgSoH: Math.max(75, avgSoH - (monthsAgo * 0.5)),
-        criticalCount: Math.max(0, Math.floor(allBatteries.filter(b => b.status === 'Critical').length * (monthsAgo / 12))),
-        totalBatteries: allBatteries.length
-      };
-    })
+    allBatteries.flatMap(battery => 
+      battery.sohHistory?.map((point, index) => ({
+        month: `Cycle ${point.cycle}`,
+        avgSoH: point.soh,
+        totalBatteries: allBatteries.length,
+        criticalCount: allBatteries.filter(b => b.status === 'Critical').length,
+        batteryId: battery.id
+      })) || []
+    ).sort((a, b) => parseInt(a.month.split(' ')[1]) - parseInt(b.month.split(' ')[1]))
     : [];
-
-  // Actionable insights
-  const insights = [
-    {
-      type: 'warning',
-      icon: AlertTriangle,
-      title: 'Degradation Alert',
-      message: `${allBatteries.filter(b => b.soh < 85).length} batteries below 85% SoH require attention`,
-      action: 'Schedule maintenance checks',
-      priority: 'High'
-    },
-    {
-      type: 'info',
-      icon: TrendingUp,
-      title: 'Performance Trend',
-      message: `Average SoH is ${avgSoH.toFixed(1)}% across your fleet`,
-      action: 'Monitor monthly degradation rates',
-      priority: 'Medium'
-    },
-    {
-      type: 'success',
-      icon: Target,
-      title: 'Optimization Opportunity',
-      message: `${allBatteries.filter(b => b.rul > 1000).length} batteries have high remaining useful life`,
-      action: 'Consider reallocation to critical applications',
-      priority: 'Low'
-    }
-  ];
 
   if (loading) {
     return (
@@ -193,43 +157,6 @@ export default function AdvancedAnalytics() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="enhanced-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Activity className="h-8 w-8 text-blue-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Average SoH</p>
-                      <p className="text-2xl font-bold text-white">{avgSoH.toFixed(1)}%</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="enhanced-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-8 w-8 text-green-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Average RUL</p>
-                      <p className="text-2xl font-bold text-white">{Math.round(avgRUL).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="enhanced-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Battery className="h-8 w-8 text-purple-400" />
-                    <div>
-                      <p className="text-sm text-slate-400">Total Batteries</p>
-                      <p className="text-2xl font-bold text-white">{allBatteries.length}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             <div className="grid gap-6 md:grid-cols-2">
               <Card className="enhanced-card">
                 <CardHeader>
@@ -292,43 +219,12 @@ export default function AdvancedAnalytics() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Actionable Insights */}
-            <Card className="enhanced-card">
-              <CardHeader>
-                <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5 text-yellow-400" />
-                  Actionable Insights
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {insights.map((insight, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 rounded-lg border border-white/10 bg-white/5">
-                    <insight.icon className="h-5 w-5 text-blue-400 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-white">{insight.title}</h4>
-                        <Badge className={`text-xs ${
-                          insight.priority === 'High' ? 'bg-red-600/80 text-red-100' :
-                          insight.priority === 'Medium' ? 'bg-yellow-600/80 text-yellow-100' :
-                          'bg-green-600/80 text-green-100'
-                        }`}>
-                          {insight.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-slate-300 text-sm mb-2">{insight.message}</p>
-                      <p className="text-blue-400 text-sm font-medium">{insight.action}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="health" className="space-y-6">
             <Card className="enhanced-card">
               <CardHeader>
-                <CardTitle className="text-white text-lg">State of Health Analysis</CardTitle>
+                <CardTitle className="text-white text-lg">State of Health Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 {sohData.length > 0 ? (
@@ -358,33 +254,6 @@ export default function AdvancedAnalytics() {
                     <p className="text-slate-400">No health data available</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Health Recommendations */}
-            <Card className="enhanced-card">
-              <CardHeader>
-                <CardTitle className="text-white text-lg">Health Recommendations</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 rounded-lg border border-green-500/30 bg-green-900/20">
-                    <h4 className="font-medium text-green-400 mb-2">Healthy Batteries ({statusDistribution['Healthy'] || 0})</h4>
-                    <p className="text-slate-300 text-sm">Continue regular monitoring and maintain optimal operating conditions.</p>
-                  </div>
-                  <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-900/20">
-                    <h4 className="font-medium text-yellow-400 mb-2">Degrading Batteries ({statusDistribution['Degrading'] || 0})</h4>
-                    <p className="text-slate-300 text-sm">Increase monitoring frequency and consider preventive maintenance.</p>
-                  </div>
-                  <div className="p-4 rounded-lg border border-red-500/30 bg-red-900/20">
-                    <h4 className="font-medium text-red-400 mb-2">Critical Batteries ({statusDistribution['Critical'] || 0})</h4>
-                    <p className="text-slate-300 text-sm">Immediate attention required. Schedule replacement or detailed inspection.</p>
-                  </div>
-                  <div className="p-4 rounded-lg border border-blue-500/30 bg-blue-900/20">
-                    <h4 className="font-medium text-blue-400 mb-2">Predictive Maintenance</h4>
-                    <p className="text-slate-300 text-sm">Use SoH trends to predict optimal replacement timing and reduce costs.</p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -425,7 +294,7 @@ export default function AdvancedAnalytics() {
 
               <Card className="enhanced-card">
                 <CardHeader>
-                  <CardTitle className="text-white text-lg">Fleet Summary</CardTitle>
+                  <CardTitle className="text-white text-lg">Battery Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -435,7 +304,7 @@ export default function AdvancedAnalytics() {
                     </div>
                     <div className="text-center p-4 bg-white/5 rounded-lg">
                       <p className="text-2xl font-bold text-green-400">
-                        {avgSoH.toFixed(1)}%
+                        {allBatteries.length > 0 ? (allBatteries.reduce((acc, b) => acc + b.soh, 0) / allBatteries.length).toFixed(1) : '0'}%
                       </p>
                       <p className="text-sm text-slate-400">Avg SoH</p>
                     </div>
@@ -462,7 +331,7 @@ export default function AdvancedAnalytics() {
           <TabsContent value="trends" className="space-y-6">
             <Card className="enhanced-card">
               <CardHeader>
-                <CardTitle className="text-white text-lg">Performance Trends Over Time</CardTitle>
+                <CardTitle className="text-white text-lg">State of Health Trends</CardTitle>
               </CardHeader>
               <CardContent>
                 {trendData.length > 0 ? (
@@ -483,7 +352,7 @@ export default function AdvancedAnalytics() {
                         dataKey="avgSoH"
                         stroke="#3B82F6"
                         strokeWidth={2}
-                        name="Average SoH (%)"
+                        name="State of Health (%)"
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -492,36 +361,6 @@ export default function AdvancedAnalytics() {
                     <p className="text-slate-400">No trend data available</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Trend Analysis */}
-            <Card className="enhanced-card">
-              <CardHeader>
-                <CardTitle className="text-white text-lg">Trend Analysis & Predictions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 rounded-lg border border-blue-500/30 bg-blue-900/20">
-                    <h4 className="font-medium text-blue-400 mb-2">Degradation Rate</h4>
-                    <p className="text-2xl font-bold text-white mb-1">0.5%</p>
-                    <p className="text-slate-300 text-sm">Average monthly SoH decline</p>
-                  </div>
-                  <div className="p-4 rounded-lg border border-green-500/30 bg-green-900/20">
-                    <h4 className="font-medium text-green-400 mb-2">Fleet Lifecycle</h4>
-                    <p className="text-2xl font-bold text-white mb-1">{Math.round(avgCycles).toLocaleString()}</p>
-                    <p className="text-slate-300 text-sm">Average cycles completed</p>
-                  </div>
-                </div>
-                
-                <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-900/20">
-                  <h4 className="font-medium text-yellow-400 mb-2">Predictive Insights</h4>
-                  <ul className="space-y-1 text-slate-300 text-sm">
-                    <li>• {Math.round(allBatteries.filter(b => b.soh > 90).length / allBatteries.length * 100)}% of fleet in excellent condition</li>
-                    <li>• Estimated {Math.round(avgRUL / 100)} months remaining useful life</li>
-                    <li>• {allBatteries.filter(b => b.chemistry === 'LFP').length} LFP batteries showing superior longevity</li>
-                  </ul>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
