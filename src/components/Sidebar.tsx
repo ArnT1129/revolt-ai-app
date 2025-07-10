@@ -18,8 +18,7 @@ import {
   User,
   Menu,
   X,
-  LogOut,
-  Battery
+  LogOut
 } from 'lucide-react';
 
 const navigation = [
@@ -85,8 +84,37 @@ export default function Sidebar() {
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
-              <Battery className="h-8 w-8 text-blue-400" />
-              <span className="text-xl font-bold text-white">BatteryAI</span>
+              <div className="h-8 w-8 flex items-center justify-center">
+                <svg viewBox="0 0 640 320" className="h-8 w-auto">
+                  {/* Lightning bolt */}
+                  <path d="M60 20 L120 20 L80 120 L140 120 L60 280 L20 180 L80 180 L60 20 Z" fill="url(#lightning-gradient)" />
+                  
+                  {/* ReVolt text */}
+                  <text x="200" y="100" fill="url(#text-gradient)" fontSize="80" fontWeight="bold" fontFamily="Arial, sans-serif">
+                    Re
+                  </text>
+                  <text x="340" y="100" fill="url(#text-gradient-2)" fontSize="80" fontWeight="bold" fontFamily="Arial, sans-serif">
+                    Volt
+                  </text>
+                  
+                  {/* Gradient definitions */}
+                  <defs>
+                    <linearGradient id="lightning-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style={{stopColor: '#A855F7', stopOpacity: 1}} />
+                      <stop offset="100%" style={{stopColor: '#EC4899', stopOpacity: 1}} />
+                    </linearGradient>
+                    <linearGradient id="text-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{stopColor: '#06B6D4', stopOpacity: 1}} />
+                      <stop offset="100%" style={{stopColor: '#3B82F6', stopOpacity: 1}} />
+                    </linearGradient>
+                    <linearGradient id="text-gradient-2" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{stopColor: '#3B82F6', stopOpacity: 1}} />
+                      <stop offset="100%" style={{stopColor: '#8B5CF6', stopOpacity: 1}} />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <span className="text-xl font-bold text-white">ReVolt</span>
             </div>
           )}
           <Button
