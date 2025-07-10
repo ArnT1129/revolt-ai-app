@@ -12,7 +12,7 @@ import OptimizedBatteryTable from '@/components/OptimizedBatteryTable';
 import BatteryComparison from '@/components/BatteryComparison';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import FileUploader from '@/components/FileUploader';
-import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search } from 'lucide-react';
+import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search, BatteryFull } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -212,14 +212,88 @@ export default function Dashboard() {
         {/* Tabbed Content */}
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 glass-button">
-            <TabsTrigger value="overview">Fleet</TabsTrigger>
+            <TabsTrigger value="overview">Battery Overview</TabsTrigger>
             <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
             <TabsTrigger value="comparison">Battery Comparison</TabsTrigger>
             <TabsTrigger value="upload">Upload Data</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <OptimizedBatteryTable />
+            {/* Battery Overview Grid - Display like Search page */}
+            <Card className="enhanced-card">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <BatteryFull className="h-5 w-5" />
+                  Battery Passports
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {allBatteries.length > 0 ? (
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {allBatteries.map((battery) => (
+                      <div key={battery.id} className="enhanced-card p-6 cursor-pointer hover:scale-105 transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <BatteryFull className="h-5 w-5 text-blue-400" />
+                            <h3 className="font-bold text-white">{battery.id}</h3>
+                          </div>
+                          <Badge className={`text-xs ${
+                            battery.status === 'Healthy' ? 'bg-green-600/80 text-green-100' :
+                            battery.status === 'Degrading' ? 'bg-yellow-600/80 text-yellow-100' :
+                            'bg-red-600/80 text-red-100'
+                          }`}>
+                            {battery.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-slate-400">Chemistry</p>
+                              <p className="text-white font-medium">{battery.chemistry}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">Grade</p>
+                              <p className="text-white font-medium">{battery.grade}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">State of Health</p>
+                              <p className="text-green-400 font-bold">{battery.soh.toFixed(1)}%</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">RUL (cycles)</p>
+                              <p className="text-blue-400 font-medium">{battery.rul}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">Cycles</p>
+                              <p className="text-white font-medium">{battery.cycles}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">Upload Date</p>
+                              <p className="text-slate-300 text-xs">{battery.uploadDate}</p>
+                            </div>
+                          </div>
+                          
+                          {battery.issues && battery.issues.length > 0 && (
+                            <div className="pt-2 border-t border-white/10">
+                              <p className="text-orange-400 text-xs font-medium">
+                                {battery.issues.length} issue{battery.issues.length > 1 ? 's' : ''} detected
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <BatteryFull className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-400 text-lg">No batteries available</p>
+                    <p className="text-slate-500 text-sm">Upload battery data to get started</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
