@@ -14,13 +14,99 @@ import FileUploader from '@/components/FileUploader';
 import { Battery, TrendingUp, AlertTriangle, Clock, BarChart3, Upload, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Battery as BatteryType } from '@/types';
+
+// Mock batteries for demonstration (same as DashboardStats)
+const DEMO_MOCK_BATTERIES: BatteryType[] = [
+  {
+    id: "MOCK-NMC-001",
+    grade: "A",
+    status: "Healthy",
+    soh: 98.5,
+    rul: 2100,
+    cycles: 200,
+    chemistry: "NMC",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 50, soh: 99.5 },
+      { cycle: 100, soh: 99.0 },
+      { cycle: 150, soh: 98.8 },
+      { cycle: 200, soh: 98.5 }
+    ],
+    issues: [],
+    notes: "Mock Battery - High-performance NMC demonstrating excellent health"
+  },
+  {
+    id: "MOCK-LFP-002",
+    grade: "B",
+    status: "Degrading",
+    soh: 89.2,
+    rul: 650,
+    cycles: 1500,
+    chemistry: "LFP",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 500, soh: 96.0 },
+      { cycle: 1000, soh: 92.5 },
+      { cycle: 1500, soh: 89.2 }
+    ],
+    issues: [
+      {
+        id: "mock-issue-1",
+        category: "Performance",
+        title: "Capacity Fade Detected",
+        description: "Mock issue showing gradual capacity degradation",
+        severity: "Warning",
+        cause: "Simulated aging process",
+        recommendation: "Monitor performance trends",
+        solution: "Consider replacement planning",
+        affectedMetrics: ["soh", "rul"]
+      }
+    ],
+    notes: "Mock Battery - LFP showing typical degradation patterns"
+  },
+  {
+    id: "MOCK-NMC-003",
+    grade: "C",
+    status: "Critical",
+    soh: 78.1,
+    rul: 150,
+    cycles: 2800,
+    chemistry: "NMC",
+    uploadDate: new Date().toISOString().split('T')[0],
+    sohHistory: [
+      { cycle: 0, soh: 100 },
+      { cycle: 1000, soh: 92.0 },
+      { cycle: 2000, soh: 84.5 },
+      { cycle: 2800, soh: 78.1 }
+    ],
+    issues: [
+      {
+        id: "mock-issue-2",
+        category: "Safety",
+        title: "Critical SoH Threshold",
+        description: "Mock critical battery requiring immediate attention",
+        severity: "Critical",
+        cause: "Extensive cycling simulation",
+        recommendation: "Replace immediately",
+        solution: "Battery replacement required",
+        affectedMetrics: ["soh", "rul", "cycles"]
+      }
+    ],
+    notes: "Mock Battery - Critical condition demonstration"
+  }
+];
+
 export default function Dashboard() {
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
+  const [allBatteries, setAllBatteries] = useState<BatteryType[]>([]);
   const [loading, setLoading] = useState(true);
   const {
     toast
   } = useToast();
   const navigate = useNavigate();
+  
   useEffect(() => {
     loadDashboardData();
 
@@ -31,11 +117,16 @@ export default function Dashboard() {
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
     return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
   }, []);
+  
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       const batteryData = await batteryService.getUserBatteries();
       setBatteries(batteryData);
+      
+      // Combine real batteries with mock batteries for display
+      const combined = [...batteryData, ...DEMO_MOCK_BATTERIES];
+      setAllBatteries(combined);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -43,13 +134,18 @@ export default function Dashboard() {
         description: "Failed to load dashboard data",
         variant: "destructive"
       });
+      // Fallback to just mock data if there's an error
+      setAllBatteries(DEMO_MOCK_BATTERIES);
     } finally {
       setLoading(false);
     }
   };
-  const recentBatteries = batteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
-  const criticalBatteries = batteries.filter(b => b.status === 'Critical');
-  const degradingBatteries = batteries.filter(b => b.status === 'Degrading');
+  
+  // Use allBatteries (real + mock) for all calculations
+  const recentBatteries = allBatteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
+  const criticalBatteries = allBatteries.filter(b => b.status === 'Critical');
+  const degradingBatteries = allBatteries.filter(b => b.status === 'Degrading');
+  
   if (loading) {
     return <div className="flex-1 p-6">
         <div className="max-w-7xl mx-auto">
@@ -63,6 +159,7 @@ export default function Dashboard() {
         </div>
       </div>;
   }
+  
   return <div className="flex-1 p-6 overflow-auto">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
@@ -154,7 +251,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center">
                   <span className="text-slate-300 text-sm">Avg SoH</span>
                   <span className="text-white font-medium">
-                    {batteries.length > 0 ? (batteries.reduce((acc, b) => acc + b.soh, 0) / batteries.length).toFixed(1) : '0'}%
+                    {allBatteries.length > 0 ? (allBatteries.reduce((acc, b) => acc + b.soh, 0) / allBatteries.length).toFixed(1) : '0'}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
