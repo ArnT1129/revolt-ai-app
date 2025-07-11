@@ -111,10 +111,6 @@ export default function FileUploader() {
         // Dispatch custom event to notify other components
         window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
-        // Immediately show the passport for the uploaded battery
-        setSelectedBattery(battery);
-        setIsPassportOpen(true);
-
         toast({
           title: "Upload Successful",
           description: `Battery ${battery.id} has been processed and added.`,
@@ -168,9 +164,6 @@ export default function FileUploader() {
           ? { ...f, battery: updatedBattery }
           : f
       ));
-
-      // Dispatch event to update other components
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
 
       toast({
         title: "Battery Updated",

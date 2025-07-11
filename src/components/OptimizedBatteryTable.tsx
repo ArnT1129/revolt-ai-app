@@ -260,14 +260,6 @@ export default function OptimizedBatteryTable() {
             setShowPassportModal(false);
             setSelectedBattery(null);
           }}
-          onSave={(updatedBattery) => {
-            // Update the battery in the local state
-            setBatteries(prev => prev.map(battery => 
-              battery.id === updatedBattery.id ? updatedBattery : battery
-            ));
-            setShowPassportModal(false);
-            setSelectedBattery(null);
-          }}
           battery={selectedBattery}
         />
       )}
