@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useLocation, useNavigate, NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -88,8 +87,7 @@ export default function Sidebar() {
               <img 
                 src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
                 alt="ReVolt" 
-                className="h-12 w-auto object-contain"
-                style={{ background: 'transparent' }}
+                className="h-12 w-auto object-contain opacity-90"
               />
             </div>
           )}
@@ -109,8 +107,7 @@ export default function Sidebar() {
             <img 
               src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
               alt="ReVolt" 
-              className="h-8 w-auto object-contain"
-              style={{ background: 'transparent' }}
+              className="h-8 w-auto object-contain opacity-90"
             />
           </div>
         )}
@@ -141,7 +138,7 @@ export default function Sidebar() {
               key={item.name}
               to={item.href}
               className={({ isActive: linkIsActive }) =>
-                `group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                `group flex items-center ${isCollapsed ? 'px-3 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium rounded-lg transition-all duration-200 ${
                   linkIsActive || isActive(item.href)
                     ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                     : 'text-slate-300 hover:text-white hover:bg-white/10'
@@ -149,16 +146,7 @@ export default function Sidebar() {
               }
             >
               <item.icon className={`${isCollapsed ? 'h-5 w-5' : 'h-5 w-5 mr-3'} flex-shrink-0`} />
-              {!isCollapsed && (
-                <>
-                  <span className="truncate">{item.name}</span>
-                  {item.name === 'Review' && (
-                    <Badge variant="secondary" className="ml-auto bg-orange-500/20 text-orange-400 border-orange-500/30">
-                      New
-                    </Badge>
-                  )}
-                </>
-              )}
+              {!isCollapsed && <span className="truncate">{item.name}</span>}
             </NavLink>
           ))}
         </nav>
@@ -171,7 +159,7 @@ export default function Sidebar() {
                 key={item.name}
                 to={item.href}
                 className={({ isActive: linkIsActive }) =>
-                  `group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  `group flex items-center ${isCollapsed ? 'px-3 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium rounded-lg transition-all duration-200 ${
                     linkIsActive || isActive(item.href)
                       ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                       : 'text-slate-300 hover:text-white hover:bg-white/10'
@@ -190,9 +178,7 @@ export default function Sidebar() {
               onClick={handleSignOut}
               disabled={isSigningOut}
               variant="ghost"
-              className={`w-full justify-start text-slate-300 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 ${
-                isCollapsed ? 'px-3' : 'px-3'
-              }`}
+              className={`w-full ${isCollapsed ? 'justify-center px-3 py-3' : 'justify-start px-3'} text-slate-300 hover:text-white hover:bg-red-500/20 hover:border-red-500/30`}
             >
               <LogOut className={`${isCollapsed ? 'h-5 w-5' : 'h-5 w-5 mr-3'} flex-shrink-0`} />
               {!isCollapsed && (
