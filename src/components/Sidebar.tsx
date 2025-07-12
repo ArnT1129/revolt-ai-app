@@ -87,7 +87,7 @@ export default function Sidebar() {
               <img 
                 src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
                 alt="ReVolt" 
-                className="h-12 w-auto object-contain opacity-90"
+                className="h-12 w-auto object-contain mix-blend-screen"
               />
             </div>
           )}
@@ -107,7 +107,7 @@ export default function Sidebar() {
             <img 
               src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
               alt="ReVolt" 
-              className="h-8 w-auto object-contain opacity-90"
+              className="h-8 w-auto object-contain mix-blend-screen"
             />
           </div>
         )}
@@ -132,7 +132,7 @@ export default function Sidebar() {
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 py-6 space-y-2">
           {navigation.map((item) => (
             <NavLink
               key={item.name}
@@ -152,7 +152,7 @@ export default function Sidebar() {
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="border-t border-white/10">
+        <div>
           <nav className="px-4 py-4 space-y-2">
             {bottomNavigation.map((item) => (
               <NavLink
@@ -170,8 +170,6 @@ export default function Sidebar() {
                 {!isCollapsed && <span className="truncate">{item.name}</span>}
               </NavLink>
             ))}
-            
-            <Separator className="my-2 bg-white/10" />
             
             {/* Sign Out Button */}
             <Button
