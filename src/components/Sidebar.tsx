@@ -85,7 +85,7 @@ export default function Sidebar() {
           {!isCollapsed && (
             <div className="flex items-center justify-center flex-1">
               <img 
-                src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
+                src="/download.png" 
                 alt="ReVolt" 
                 className="h-12 w-auto object-contain mix-blend-screen"
               />
@@ -105,7 +105,7 @@ export default function Sidebar() {
         {isCollapsed && (
           <div className="flex justify-center p-2 border-b border-white/10">
             <img 
-              src="/lovable-uploads/5f90e70a-e5ab-4491-a6ce-b74e97beaf96.png" 
+              src="/download.png" 
               alt="ReVolt" 
               className="h-8 w-auto object-contain mix-blend-screen"
             />
