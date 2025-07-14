@@ -351,7 +351,7 @@ export default function Auth() {
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-8">
             <img 
-              src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
+              src="/download.png" 
               alt="ReVolt Logo" 
               className="h-16 w-auto"
             />
@@ -407,7 +407,7 @@ export default function Auth() {
           <CardHeader className="text-center pb-4">
             <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
               <img 
-                src="/lovable-uploads/91171b44-dc50-495d-8eaa-2d7b71a48b70.png" 
+                src="/download.png" 
                 alt="ReVolt Logo" 
                 className="h-8 w-auto"
               />
