@@ -57,6 +57,9 @@ export default function ManualBatteryModal({ isOpen, onClose, onSave }: ManualBa
       cycles: '',
       chemistry: 'NMC'
     });
+    
+    // Dispatch event to update dashboard and search page
+    window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
     onClose();
   };
 

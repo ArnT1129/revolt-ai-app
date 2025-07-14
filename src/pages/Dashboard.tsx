@@ -34,6 +34,7 @@ export default function Dashboard() {
 
     // Listen for battery data updates
     const handleBatteryUpdate = () => {
+      console.log('Battery data updated, refreshing dashboard...');
       loadDashboardData();
     };
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);

@@ -20,18 +20,18 @@ class BatteryService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.error('No authenticated user found');
+        console.log('No authenticate user found');
         return [];
       }
 
       const { data: batteries, error } = await supabase
         .from('user_batteries')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching batteries:', error);
+        // Return empty array instead of throwing to prevent app crashes
         return [];
       }
 

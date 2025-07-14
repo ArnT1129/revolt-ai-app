@@ -44,6 +44,15 @@ export default function SearchPage() {
 
   useEffect(() => {
     loadBatteries();
+    
+    // Listen for battery data updates
+    const handleBatteryUpdate = () => {
+      console.log('Battery data updated, refreshing search page...');
+      loadBatteries();
+    };
+    
+    window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
+    return () => window.removeEventListener('batteryDataUpdated', handleBatteryUpdate);
   }, [user]);
 
   const loadBatteries = async () => {
