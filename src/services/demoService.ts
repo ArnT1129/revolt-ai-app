@@ -86,25 +86,71 @@ export const DEMO_BATTERIES: Battery[] = [
 
 export class DemoService {
   /**
-   * Get demo batteries for display purposes
+   * Get hardcoded demo batteries
    */
   static getDemoBatteries(): Battery[] {
     return DEMO_BATTERIES;
   }
 
   /**
-   * Check if we should show demo batteries (when user has no real batteries)
+   * Get uploaded demo batteries from localStorage
    */
-  static shouldShowDemoBatteries(userBatteries: Battery[], isDemo: boolean): boolean {
-    return isDemo || userBatteries.length === 0;
+  static getDemoUploadedBatteries(): Battery[] {
+    try {
+      const data = localStorage.getItem('demoUploadedBatteries');
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      } else {
+        // If corrupted, reset
+        localStorage.removeItem('demoUploadedBatteries');
+        return [];
+      }
+    } catch {
+      localStorage.removeItem('demoUploadedBatteries');
+      return [];
+    }
   }
 
   /**
-   * Combine real user batteries with demo batteries when appropriate
+   * Add a battery to demo uploads in localStorage
+   */
+  static addDemoUploadedBattery(battery: Battery): void {
+    const uploads = this.getDemoUploadedBatteries();
+    uploads.push(battery);
+    localStorage.setItem('demoUploadedBatteries', JSON.stringify(uploads));
+  }
+
+  /**
+   * Delete a battery from demo uploads in localStorage
+   */
+  static deleteDemoUploadedBattery(batteryId: string): void {
+    const uploads = this.getDemoUploadedBatteries().filter(b => b.id !== batteryId);
+    localStorage.setItem('demoUploadedBatteries', JSON.stringify(uploads));
+  }
+
+  /**
+   * Clear all demo uploads from localStorage
+   */
+  static clearDemoUploadedBatteries(): void {
+    localStorage.removeItem('demoUploadedBatteries');
+  }
+
+  /**
+   * Get all batteries for demo user: hardcoded + uploaded
+   */
+  static getAllDemoBatteries(): Battery[] {
+    const uploads = this.getDemoUploadedBatteries();
+    return [...DEMO_BATTERIES, ...uploads];
+  }
+
+  /**
+   * For real users, only show their batteries. For demo, show demo + uploads.
    */
   static getCombinedBatteries(userBatteries: Battery[], isDemo: boolean): Battery[] {
-    if (this.shouldShowDemoBatteries(userBatteries, isDemo)) {
-      return [...userBatteries, ...DEMO_BATTERIES];
+    if (isDemo) {
+      return this.getAllDemoBatteries();
     }
     return userBatteries;
   }
