@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -180,17 +181,11 @@ export default function Auth() {
         }
 
         if (signUpData.user) {
-          try {
-            await supabase.rpc('setup_demo_user', { user_id: signUpData.user.id });
-          } catch (rpcError) {
-            console.warn('Demo setup function not available:', rpcError);
-          }
-          
+          // No longer insert demo batteries into the database for demo users
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: demoEmail,
             password: demoPassword,
           });
-          
           if (signInError) throw signInError;
         }
       } else if (error) {

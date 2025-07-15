@@ -1,6 +1,7 @@
 
 import { Battery, BatteryGrade, BatteryStatus, BatteryIssue } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
+import { DemoService } from "@/services/demoService";
 
 interface BatteryUpdate {
   grade?: BatteryGrade;
@@ -16,7 +17,26 @@ interface BatteryUpdate {
 }
 
 class BatteryService {
+  async isDemoUser(): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_demo')
+        .eq('id', user.id)
+        .single();
+      return profile?.is_demo || false;
+    } catch {
+      return false;
+    }
+  }
+
   async getUserBatteries(): Promise<Battery[]> {
+    const isDemo = await this.isDemoUser();
+    if (isDemo) {
+      return DemoService.getAllDemoBatteries();
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -62,6 +82,11 @@ class BatteryService {
   }
 
   async addBattery(newBattery: Battery): Promise<boolean> {
+    const isDemo = await this.isDemoUser();
+    if (isDemo) {
+      DemoService.addDemoUploadedBattery(newBattery);
+      return true;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -97,6 +122,14 @@ class BatteryService {
   }
 
   async updateBattery(updatedBattery: Battery): Promise<boolean> {
+    const isDemo = await this.isDemoUser();
+    if (isDemo) {
+      // Only allow updating uploaded demo batteries, not hardcoded ones
+      if (updatedBattery.id.startsWith('DEMO-')) return false;
+      DemoService.deleteDemoUploadedBattery(updatedBattery.id);
+      DemoService.addDemoUploadedBattery(updatedBattery);
+      return true;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -134,6 +167,11 @@ class BatteryService {
   }
 
   async deleteBattery(batteryId: string): Promise<boolean> {
+    const isDemo = await this.isDemoUser();
+    if (isDemo) {
+      DemoService.deleteDemoUploadedBattery(batteryId);
+      return true;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -160,6 +198,18 @@ class BatteryService {
   }
 
   async updateBatteryFields(batteryId: string, updates: BatteryUpdate): Promise<boolean> {
+    const isDemo = await this.isDemoUser();
+    if (isDemo) {
+      // Only allow updating uploaded demo batteries, not hardcoded ones
+      if (batteryId.startsWith('DEMO-')) return false;
+      const uploads = DemoService.getDemoUploadedBatteries();
+      const idx = uploads.findIndex(b => b.id === batteryId);
+      if (idx === -1) return false;
+      const updated = { ...uploads[idx], ...updates };
+      uploads[idx] = updated;
+      localStorage.setItem('demoUploadedBatteries', JSON.stringify(uploads));
+      return true;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {

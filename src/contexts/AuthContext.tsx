@@ -101,10 +101,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     // Clear local storage
     localStorage.removeItem('uploadedBatteries');
-    
+    localStorage.removeItem('demoUploadedBatteries'); // Clear demo uploads as well
     // Sign out from Supabase
     await supabase.auth.signOut();
-    
     // Clear state
     setUser(null);
     setSession(null);
