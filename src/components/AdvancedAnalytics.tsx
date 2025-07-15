@@ -38,7 +38,7 @@ export default function AdvancedAnalytics() {
       setLoading(true);
       const realBatteries = await batteryService.getUserBatteries();
       setBatteries(realBatteries);
-      
+      setAllBatteries(realBatteries);
       // Check if user is demo
       let isDemoUser = false;
       if (user) {
@@ -47,19 +47,12 @@ export default function AdvancedAnalytics() {
           .select('is_demo')
           .eq('id', user.id)
           .single();
-        
         isDemoUser = profile?.is_demo || false;
         setIsDemo(isDemoUser);
       }
-      
-      // Get combined batteries (real + demo if appropriate)
-      const combinedBatteries = DemoService.getCombinedBatteries(realBatteries, isDemoUser);
-      setAllBatteries(combinedBatteries);
     } catch (error) {
       console.error('Error loading batteries:', error);
-      // Fallback to demo data if there's an error
-      const demoBatteries = DemoService.getDemoBatteries();
-      setAllBatteries(demoBatteries);
+      setAllBatteries([]);
     } finally {
       setLoading(false);
     }

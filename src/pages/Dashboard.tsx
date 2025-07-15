@@ -46,7 +46,7 @@ export default function Dashboard() {
       setLoading(true);
       const batteryData = await batteryService.getUserBatteries();
       setBatteries(batteryData);
-      
+      setAllBatteries(batteryData);
       // Check if user is demo
       let isDemoUser = false;
       if (user) {
@@ -55,14 +55,9 @@ export default function Dashboard() {
           .select('is_demo')
           .eq('id', user.id)
           .single();
-        
         isDemoUser = profile?.is_demo || false;
         setIsDemo(isDemoUser);
       }
-      
-      // Combine real batteries with demo batteries when appropriate
-      const combined = DemoService.getCombinedBatteries(batteryData, isDemoUser);
-      setAllBatteries(combined);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast({
@@ -70,9 +65,7 @@ export default function Dashboard() {
         description: "Failed to load dashboard data",
         variant: "destructive"
       });
-      // Fallback to demo data if there's an error
-      const demoBatteries = DemoService.getDemoBatteries();
-      setAllBatteries(demoBatteries);
+      setAllBatteries([]);
     } finally {
       setLoading(false);
     }

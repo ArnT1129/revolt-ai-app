@@ -21,10 +21,9 @@ export default function DashboardStats() {
 
   const updateStats = async () => {
     try {
-      // Get real user batteries
+      // Get real user batteries (or demo for demo user)
       const realBatteries = await batteryService.getUserBatteries();
       setUserBatteries(realBatteries);
-      
       // Check if user is demo
       if (user) {
         const { data: profile } = await supabase
@@ -32,32 +31,19 @@ export default function DashboardStats() {
           .select('is_demo')
           .eq('id', user.id)
           .single();
-        
         const isDemoUser = profile?.is_demo || false;
         setIsDemo(isDemoUser);
-        
-        // Get combined batteries (real + demo if appropriate)
-        const combinedBatteries = DemoService.getCombinedBatteries(realBatteries, isDemoUser);
-        
-        // Calculate stats from combined batteries
-        const dashboardStats = DashboardStatsService.calculateStats(combinedBatteries);
-        
-        setStats({
-          totalBatteries: dashboardStats.totalBatteries,
-          averageSoH: dashboardStats.averageSoH,
-          criticalIssues: dashboardStats.criticalIssues,
-        });
       }
+      // Calculate stats from batteries
+      const dashboardStats = DashboardStatsService.calculateStats(realBatteries);
+      setStats({
+        totalBatteries: dashboardStats.totalBatteries,
+        averageSoH: dashboardStats.averageSoH,
+        criticalIssues: dashboardStats.criticalIssues,
+      });
     } catch (error) {
       console.error('Error calculating stats:', error);
-      // Fallback to demo batteries if there's an error
-      const demoBatteries = DemoService.getDemoBatteries();
-      const demoStats = DashboardStatsService.calculateStats(demoBatteries);
-      setStats({
-        totalBatteries: demoStats.totalBatteries,
-        averageSoH: demoStats.averageSoH,
-        criticalIssues: demoStats.criticalIssues,
-      });
+      setStats({ totalBatteries: 0, averageSoH: 0, criticalIssues: 0 });
     }
   };
 

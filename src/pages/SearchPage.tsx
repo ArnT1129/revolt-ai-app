@@ -59,22 +59,7 @@ export default function SearchPage() {
     try {
       setLoading(true);
       const realBatteries = await batteryService.getUserBatteries();
-      
-      // Check if user is demo
-      let isDemoUser = false;
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_demo')
-          .eq('id', user.id)
-          .single();
-        
-        isDemoUser = profile?.is_demo || false;
-      }
-      
-      // Get combined batteries (real + demo if appropriate)
-      const combinedBatteries = DemoService.getCombinedBatteries(realBatteries, isDemoUser);
-      setBatteries(combinedBatteries);
+      setBatteries(realBatteries);
     } catch (error) {
       console.error('Error loading batteries:', error);
       toast({
@@ -82,8 +67,7 @@ export default function SearchPage() {
         description: "Failed to load battery data",
         variant: "destructive",
       });
-      // Fallback to demo batteries
-      setBatteries(DemoService.getDemoBatteries());
+      setBatteries([]);
     } finally {
       setLoading(false);
     }
