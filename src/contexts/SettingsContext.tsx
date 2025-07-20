@@ -57,7 +57,8 @@ interface SettingsContextType {
   updateSetting: (key: keyof AppSettings, value: any) => void;
   updateSettings: (newSettings: Partial<AppSettings>) => void;
   resetSettings: () => void;
-  saveSettings: () => void;
+  saveSettings: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -76,6 +77,7 @@ interface SettingsProviderProps {
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -135,12 +137,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const updateSetting = (key: keyof AppSettings, value: any) => {
     setSettings(prev => {
       const newSettings = { ...prev, [key]: value };
-      // Auto-save on change
-      try {
-        localStorage.setItem('batteryAnalysisSettings', JSON.stringify(newSettings));
-      } catch (error) {
-        console.error('Error auto-saving settings:', error);
-      }
       return newSettings;
     });
   };
@@ -148,27 +144,43 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
     setSettings(prev => {
       const updatedSettings = { ...prev, ...newSettings };
-      // Auto-save on change
-      try {
-        localStorage.setItem('batteryAnalysisSettings', JSON.stringify(updatedSettings));
-      } catch (error) {
-        console.error('Error auto-saving settings:', error);
-      }
       return updatedSettings;
     });
   };
 
   const resetSettings = () => {
     setSettings(defaultSettings);
-    localStorage.removeItem('batteryAnalysisSettings');
+    try {
+      localStorage.removeItem('batteryAnalysisSettings');
+    } catch (error) {
+      console.error('Error removing settings from localStorage:', error);
+    }
   };
 
-  const saveSettings = () => {
+  const saveSettings = async (): Promise<void> => {
+    setIsLoading(true);
     try {
+      // Simulate a small delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       localStorage.setItem('batteryAnalysisSettings', JSON.stringify(settings));
+      
+      // Validate that the settings were saved correctly
+      const savedSettings = localStorage.getItem('batteryAnalysisSettings');
+      if (!savedSettings) {
+        throw new Error('Failed to save settings to localStorage');
+      }
+      
+      const parsed = JSON.parse(savedSettings);
+      if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Invalid settings format saved to localStorage');
+      }
+      
     } catch (error) {
       console.error('Error saving settings:', error);
-      throw error;
+      throw new Error(`Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -178,6 +190,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     updateSettings,
     resetSettings,
     saveSettings,
+    isLoading,
   };
 
   return (

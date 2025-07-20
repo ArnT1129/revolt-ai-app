@@ -80,6 +80,25 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setLoading(true);
       
+      // Check if tables exist first
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('companies')
+        .select('id')
+        .limit(1);
+
+      if (tableError && tableError.code === '42P01') {
+        // Table doesn't exist, set empty companies
+        setUserCompanies([]);
+        return;
+      }
+
+      // Check for infinite recursion error in policies
+      if (tableError && tableError.code === '42P17') {
+
+        setUserCompanies([]);
+        return;
+      }
+
       // Get companies where user is a member
       const { data: memberCompanies, error: memberError } = await supabase
         .from('company_members')
@@ -96,7 +115,10 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         `)
         .eq('user_id', user.id);
 
-      if (memberError) throw memberError;
+      if (memberError) {
+
+        // Continue with owned companies only
+      }
 
       // Get companies owned by user
       const { data: ownedCompanies, error: ownedError } = await supabase
@@ -104,11 +126,16 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .select('*')
         .eq('owner_id', user.id);
 
-      if (ownedError) throw ownedError;
+      if (ownedError) {
+
+        // Set empty companies if both queries fail
+        setUserCompanies([]);
+        return;
+      }
 
       const allCompanies = [
-        ...ownedCompanies,
-        ...memberCompanies.map(mc => mc.companies).filter(Boolean)
+        ...(ownedCompanies || []),
+        ...(memberCompanies || []).map(mc => mc.companies).filter(Boolean)
       ];
 
       // Remove duplicates
@@ -119,6 +146,8 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setUserCompanies(uniqueCompanies);
     } catch (error) {
       console.error('Error fetching user companies:', error);
+      // Set empty companies on error
+      setUserCompanies([]);
     } finally {
       setLoading(false);
     }
@@ -142,90 +171,115 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const createCompany = async (name: string, domain?: string): Promise<Company> => {
     if (!user) throw new Error('User must be authenticated');
 
-    const { data, error } = await supabase
-      .from('companies')
-      .insert({
-        name,
-        domain,
-        owner_id: user.id
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .insert({
+          name,
+          domain,
+          owner_id: user.id
+        })
+        .select()
+        .single();
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // Add owner as a member
-    await supabase
-      .from('company_members')
-      .insert({
-        company_id: data.id,
-        user_id: user.id,
-        role: 'owner'
-      });
+      // Add owner as a member
+      await supabase
+        .from('company_members')
+        .insert({
+          company_id: data.id,
+          user_id: user.id,
+          role: 'owner'
+        });
 
-    await fetchUserCompanies();
-    return data;
+      await fetchUserCompanies();
+      return data;
+    } catch (error) {
+      console.error('Error creating company:', error);
+      throw new Error('Failed to create company. Please try again.');
+    }
   };
 
   const inviteEmployee = async (companyId: string, email: string, role: 'admin' | 'employee'): Promise<void> => {
     if (!user) throw new Error('User must be authenticated');
 
-    const { error } = await supabase
-      .from('company_invitations')
-      .insert({
-        company_id: companyId,
-        email,
-        role,
-        invited_by: user.id
-      });
+    try {
+      const { error } = await supabase
+        .from('company_invitations')
+        .insert({
+          company_id: companyId,
+          email,
+          role,
+          invited_by: user.id
+        });
 
-    if (error) throw error;
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error inviting employee:', error);
+      throw new Error('Failed to invite employee. Please try again.');
+    }
   };
 
   const getCompanyMembers = async (companyId: string): Promise<CompanyMember[]> => {
-    const { data, error } = await supabase
-      .from('company_members')
-      .select('*')
-      .eq('company_id', companyId);
+    try {
+      const { data, error } = await supabase
+        .from('company_members')
+        .select('*')
+        .eq('company_id', companyId);
 
-    if (error) throw error;
-    
-    // Type assertion with proper role casting
-    return (data || []).map(member => ({
-      ...member,
-      role: member.role as 'owner' | 'admin' | 'employee'
-    }));
+      if (error) throw error;
+      
+      // Type assertion with proper role casting
+      return (data || []).map(member => ({
+        ...member,
+        role: member.role as 'owner' | 'admin' | 'employee'
+      }));
+    } catch (error) {
+      console.error('Error fetching company members:', error);
+      return [];
+    }
   };
 
   const getPendingInvitations = async (companyId: string): Promise<CompanyInvitation[]> => {
-    const { data, error } = await supabase
-      .from('company_invitations')
-      .select('*')
-      .eq('company_id', companyId)
-      .eq('accepted', false)
-      .gt('expires_at', new Date().toISOString());
+    try {
+      const { data, error } = await supabase
+        .from('company_invitations')
+        .select('*')
+        .eq('company_id', companyId)
+        .eq('accepted', false)
+        .gt('expires_at', new Date().toISOString());
 
-    if (error) throw error;
-    
-    // Type assertion with proper role casting
-    return (data || []).map(invitation => ({
-      ...invitation,
-      role: invitation.role as 'admin' | 'employee'
-    }));
+      if (error) throw error;
+      
+      // Type assertion with proper role casting
+      return (data || []).map(invitation => ({
+        ...invitation,
+        role: invitation.role as 'admin' | 'employee'
+      }));
+    } catch (error) {
+      console.error('Error fetching pending invitations:', error);
+      return [];
+    }
   };
 
   const acceptInvitation = async (invitationId: string): Promise<boolean> => {
-    const { data, error } = await supabase.rpc('accept_company_invitation', {
-      invitation_id: invitationId
-    });
+    try {
+      const { data, error } = await supabase.rpc('accept_company_invitation', {
+        invitation_id: invitationId
+      });
 
-    if (error) throw error;
-    
-    if (data) {
-      await fetchUserCompanies();
+      if (error) throw error;
+      
+      if (data) {
+        await fetchUserCompanies();
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      return false;
     }
-    
-    return data;
   };
 
   const value = {

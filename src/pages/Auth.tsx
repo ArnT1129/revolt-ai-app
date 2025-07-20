@@ -10,10 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building, Lock, User, Shield, Smartphone, Battery, Zap, TrendingUp } from 'lucide-react';
+import { Building, Lock, User, Shield, Smartphone, Battery, Zap, TrendingUp, Mail, Key, Users, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { DemoService } from '@/services/demoService';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +32,13 @@ export default function Auth() {
   const [error, setError] = useState('');
   const [showMFASetup, setShowMFASetup] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState('');
+  
+  // Company joining functionality
+  const [showJoinCompanyModal, setShowJoinCompanyModal] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [companyInvitation, setCompanyInvitation] = useState<Record<string, any> | null>(null);
+  const [joiningCompany, setJoiningCompany] = useState(false);
+  const [searchingInvitation, setSearchingInvitation] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -152,54 +161,24 @@ export default function Auth() {
     setError('');
 
     try {
-      const demoEmail = 'demo@revolt.ai';
-      const demoPassword = 'demo123456';
+      const { user, error } = await DemoService.createDemoAccount();
 
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: demoEmail,
-        password: demoPassword,
-      });
-
-      if (error && error.message.includes('Invalid login credentials')) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: demoEmail,
-          password: demoPassword,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              first_name: 'Demo',
-              last_name: 'User',
-              full_name: 'Demo User',
-              account_type: 'individual'
-            }
-          }
-        });
-
-        if (signUpError) {
-          console.error('Demo signup error:', signUpError);
-          throw new Error('Failed to create demo account');
-        }
-
-        if (signUpData.user) {
-          // No longer insert demo batteries into the database for demo users
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: demoEmail,
-            password: demoPassword,
-          });
-          if (signInError) throw signInError;
-        }
-      } else if (error) {
+      if (error) {
         throw error;
       }
 
-      toast({
-        title: "Demo Account Loaded!",
-        description: "Exploring ReVolt Analytics with sample data.",
-      });
-      
-      setTimeout(() => {
-        navigate('/');
-      }, 100);
+      if (user) {
+        toast({
+          title: "Demo Account Loaded!",
+          description: "Exploring ReVolt Analytics with sample data.",
+        });
+        
+        setTimeout(() => {
+          navigate('/');
+        }, 100);
+      } else {
+        throw new Error('Failed to create demo account');
+      }
       
     } catch (error: any) {
       console.error('Demo account error:', error);
@@ -232,108 +211,255 @@ export default function Auth() {
           title: "2FA Setup Complete!",
           description: "Your account is now secured with two-factor authentication.",
         });
-        setShowMFASetup(false);
-        navigate('/');
       } else {
-        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-          factorId: mfaFactorId
-        });
-
-        if (challengeError) throw challengeError;
-
-        const { error: verifyError } = await supabase.auth.mfa.verify({
+        const { error } = await supabase.auth.mfa.verify({
           factorId: mfaFactorId,
           code: totpCode,
-          challengeId: challengeData.id
+          challengeId: ''
         });
 
-        if (verifyError) throw verifyError;
-
-        toast({
-          title: "Welcome back!",
-          description: "You have been signed in successfully.",
-        });
-        navigate('/');
+        if (error) throw error;
       }
+
+      toast({
+        title: "Welcome back!",
+        description: "You have been signed in successfully.",
+      });
+      navigate('/');
     } catch (error: any) {
       console.error('MFA verification error:', error);
-      setError(error.message || 'Invalid verification code');
+      setError('Invalid verification code. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
+  const handleSearchInvitation = async () => {
+    if (!inviteCode.trim()) {
+      setError('Please enter an invitation code');
+      return;
+    }
+
+    setSearchingInvitation(true);
     setError('');
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const { data: invitation, error } = await supabase
+        .from('company_invitations')
+        .select(`
+          *,
+          companies!inner(id, name, domain)
+        `)
+        .eq('invite_code', inviteCode.trim().toUpperCase())
+        .eq('accepted', false)
+        .eq('email', email)
+        .single();
+
+      if (error || !invitation) {
+        setError('Invalid or expired invitation code');
+        return;
+      }
+
+      const expiresAt = new Date(invitation.expires_at);
+      if (expiresAt < new Date()) {
+        setError('This invitation has expired');
+        return;
+      }
+
+      setCompanyInvitation(invitation);
+      toast({
+        title: "Invitation Found!",
+        description: `You're invited to join ${invitation.companies.name}`,
+      });
+    } catch (error) {
+      console.error('Search invitation error:', error);
+      setError('Invalid or expired invitation code');
+    } finally {
+      setSearchingInvitation(false);
+    }
+  };
+
+  const handleJoinCompany = async () => {
+    if (!companyInvitation) return;
+
+    setJoiningCompany(true);
+    setError('');
+
+    try {
+      // First, create the user account
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          redirectTo: `${window.location.origin}/`
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            full_name: `${firstName} ${lastName}`,
+            account_type: 'company'
+          }
         }
       });
 
-      if (error) throw error;
+      if (signUpError) throw signUpError;
+
+      if (signUpData.user) {
+        // Add user to company
+        const { error: memberError } = await supabase
+          .from('company_members')
+          .insert({
+            company_id: companyInvitation.company_id,
+            user_id: signUpData.user.id,
+            role: companyInvitation.role,
+            joined_at: new Date().toISOString()
+          });
+
+        if (memberError) throw memberError;
+
+        // Mark invitation as accepted
+        const { error: updateError } = await supabase
+          .from('company_invitations')
+          .update({ accepted: true })
+          .eq('id', companyInvitation.id);
+
+        if (updateError) throw updateError;
+
+        toast({
+          title: "Welcome to the team!",
+          description: `You've successfully joined ${companyInvitation.companies.name}`,
+        });
+
+        setShowJoinCompanyModal(false);
+        setCompanyInvitation(null);
+        setInviteCode('');
+      }
     } catch (error: any) {
-      console.error('Google sign in error:', error);
-      setError(error.message || 'Failed to sign in with Google');
-      setIsLoading(false);
+      console.error('Join company error:', error);
+      setError(error.message || 'Failed to join company');
+    } finally {
+      setJoiningCompany(false);
     }
   };
 
   if (showMFASetup) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-        <Card className="w-full max-w-md backdrop-blur-xl bg-slate-900/80 border-slate-700/50">
-          <CardHeader className="text-center">
-            <CardTitle className="text-white flex items-center justify-center gap-2">
-              <Shield className="h-6 w-6 text-green-400" />
-              Two-Factor Authentication
-            </CardTitle>
-            <CardDescription>
-              {qrCodeUrl ? 'Scan the QR code with your authenticator app' : 'Enter the code from your authenticator app'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {qrCodeUrl && (
-              <div className="text-center">
-                <img src={qrCodeUrl} alt="QR Code" className="mx-auto mb-4" />
-                <p className="text-sm text-slate-400 mb-4">
-                  Scan this QR code with Google Authenticator, Authy, or any TOTP app
-                </p>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="totpCode" className="text-slate-300">Verification Code</Label>
-              <Input
-                id="totpCode"
-                type="text"
-                placeholder="Enter 6-digit code"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value)}
-                className="bg-slate-800/50 border-slate-600 text-white text-center text-lg tracking-widest"
-                maxLength={6}
+      <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex">
+        {/* Left Side - Branding */}
+        <div className="hidden lg:flex lg:flex-1 flex-col justify-center px-12 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-purple-600/20 backdrop-blur-3xl" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-4 mb-8">
+              <img 
+                src="/download.png" 
+                alt="ReVolt Logo" 
+                className="h-16 w-auto"
               />
+              <div>
+                <h1 className="text-4xl font-bold text-white">ReVolt Analytics</h1>
+                <p className="text-xl text-blue-200">Advanced Battery Intelligence</p>
+              </div>
             </div>
+            
+            <div className="space-y-6 mb-12">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-blue-500/20 rounded-lg">
+                  <Battery className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Smart Battery Monitoring</h3>
+                  <p className="text-slate-300">Real-time health analysis and predictive maintenance</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-green-500/20 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Performance Analytics</h3>
+                  <p className="text-slate-300">Advanced insights into battery performance trends</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-purple-500/20 rounded-lg">
+                  <Zap className="h-6 w-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">AI-Powered Predictions</h3>
+                  <p className="text-slate-300">Machine learning for accurate RUL estimation</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 text-sm text-slate-400">
+              <Badge variant="outline" className="border-blue-400/50 text-blue-300">Enterprise Ready</Badge>
+              <Badge variant="outline" className="border-green-400/50 text-green-300">ISO Certified</Badge>
+              <Badge variant="outline" className="border-purple-400/50 text-purple-300">AI-Powered</Badge>
+            </div>
+          </div>
+        </div>
 
-            {error && (
-              <Alert className="border-red-600/50 bg-red-900/20">
-                <AlertDescription className="text-red-300">{error}</AlertDescription>
-              </Alert>
-            )}
+        {/* Right Side - MFA Setup */}
+        <div className="flex-1 lg:flex-none lg:w-[500px] flex items-center justify-center p-6 relative z-20">
+          <Card className="w-full max-w-md backdrop-blur-xl bg-slate-900/90 border-slate-700/50 shadow-2xl">
+            <CardHeader className="text-center pb-4">
+              <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
+                <img 
+                  src="/download.png" 
+                  alt="ReVolt Logo" 
+                  className="h-8 w-auto"
+                />
+                <span className="text-xl font-bold text-white">ReVolt Analytics</span>
+              </div>
+              <CardTitle className="text-2xl text-white flex items-center justify-center gap-2">
+                <Shield className="h-6 w-6 text-green-400" />
+                Two-Factor Authentication
+              </CardTitle>
+              <CardDescription>
+                {qrCodeUrl ? 'Scan the QR code with your authenticator app' : 'Enter the code from your authenticator app'}
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              {qrCodeUrl && (
+                <div className="text-center">
+                  <img src={qrCodeUrl} alt="QR Code" className="mx-auto mb-4" />
+                  <p className="text-sm text-slate-400 mb-4">
+                    Scan this QR code with Google Authenticator, Authy, or any TOTP app
+                  </p>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="totpCode" className="text-slate-300">Verification Code</Label>
+                <Input
+                  id="totpCode"
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  className="bg-slate-800/50 border-slate-600 text-white text-center text-lg tracking-widest"
+                  maxLength={6}
+                />
+              </div>
 
-            <Button
-              onClick={handleVerifyMFA}
-              disabled={isLoading || !totpCode}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isLoading ? 'Verifying...' : 'Verify Code'}
-            </Button>
-          </CardContent>
-        </Card>
+              {error && (
+                <Alert className="border-red-600/50 bg-red-900/20">
+                  <AlertDescription className="text-red-300">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button
+                onClick={handleVerifyMFA}
+                disabled={isLoading || !totpCode}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isLoading ? 'Verifying...' : 'Verify Code'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -413,7 +539,7 @@ export default function Auth() {
               Sign in to your account or create a new one
             </CardDescription>
           </CardHeader>
-          
+        
           <CardContent>
             {/* Demo Account Button */}
             <Button
@@ -437,9 +563,10 @@ export default function Auth() {
             </div>
             
             <Tabs defaultValue="signin" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 relative z-30">
+              <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 relative z-30">
                 <TabsTrigger value="signin" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">Sign In</TabsTrigger>
                 <TabsTrigger value="signup" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">Sign Up</TabsTrigger>
+                <TabsTrigger value="join" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">Join Company</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
@@ -484,19 +611,9 @@ export default function Auth() {
                   >
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleGoogleSignIn}
-                    disabled={isLoading}
-                    className="w-full bg-white/10 border-slate-600 text-white hover:bg-white/20 relative z-30"
-                  >
-                    Sign in with Google
-                  </Button>
                 </form>
               </TabsContent>
-              
+
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-3">
@@ -655,17 +772,160 @@ export default function Auth() {
                   >
                     {isLoading ? 'Creating account...' : 'Create Account'}
                   </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleGoogleSignIn}
-                    disabled={isLoading}
-                    className="w-full bg-white/10 border-slate-600 text-white hover:bg-white/20 relative z-30"
-                  >
-                    Sign up with Google
-                  </Button>
                 </form>
+              </TabsContent>
+
+              <TabsContent value="join">
+                <div className="space-y-4">
+                  <div className="text-center mb-4">
+                    <Users className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                    <h3 className="text-lg font-semibold text-white">Join Your Company</h3>
+                    <p className="text-slate-400 text-sm">Use an invitation code to join your team</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="invite-code" className="text-slate-300">Invitation Code</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="invite-code"
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value)}
+                          placeholder="Enter invitation code"
+                          className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400 relative z-30 flex-1"
+                          disabled={searchingInvitation}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleSearchInvitation}
+                          disabled={searchingInvitation || !inviteCode.trim()}
+                          className="bg-blue-600 hover:bg-blue-700 text-white relative z-30"
+                        >
+                          {searchingInvitation ? 'Searching...' : 'Search'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {companyInvitation && (
+                      <div className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-5 w-5 text-green-400" />
+                          <span className="text-green-400 font-medium">Invitation Found!</span>
+                        </div>
+                        <div className="text-white font-medium">{companyInvitation.companies.name}</div>
+                        <div className="text-slate-400 text-sm">
+                          Role: {companyInvitation.role} • Expires: {new Date(companyInvitation.expires_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+
+                    {error && (
+                      <Alert className="border-red-600/50 bg-red-900/20">
+                        <AlertDescription className="text-red-300">{error}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {companyInvitation ? (
+                      <Dialog open={showJoinCompanyModal} onOpenChange={setShowJoinCompanyModal}>
+                        <DialogTrigger asChild>
+                          <Button className="w-full bg-green-600 hover:bg-green-700 text-white relative z-30">
+                            <Users className="h-4 w-4 mr-2" />
+                            Join Company
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-slate-800 border-slate-600">
+                          <DialogHeader>
+                            <DialogTitle className="text-white">Complete Your Registration</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="join-first-name" className="text-slate-300">First Name</Label>
+                                <Input
+                                  id="join-first-name"
+                                  value={firstName}
+                                  onChange={(e) => setFirstName(e.target.value)}
+                                  placeholder="John"
+                                  required
+                                  className="bg-slate-700 border-slate-600 text-white"
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="join-last-name" className="text-slate-300">Last Name</Label>
+                                <Input
+                                  id="join-last-name"
+                                  value={lastName}
+                                  onChange={(e) => setLastName(e.target.value)}
+                                  placeholder="Doe"
+                                  required
+                                  className="bg-slate-700 border-slate-600 text-white"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="join-email" className="text-slate-300">Email</Label>
+                              <Input
+                                id="join-email"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="john@example.com"
+                                required
+                                className="bg-slate-700 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="join-password" className="text-slate-300">Password</Label>
+                              <Input
+                                id="join-password"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Create a password"
+                                required
+                                className="bg-slate-700 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="join-confirm-password" className="text-slate-300">Confirm Password</Label>
+                              <Input
+                                id="join-confirm-password"
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="Confirm password"
+                                required
+                                className="bg-slate-700 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div className="flex gap-3 pt-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowJoinCompanyModal(false)}
+                                className="flex-1"
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={handleJoinCompany}
+                                disabled={joiningCompany || !firstName || !lastName || !email || !password || password !== confirmPassword}
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                              >
+                                {joiningCompany ? 'Joining...' : 'Join Company'}
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <div className="text-center py-4 text-slate-400">
+                        <Key className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Enter an invitation code to join your company</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </CardContent>

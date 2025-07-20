@@ -45,14 +45,27 @@ export default function LandingPageModal({ isOpen, onClose }: LandingPageModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 border border-blue-500/30 text-white">
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 border border-blue-500/30 text-white"
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          margin: 0,
+          zIndex: 50,
+          borderRadius: '12px',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          width: 'auto',
+          minWidth: '320px'
+        }}
+      >
         <DialogHeader className="text-center pb-6">
           <div className="flex justify-center mb-4">
-            <img 
-              src="/lovable-uploads/4da0f652-00c2-4e71-acf9-94d61337be25.png" 
-              alt="ReVolt" 
-              className="h-16 w-auto"
-            />
+            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+              <Battery className="h-8 w-8 text-white" />
+            </div>
           </div>
           <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-indigo-400 bg-clip-text text-transparent">
             Welcome to ReVolt

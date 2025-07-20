@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { batteryService } from '@/services/batteryService';
-import { Search, Filter, Download, Eye } from 'lucide-react';
+import { Search, Filter, Download, Eye, Trash2 } from 'lucide-react';
 import type { Battery } from '@/types';
 import BatteryPassportModal from './BatteryPassportModal';
+import { useToast } from '@/hooks/use-toast';
 
 export default function OptimizedBatteryTable() {
   const [batteries, setBatteries] = useState<Battery[]>([]);
@@ -20,6 +21,7 @@ export default function OptimizedBatteryTable() {
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [selectedBattery, setSelectedBattery] = useState<Battery | null>(null);
   const [showPassportModal, setShowPassportModal] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadBatteries();
@@ -60,6 +62,28 @@ export default function OptimizedBatteryTable() {
   const handleViewDetails = (battery: Battery) => {
     setSelectedBattery(battery);
     setShowPassportModal(true);
+  };
+
+  const handleDeleteBattery = async (batteryId: string) => {
+    if (!window.confirm('Are you sure you want to delete this battery?')) {
+      return;
+    }
+
+    try {
+      await batteryService.deleteBatteryForUser(batteryId);
+      toast({
+        title: 'Battery deleted',
+        description: `Battery with ID ${batteryId} deleted.`,
+      });
+      loadBatteries(); // Reload batteries after deletion
+    } catch (error) {
+      toast({
+        title: 'Error deleting battery',
+        description: `Failed to delete battery with ID ${batteryId}: ${error}`,
+        variant: 'destructive',
+      });
+      console.error('Error deleting battery:', error);
+    }
   };
 
   const exportToCsv = () => {
@@ -196,7 +220,7 @@ export default function OptimizedBatteryTable() {
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-white/5">
-                  <TableHead className="text-slate-300">ID</TableHead>
+                  <TableHead className="text-slate-300">Name/ID</TableHead>
                   <TableHead className="text-slate-300">Chemistry</TableHead>
                   <TableHead className="text-slate-300">Grade</TableHead>
                   <TableHead className="text-slate-300">Status</TableHead>
@@ -211,7 +235,7 @@ export default function OptimizedBatteryTable() {
                 {filteredBatteries.length > 0 ? (
                   filteredBatteries.map((battery) => (
                     <TableRow key={battery.id} className="border-white/10 hover:bg-white/5">
-                      <TableCell className="text-white font-medium">{battery.id}</TableCell>
+                      <TableCell className="text-white font-medium">{battery.name || battery.id}</TableCell>
                       <TableCell className="text-slate-300">{battery.chemistry}</TableCell>
                       <TableCell>
                         <Badge className={`text-xs ${getGradeColor(battery.grade)}`}>
@@ -235,6 +259,14 @@ export default function OptimizedBatteryTable() {
                           className="glass-button"
                         >
                           <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteBattery(battery.id)}
+                          size="sm"
+                          variant="outline"
+                          className="glass-button ml-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>

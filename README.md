@@ -1,73 +1,88 @@
-# Welcome to your Lovable project
+# ReVolt - Battery Analysis Platform
 
-## Project info
+A comprehensive React-based platform for monitoring and analyzing battery fleet performance with advanced AI capabilities.
 
-**URL**: https://lovable.dev/projects/24821e5d-019a-4c49-990d-4f3562977030
+## Features
 
-## How can I edit this code?
+- **Battery Data Upload**: Support for CSV, XLS, and XLSX files
+- **Manual Battery Entry**: Create battery passports with custom specifications
+- **AI Agent Analysis**: Neural network-powered battery analysis
+- **Real-time Monitoring**: Live battery status and performance tracking
+- **Advanced Analytics**: Comprehensive battery health metrics
+- **Company Management**: Multi-company support with role-based access
 
-There are several ways of editing your application.
+## Technologies
 
-**Use Lovable**
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: shadcn/ui, Tailwind CSS
+- **Database**: Supabase
+- **Authentication**: Supabase Auth
+- **AI**: Custom neural network analysis
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/24821e5d-019a-4c49-990d-4f3562977030) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js 18+ and npm
+- Supabase account (for database and auth)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+# Clone the repository
+git clone <repository-url>
 
-Follow these steps:
+# Navigate to project directory
+cd revolt-ai-app
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Install dependencies
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Environment Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Create a `.env` file with your Supabase credentials:
 
-**Use GitHub Codespaces**
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Development
 
-## What technologies are used for this project?
+```bash
+# Start development server
+npm run dev
 
-This project is built with:
+# Build for production
+npm run build
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Preview production build
+npm run preview
+```
 
-## How can I deploy this project?
+## Project Structure
 
-Simply open [Lovable](https://lovable.dev/projects/24821e5d-019a-4c49-990d-4f3562977030) and click on Share -> Publish.
+```
+src/
+├── components/     # Reusable UI components
+├── pages/         # Page components
+├── services/      # API and business logic
+├── contexts/      # React contexts
+├── types/         # TypeScript type definitions
+└── integrations/  # External service integrations
+```
 
-## Can I connect a custom domain to my Lovable project?
+## Contributing
 
-Yes, you can!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This project is proprietary software. 

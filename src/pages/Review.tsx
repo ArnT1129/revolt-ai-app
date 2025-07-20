@@ -5,13 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
 import { batteryService } from '@/services/batteryService';
 import { Battery } from '@/types';
-import { AlertTriangle, MessageCircle, Search, Filter, Eye, Clock, User, Flag, FileText } from 'lucide-react';
+import { AlertTriangle, MessageCircle, Search, Filter, Eye, Clock, User, Flag, FileText, CheckCircle, X } from 'lucide-react';
 
 interface ReviewItem {
   id: string;
@@ -31,6 +31,7 @@ export default function Review() {
   const [viewFilter, setViewFilter] = useState<string>('all'); // 'all', 'mine', 'company'
   const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const { toast } = useToast();
   const { isCompanyMode, currentCompany } = useCompany();
 
@@ -44,6 +45,7 @@ export default function Review() {
 
   const fetchReviewItems = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
@@ -86,6 +88,7 @@ export default function Review() {
           battery_id: 'DEMO-NMC-001',
           battery: {
             id: 'DEMO-NMC-001',
+            name: 'Demo Tesla Battery',
             grade: 'A',
             status: 'Healthy',
             soh: 98.5,
@@ -94,9 +97,10 @@ export default function Review() {
             chemistry: 'NMC',
             uploadDate: new Date().toISOString().split('T')[0],
             sohHistory: [],
-            issues: []
+            issues: [],
+            notes: '[MARKED FOR REVIEW by demo@example.com on 2024-01-15T10:30:00Z] Battery showing excellent performance metrics. Marked for quality review.'
           },
-          marked_by: 'demo-user',
+          marked_by: 'demo@example.com',
           marked_by_name: 'Demo User',
           marked_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           review_type: isCompanyMode ? 'company' : 'individual',
@@ -116,6 +120,7 @@ export default function Review() {
     if (searchTerm) {
       filtered = filtered.filter(item =>
         item.battery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.battery.name && item.battery.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         item.marked_by_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.battery.chemistry.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -143,7 +148,7 @@ export default function Review() {
       if (success) {
         setReviewItems(prev => prev.filter(i => i.id !== reviewId));
         toast({
-          title: "Success",
+          title: "Review Complete",
           description: "Battery removed from review list",
         });
       }
@@ -220,12 +225,12 @@ export default function Review() {
                   placeholder="Search review items..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="glass-input pl-10"
+                  className="glass-button pl-10"
                 />
               </div>
             </div>
             <Select value={viewFilter} onValueChange={setViewFilter}>
-              <SelectTrigger className="w-48 glass-input">
+              <SelectTrigger className="w-48 glass-button">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -263,7 +268,7 @@ export default function Review() {
               filteredItems.map((item) => (
                 <div 
                   key={item.id} 
-                  className="p-4 rounded-lg border bg-slate-800/40 border-slate-600/30 hover:bg-slate-700/40 transition-colors"
+                  className="p-6 rounded-lg border bg-slate-800/40 border-slate-600/30 hover:bg-slate-700/40 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4 flex-1">
@@ -271,7 +276,7 @@ export default function Review() {
                         <FileText className="h-5 w-5 text-orange-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-3">
                           <Badge className="bg-orange-600/80 text-orange-100 border-0">
                             FOR REVIEW
                           </Badge>
@@ -285,10 +290,15 @@ export default function Review() {
                             {item.battery.chemistry}
                           </span>
                         </div>
-                        <h3 className="font-semibold text-white mb-2">
+                        <h3 className="font-semibold text-white mb-2 text-lg">
                           Battery {item.battery.id}
+                          {item.battery.name && (
+                            <span className="text-slate-400 font-normal ml-2">
+                              - {item.battery.name}
+                            </span>
+                          )}
                         </h3>
-                        <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
+                        <div className="grid grid-cols-3 gap-6 mb-4 text-sm">
                           <div>
                             <span className="text-slate-400">SoH:</span>
                             <span className="text-green-300 font-medium ml-2">
@@ -298,7 +308,7 @@ export default function Review() {
                           <div>
                             <span className="text-slate-400">RUL:</span>
                             <span className="text-blue-300 font-medium ml-2">
-                              {item.battery.rul}
+                              {item.battery.rul.toLocaleString()}
                             </span>
                           </div>
                           <div>
@@ -321,93 +331,24 @@ export default function Review() {
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="glass-button"
-                            onClick={() => setSelectedItem(item)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="enhanced-card max-w-4xl">
-                          <DialogHeader>
-                            <DialogTitle className="text-white flex items-center gap-2">
-                              <FileText className="h-5 w-5 text-orange-400" />
-                              Review Details - {selectedItem?.battery.id}
-                            </DialogTitle>
-                          </DialogHeader>
-                          {selectedItem && (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="text-center">
-                                  <div className="text-xl font-bold text-blue-300">
-                                    {selectedItem.battery.soh.toFixed(1)}%
-                                  </div>
-                                  <div className="text-xs text-slate-400">State of Health</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-xl font-bold text-emerald-300">
-                                    {selectedItem.battery.rul}
-                                  </div>
-                                  <div className="text-xs text-slate-400">RUL</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-xl font-bold text-purple-300">
-                                    {selectedItem.battery.cycles.toLocaleString()}
-                                  </div>
-                                  <div className="text-xs text-slate-400">Cycles</div>
-                                </div>
-                                <div className="text-center">
-                                  <div className="text-xl font-bold text-orange-300">
-                                    {selectedItem.battery.chemistry}
-                                  </div>
-                                  <div className="text-xs text-slate-400">Chemistry</div>
-                                </div>
-                              </div>
-                              
-                              <div className="bg-slate-800/40 p-4 rounded-lg">
-                                <h4 className="font-medium text-slate-300 mb-2">Review Information</h4>
-                                <div className="space-y-2 text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Marked by:</span>
-                                    <span className="text-slate-200">{selectedItem.marked_by_name}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Marked on:</span>
-                                    <span className="text-slate-200">
-                                      {new Date(selectedItem.marked_at).toLocaleString()}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">Review type:</span>
-                                    <span className="text-slate-200 capitalize">
-                                      {selectedItem.review_type}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {selectedItem.battery.notes && (
-                                <div className="bg-slate-800/40 p-4 rounded-lg">
-                                  <h4 className="font-medium text-slate-300 mb-2">Notes</h4>
-                                  <p className="text-slate-300 text-sm whitespace-pre-wrap">
-                                    {selectedItem.battery.notes}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="glass-button"
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setIsDetailOpen(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button
                         size="sm"
                         onClick={() => removeFromReview(item.id)}
-                        className="bg-red-600/70 hover:bg-red-600/85"
+                        className="bg-green-600/70 hover:bg-green-600/85"
                       >
-                        Complete Review
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Complete
                       </Button>
                     </div>
                   </div>
@@ -417,6 +358,100 @@ export default function Review() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="enhanced-card max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <FileText className="h-5 w-5 text-orange-400" />
+              Review Details - {selectedItem?.battery.id}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedItem && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-slate-800/40 rounded-lg">
+                  <div className="text-xl font-bold text-blue-300">
+                    {selectedItem.battery.soh.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-slate-400">State of Health</div>
+                </div>
+                <div className="text-center p-4 bg-slate-800/40 rounded-lg">
+                  <div className="text-xl font-bold text-emerald-300">
+                    {selectedItem.battery.rul.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-400">RUL</div>
+                </div>
+                <div className="text-center p-4 bg-slate-800/40 rounded-lg">
+                  <div className="text-xl font-bold text-purple-300">
+                    {selectedItem.battery.cycles.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-400">Cycles</div>
+                </div>
+                <div className="text-center p-4 bg-slate-800/40 rounded-lg">
+                  <div className="text-xl font-bold text-orange-300">
+                    {selectedItem.battery.chemistry}
+                  </div>
+                  <div className="text-xs text-slate-400">Chemistry</div>
+                </div>
+              </div>
+              
+              <div className="bg-slate-800/40 p-4 rounded-lg">
+                <h4 className="font-medium text-slate-300 mb-3">Review Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Marked by:</span>
+                    <span className="text-slate-200">{selectedItem.marked_by_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Marked on:</span>
+                    <span className="text-slate-200">
+                      {new Date(selectedItem.marked_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Review type:</span>
+                    <span className="text-slate-200 capitalize">
+                      {selectedItem.review_type}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedItem.battery.notes && (
+                <div className="bg-slate-800/40 p-4 rounded-lg">
+                  <h4 className="font-medium text-slate-300 mb-2">Notes</h4>
+                  <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">
+                    {selectedItem.battery.notes}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailOpen(false)}
+                  className="glass-button"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    removeFromReview(selectedItem.id);
+                    setIsDetailOpen(false);
+                  }}
+                  className="bg-green-600/70 hover:bg-green-600/85"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Complete Review
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

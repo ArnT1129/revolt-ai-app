@@ -8,27 +8,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Save, RotateCcw, Settings as SettingsIcon } from "lucide-react";
 
 export default function Settings() {
   const { settings, updateSetting, resetSettings, saveSettings } = useSettings();
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Auto-save settings when they change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      try {
-        saveSettings();
-      } catch (error) {
-        console.error('Auto-save failed:', error);
+      if (hasUnsavedChanges) {
+        try {
+          saveSettings();
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+        }
       }
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [settings, saveSettings]);
+  }, [settings, saveSettings, hasUnsavedChanges]);
+
+  const handleSettingChange = (key: string, value: any) => {
+    updateSetting(key as any, value);
+    setHasUnsavedChanges(true);
+  };
 
   const handleSaveSettings = async () => {
+    setIsLoading(true);
     try {
-      saveSettings();
+      await saveSettings();
+      setHasUnsavedChanges(false);
       toast({
         title: "Settings Saved",
         description: "Your preferences have been updated successfully.",
@@ -40,12 +53,15 @@ export default function Settings() {
         description: "Failed to save settings. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleResetSettings = () => {
     try {
       resetSettings();
+      setHasUnsavedChanges(false);
       toast({
         title: "Settings Reset",
         description: "All settings have been reset to defaults.",
@@ -63,21 +79,21 @@ export default function Settings() {
   const handleVoltageThresholdChange = (value: string) => {
     const numValue = parseFloat(value);
     if (!isNaN(numValue) && numValue >= 0 && numValue <= 5) {
-      updateSetting('voltageThreshold', numValue);
+      handleSettingChange('voltageThreshold', numValue);
     }
   };
 
   const handleCapacityThresholdChange = (value: string) => {
     const numValue = parseInt(value);
     if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-      updateSetting('capacityThreshold', numValue);
+      handleSettingChange('capacityThreshold', numValue);
     }
   };
 
   const handleDecimalPlacesChange = (value: string) => {
     const numValue = parseInt(value);
     if (!isNaN(numValue) && numValue >= 0 && numValue <= 6) {
-      updateSetting('decimalPlaces', numValue);
+      handleSettingChange('decimalPlaces', numValue);
     }
   };
 
@@ -85,27 +101,37 @@ export default function Settings() {
     <main className="flex-1 p-4 md:p-8 animate-fade-in">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-2">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <SettingsIcon className="h-8 w-8 text-blue-400" />
+            <h1 className="text-3xl font-bold text-white">Settings</h1>
+          </div>
+          <p className="text-slate-400">
             Configure your battery analysis preferences and system settings.
           </p>
+          {hasUnsavedChanges && (
+            <div className="mt-2 text-amber-400 text-sm">
+              You have unsaved changes
+            </div>
+          )}
         </div>
 
         {/* Analysis Settings */}
-        <Card>
+        <Card className="enhanced-card">
           <CardHeader>
-            <CardTitle>Analysis Settings</CardTitle>
-            <CardDescription>Configure default parameters for battery analysis</CardDescription>
+            <CardTitle className="text-white">Analysis Settings</CardTitle>
+            <CardDescription className="text-slate-400">
+              Configure default parameters for battery analysis
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="defaultChemistry">Default Battery Chemistry</Label>
+                <Label htmlFor="defaultChemistry" className="text-white">Default Battery Chemistry</Label>
                 <Select 
                   value={settings.defaultChemistry} 
-                  onValueChange={(value) => updateSetting('defaultChemistry', value)}
+                  onValueChange={(value) => handleSettingChange('defaultChemistry', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="glass-button">
                     <SelectValue placeholder="Select chemistry" />
                   </SelectTrigger>
                   <SelectContent>
@@ -119,7 +145,7 @@ export default function Settings() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="voltageThreshold">Voltage Threshold (V)</Label>
+                <Label htmlFor="voltageThreshold" className="text-white">Voltage Threshold (V)</Label>
                 <Input
                   id="voltageThreshold"
                   type="number"
@@ -128,11 +154,12 @@ export default function Settings() {
                   max="5"
                   value={settings.voltageThreshold}
                   onChange={(e) => handleVoltageThresholdChange(e.target.value)}
+                  className="glass-button"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="capacityThreshold">SoH Threshold (%)</Label>
+                <Label htmlFor="capacityThreshold" className="text-white">SoH Threshold (%)</Label>
                 <Input
                   id="capacityThreshold"
                   type="number"
@@ -140,16 +167,17 @@ export default function Settings() {
                   max="100"
                   value={settings.capacityThreshold}
                   onChange={(e) => handleCapacityThresholdChange(e.target.value)}
+                  className="glass-button"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="temperatureUnit">Temperature Unit</Label>
+                <Label htmlFor="temperatureUnit" className="text-white">Temperature Unit</Label>
                 <Select 
                   value={settings.temperatureUnit} 
-                  onValueChange={(value) => updateSetting('temperatureUnit', value)}
+                  onValueChange={(value) => handleSettingChange('temperatureUnit', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="glass-button">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -164,54 +192,56 @@ export default function Settings() {
         </Card>
 
         {/* Data Processing */}
-        <Card>
+        <Card className="enhanced-card">
           <CardHeader>
-            <CardTitle>Data Processing</CardTitle>
-            <CardDescription>Configure how uploaded data is processed and cleaned</CardDescription>
+            <CardTitle className="text-white">Data Processing</CardTitle>
+            <CardDescription className="text-slate-400">
+              Configure how uploaded data is processed and cleaned
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Auto-detect File Format</Label>
-                <p className="text-sm text-muted-foreground">Automatically detect Maccor, Arbin, Neware formats</p>
+                <Label className="text-white">Auto-detect File Format</Label>
+                <p className="text-sm text-slate-400">Automatically detect Maccor, Arbin, Neware formats</p>
               </div>
               <Switch
                 checked={settings.autoDetectFormat}
-                onCheckedChange={(checked) => updateSetting('autoDetectFormat', checked)}
+                onCheckedChange={(checked) => handleSettingChange('autoDetectFormat', checked)}
               />
             </div>
             
-            <Separator />
+            <Separator className="bg-slate-600" />
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Data Smoothing</Label>
-                <p className="text-sm text-muted-foreground">Apply smoothing algorithms to reduce noise</p>
+                <Label className="text-white">Data Smoothing</Label>
+                <p className="text-sm text-slate-400">Apply smoothing algorithms to reduce noise</p>
               </div>
               <Switch
                 checked={settings.smoothingEnabled}
-                onCheckedChange={(checked) => updateSetting('smoothingEnabled', checked)}
+                onCheckedChange={(checked) => handleSettingChange('smoothingEnabled', checked)}
               />
             </div>
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Outlier Removal</Label>
-                <p className="text-sm text-muted-foreground">Automatically remove statistical outliers</p>
+                <Label className="text-white">Outlier Removal</Label>
+                <p className="text-sm text-slate-400">Automatically remove statistical outliers</p>
               </div>
               <Switch
                 checked={settings.outlierRemoval}
-                onCheckedChange={(checked) => updateSetting('outlierRemoval', checked)}
+                onCheckedChange={(checked) => handleSettingChange('outlierRemoval', checked)}
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Interpolation Method</Label>
+              <Label className="text-white">Interpolation Method</Label>
               <Select 
                 value={settings.interpolationMethod} 
-                onValueChange={(value) => updateSetting('interpolationMethod', value)}
+                onValueChange={(value) => handleSettingChange('interpolationMethod', value)}
               >
-                <SelectTrigger className="w-full md:w-[200px]">
+                <SelectTrigger className="w-full md:w-[200px] glass-button">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -225,52 +255,54 @@ export default function Settings() {
         </Card>
 
         {/* Display Settings */}
-        <Card>
+        <Card className="enhanced-card">
           <CardHeader>
-            <CardTitle>Display Settings</CardTitle>
-            <CardDescription>Customize the user interface appearance</CardDescription>
+            <CardTitle className="text-white">Display Settings</CardTitle>
+            <CardDescription className="text-slate-400">
+              Customize the user interface appearance
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Dark Mode</Label>
-                <p className="text-sm text-muted-foreground">Use dark theme (applies immediately)</p>
+                <Label className="text-white">Dark Mode</Label>
+                <p className="text-sm text-slate-400">Use dark theme (applies immediately)</p>
               </div>
               <Switch
                 checked={settings.darkMode}
-                onCheckedChange={(checked) => updateSetting('darkMode', checked)}
+                onCheckedChange={(checked) => handleSettingChange('darkMode', checked)}
               />
             </div>
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Animations</Label>
-                <p className="text-sm text-muted-foreground">Enable smooth transitions and animations</p>
+                <Label className="text-white">Animations</Label>
+                <p className="text-sm text-slate-400">Enable smooth transitions and animations</p>
               </div>
               <Switch
                 checked={settings.animationsEnabled}
-                onCheckedChange={(checked) => updateSetting('animationsEnabled', checked)}
+                onCheckedChange={(checked) => handleSettingChange('animationsEnabled', checked)}
               />
             </div>
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Compact View</Label>
-                <p className="text-sm text-muted-foreground">Use condensed layout for more data</p>
+                <Label className="text-white">Compact View</Label>
+                <p className="text-sm text-slate-400">Use condensed layout for more data</p>
               </div>
               <Switch
                 checked={settings.compactView}
-                onCheckedChange={(checked) => updateSetting('compactView', checked)}
+                onCheckedChange={(checked) => handleSettingChange('compactView', checked)}
               />
             </div>
             
             <div className="space-y-2">
-              <Label>Default Dashboard View</Label>
+              <Label className="text-white">Default Dashboard View</Label>
               <Select 
                 value={settings.defaultView} 
-                onValueChange={(value) => updateSetting('defaultView', value)}
+                onValueChange={(value) => handleSettingChange('defaultView', value)}
               >
-                <SelectTrigger className="w-full md:w-[200px]">
+                <SelectTrigger className="w-full md:w-[200px] glass-button">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -285,20 +317,22 @@ export default function Settings() {
         </Card>
 
         {/* Export Settings */}
-        <Card>
+        <Card className="enhanced-card">
           <CardHeader>
-            <CardTitle>Export Settings</CardTitle>
-            <CardDescription>Configure default export options</CardDescription>
+            <CardTitle className="text-white">Export Settings</CardTitle>
+            <CardDescription className="text-slate-400">
+              Configure default export options
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Default Export Format</Label>
+                <Label className="text-white">Default Export Format</Label>
                 <Select 
                   value={settings.exportFormat} 
-                  onValueChange={(value) => updateSetting('exportFormat', value)}
+                  onValueChange={(value) => handleSettingChange('exportFormat', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="glass-button">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -310,67 +344,70 @@ export default function Settings() {
               </div>
               
               <div className="space-y-2">
-                <Label>Decimal Places</Label>
+                <Label className="text-white">Decimal Places</Label>
                 <Input
                   type="number"
                   min="0"
                   max="6"
                   value={settings.decimalPlaces}
                   onChange={(e) => handleDecimalPlacesChange(e.target.value)}
+                  className="glass-button"
                 />
               </div>
             </div>
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Include Metadata</Label>
-                <p className="text-sm text-muted-foreground">Include analysis metadata in exports</p>
+                <Label className="text-white">Include Metadata</Label>
+                <p className="text-sm text-slate-400">Include analysis metadata in exports</p>
               </div>
               <Switch
                 checked={settings.includeMetadata}
-                onCheckedChange={(checked) => updateSetting('includeMetadata', checked)}
+                onCheckedChange={(checked) => handleSettingChange('includeMetadata', checked)}
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Notifications Settings */}
-        <Card>
+        <Card className="enhanced-card">
           <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Configure alert and notification preferences</CardDescription>
+            <CardTitle className="text-white">Notifications</CardTitle>
+            <CardDescription className="text-slate-400">
+              Configure alert and notification preferences
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Analysis Complete Notifications</Label>
-                <p className="text-sm text-muted-foreground">Get notified when analysis is complete</p>
+                <Label className="text-white">Analysis Complete Notifications</Label>
+                <p className="text-sm text-slate-400">Get notified when analysis is complete</p>
               </div>
               <Switch
                 checked={settings.analysisComplete}
-                onCheckedChange={(checked) => updateSetting('analysisComplete', checked)}
+                onCheckedChange={(checked) => handleSettingChange('analysisComplete', checked)}
               />
             </div>
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Error Alerts</Label>
-                <p className="text-sm text-muted-foreground">Show alerts for errors and issues</p>
+                <Label className="text-white">Error Alerts</Label>
+                <p className="text-sm text-slate-400">Show alerts for errors and issues</p>
               </div>
               <Switch
                 checked={settings.errorAlerts}
-                onCheckedChange={(checked) => updateSetting('errorAlerts', checked)}
+                onCheckedChange={(checked) => handleSettingChange('errorAlerts', checked)}
               />
             </div>
             
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Email Notifications</Label>
-                <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                <Label className="text-white">Email Notifications</Label>
+                <p className="text-sm text-slate-400">Receive notifications via email</p>
               </div>
               <Switch
                 checked={settings.emailNotifications}
-                onCheckedChange={(checked) => updateSetting('emailNotifications', checked)}
+                onCheckedChange={(checked) => handleSettingChange('emailNotifications', checked)}
               />
             </div>
           </CardContent>
@@ -378,11 +415,22 @@ export default function Settings() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap justify-end gap-4">
-          <Button variant="outline" onClick={handleResetSettings}>
+          <Button 
+            variant="outline" 
+            onClick={handleResetSettings}
+            className="glass-button"
+            disabled={isLoading}
+          >
+            <RotateCcw className="h-4 w-4 mr-2" />
             Reset to Defaults
           </Button>
-          <Button onClick={handleSaveSettings}>
-            Save Settings
+          <Button 
+            onClick={handleSaveSettings}
+            className="glass-button"
+            disabled={isLoading || !hasUnsavedChanges}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isLoading ? "Saving..." : "Save Settings"}
           </Button>
         </div>
       </div>

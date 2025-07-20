@@ -1,5 +1,5 @@
 
-import { Battery, SoHDataPoint } from "@/types";
+import { Battery, SoHPoint } from "@/types";
 
 export interface PredictiveModel {
   type: 'linear' | 'polynomial' | 'exponential' | 'lstm';
@@ -41,8 +41,8 @@ export interface Pattern {
 export class PredictiveAnalysisService {
   private models: Map<string, PredictiveModel> = new Map();
 
-  // Enhanced predictive modeling with multiple algorithms
-  async generatePredictions(battery: Battery, sohHistory: SoHDataPoint[], horizon: number = 100): Promise<PredictiveModel> {
+  // Optimized predictive modeling with reduced algorithms
+  async generatePredictions(battery: Battery, sohHistory: SoHPoint[], horizon: number = 100): Promise<PredictiveModel> {
     if (sohHistory.length < 5) {
       return this.createBasicModel(battery, sohHistory, horizon);
     }
@@ -53,21 +53,11 @@ export class PredictiveAnalysisService {
       y: point.soh
     }));
 
-    // Try multiple models and select the best one
-    const models = await Promise.all([
-      this.linearRegression(dataPoints, horizon),
-      this.polynomialRegression(dataPoints, horizon),
-      this.exponentialDecay(dataPoints, horizon),
-      this.advancedLSTM(dataPoints, horizon)
-    ]);
+    // Use only the most efficient model for faster performance
+    const model = await this.linearRegression(dataPoints, horizon);
 
-    // Select best model based on accuracy
-    const bestModel = models.reduce((best, current) => 
-      current.accuracy > best.accuracy ? current : best
-    );
-
-    this.models.set(battery.id, bestModel);
-    return bestModel;
+    this.models.set(battery.id, model);
+    return model;
   }
 
   // Advanced anomaly detection
@@ -256,7 +246,7 @@ export class PredictiveAnalysisService {
     };
   }
 
-  private createBasicModel(battery: Battery, sohHistory: SoHDataPoint[], horizon: number): PredictiveModel {
+  private createBasicModel(battery: Battery, sohHistory: SoHPoint[], horizon: number): PredictiveModel {
     const lastSoH = sohHistory.length > 0 ? sohHistory[sohHistory.length - 1].soh : battery.soh;
     const lastCycle = sohHistory.length > 0 ? sohHistory[sohHistory.length - 1].cycle : battery.cycles;
     

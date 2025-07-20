@@ -41,9 +41,7 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
     setLoading(true);
     
     try {
-      console.log('Creating company with name:', companyName.trim(), 'and domain:', domain.trim());
       const newCompany = await createCompany(companyName.trim(), domain.trim() || undefined);
-      console.log('Company created successfully:', newCompany);
       
       toast({
         title: "Success",
@@ -85,7 +83,10 @@ export default function CreateCompanyModal({ isOpen, onClose }: CreateCompanyMod
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[425px] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20">
+      <DialogContent 
+        className="sm:max-w-[425px] enhanced-card bg-black/90 backdrop-blur-xl border border-white/20"
+        style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <Building2 className="h-5 w-5" />

@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { aiAgentService } from '@/services/aiAgentService';
+import { DemoService } from '@/services/demoService';
 
 interface AuthContextType {
   user: User | null;
@@ -30,44 +32,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
-        // Initialize mock batteries when user signs in
-        if (session?.user && event === 'SIGNED_IN') {
-          initializeMockBatteries();
-        }
       }
     );
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session?.user?.email);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      // Initialize mock batteries for existing session
-      if (session?.user) {
-        initializeMockBatteries();
-      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const initializeMockBatteries = () => {
-    // Clear any existing batteries and set fresh mock data
-    localStorage.removeItem('uploadedBatteries');
-    
-    // Dispatch event to update dashboard
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('batteryDataUpdated'));
-    }, 100);
-  };
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -91,22 +71,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Note: With email confirmation disabled in Supabase settings,
     // the user will be automatically signed in after signup
-    if (data.user && !error) {
-      console.log('User signed up successfully:', data.user.email);
-    }
 
     return { error };
   };
 
   const signOut = async () => {
-    // Clear local storage
-    localStorage.removeItem('uploadedBatteries');
-    localStorage.removeItem('demoUploadedBatteries'); // Clear demo uploads as well
-    // Sign out from Supabase
-    await supabase.auth.signOut();
-    // Clear state
-    setUser(null);
-    setSession(null);
+    try {
+      // Check if user is demo before clearing data
+      const isDemo = await DemoService.isDemoUser();
+      
+      if (isDemo && user) {
+        // Clear demo AI Agent data and reset state
+        await aiAgentService.clearDemoData(user.id);
+        await aiAgentService.resetDemoState();
+
+      }
+      
+      // Clear local storage
+      localStorage.removeItem('uploadedBatteries');
+      localStorage.removeItem('demoUploadedBatteries');
+      localStorage.removeItem('isDemoUser');
+      localStorage.removeItem('ai_agent_results'); // Clear AI Agent results from localStorage
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clear state
+      setUser(null);
+      setSession(null);
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // Still sign out even if clearing demo data fails
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+    }
   };
 
   const value = {

@@ -52,14 +52,12 @@ button, input, select, textarea {
   border-radius: 6px !important;
 }
 
-/* Professional card styling with very subtle glass effect */
+/* Professional card styling - fixed for stability */
 .card, [data-component="card"] {
   background: rgba(15, 22, 41, 0.85) !important;
-  backdrop-filter: blur(8px) !important;
   border: 1px solid rgba(71, 85, 105, 0.25) !important;
   border-radius: 12px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-  transition: all 0.2s ease !important;
   color: rgba(248, 250, 252, 0.95) !important;
 }
 
@@ -67,16 +65,13 @@ button, input, select, textarea {
   background: rgba(15, 22, 41, 0.9) !important;
   border-color: rgba(71, 85, 105, 0.35) !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
-  transform: translateY(-1px) !important;
 }
 
 .glass-effect {
   background: rgba(15, 22, 41, 0.8);
-  backdrop-filter: blur(8px);
   border: 1px solid rgba(71, 85, 105, 0.25);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
   color: rgba(248, 250, 252, 0.95);
 }
 
@@ -84,16 +79,13 @@ button, input, select, textarea {
   background: rgba(15, 22, 41, 0.85);
   border-color: rgba(71, 85, 105, 0.35);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  transform: translateY(-1px);
 }
 
 .enhanced-card {
   background: linear-gradient(135deg, rgba(15, 22, 41, 0.85), rgba(30, 41, 59, 0.8));
-  backdrop-filter: blur(8px);
   border: 1px solid rgba(71, 85, 105, 0.25);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
   color: rgba(248, 250, 252, 0.95);
 }
 
@@ -101,15 +93,12 @@ button, input, select, textarea {
   background: linear-gradient(135deg, rgba(15, 22, 41, 0.9), rgba(30, 41, 59, 0.85));
   border-color: rgba(71, 85, 105, 0.35);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  transform: translateY(-1px);
 }
 
 .glass-button {
   background: rgba(30, 41, 59, 0.6);
-  backdrop-filter: blur(6px);
   border: 1px solid rgba(71, 85, 105, 0.3);
   border-radius: 8px;
-  transition: all 0.2s ease;
   color: rgba(248, 250, 252, 0.9);
 }
 
@@ -117,16 +106,13 @@ button, input, select, textarea {
   background: rgba(30, 41, 59, 0.75);
   border-color: rgba(71, 85, 105, 0.45);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transform: translateY(-1px);
 }
 
 /* Professional button styling */
 button {
   background: rgba(30, 41, 59, 0.6) !important;
-  backdrop-filter: blur(6px) !important;
   border: 1px solid rgba(71, 85, 105, 0.3) !important;
   border-radius: 8px !important;
-  transition: all 0.2s ease !important;
   color: rgba(248, 250, 252, 0.9) !important;
 }
 
@@ -134,16 +120,13 @@ button:hover {
   background: rgba(30, 41, 59, 0.75) !important;
   border-color: rgba(71, 85, 105, 0.45) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-  transform: translateY(-1px) !important;
 }
 
 /* Subtle input styling */
 input, textarea, select {
   background: rgba(15, 22, 41, 0.6) !important;
-  backdrop-filter: blur(6px) !important;
   border: 1px solid rgba(71, 85, 105, 0.3) !important;
   border-radius: 6px !important;
-  transition: all 0.2s ease !important;
   color: rgba(248, 250, 252, 0.95) !important;
 }
 
@@ -173,6 +156,15 @@ p, span, div {
 /* More subtle dashboard colors */
 .text-blue-400 {
   color: rgba(96, 165, 250, 0.8) !important;
+}
+
+/* Stable grid layout */
+.grid {
+  display: grid;
+}
+
+.grid > * {
+  display: block;
 }
 
 .text-cyan-400 {
@@ -237,10 +229,118 @@ p, span, div {
 /* Professional modal styling */
 [role="dialog"], .dialog {
   background: rgba(15, 22, 41, 0.9) !important;
-  backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(71, 85, 105, 0.4) !important;
   border-radius: 12px !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Custom Scrollbar Styling - Dark Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 22, 41, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.6), rgba(100, 116, 139, 0.6));
+  border-radius: 4px;
+  border: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.8), rgba(100, 116, 139, 0.8));
+  border-color: rgba(71, 85, 105, 0.4);
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(15, 22, 41, 0.3);
+}
+
+/* Firefox Scrollbar Styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(71, 85, 105, 0.6) rgba(15, 22, 41, 0.3);
+}
+
+/* Custom scrollbar for specific elements */
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.4), rgba(59, 130, 246, 0.4));
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.6), rgba(59, 130, 246, 0.6));
+}
+
+/* Sidebar specific scrollbar */
+[data-component="sidebar"] ::-webkit-scrollbar {
+  width: 4px;
+}
+
+[data-component="sidebar"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.5), rgba(100, 116, 139, 0.5));
+  border-radius: 2px;
+}
+
+[data-component="sidebar"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.7), rgba(100, 116, 139, 0.7));
+}
+
+/* Modal and dialog scrollbars */
+[role="dialog"] ::-webkit-scrollbar,
+.dialog ::-webkit-scrollbar {
+  width: 6px;
+}
+
+[role="dialog"] ::-webkit-scrollbar-thumb,
+.dialog ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.6), rgba(100, 116, 139, 0.6));
+  border-radius: 3px;
+}
+
+[role="dialog"] ::-webkit-scrollbar-thumb:hover,
+.dialog ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgba(71, 85, 105, 0.8), rgba(100, 116, 139, 0.8));
+}
+
+/* Fix modal positioning issues - only for regular dialogs */
+[data-radix-dialog-content] {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  z-index: 50 !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  width: auto !important;
+  min-width: 320px !important;
+  border-radius: 12px !important;
+}
+
+/* Override for large dialogs to prevent positioning conflicts */
+[data-radix-dialog-content].max-w-6xl {
+  max-width: 72rem !important;
+  width: 90vw !important;
+}
+
+/* Ensure modal overlay is properly positioned */
+[data-radix-dialog-overlay] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 49 !important;
 }
 
 @keyframes fade-in {

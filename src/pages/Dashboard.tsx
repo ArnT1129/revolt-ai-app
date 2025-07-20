@@ -34,7 +34,6 @@ export default function Dashboard() {
 
     // Listen for battery data updates
     const handleBatteryUpdate = () => {
-      console.log('Battery data updated, refreshing dashboard...');
       loadDashboardData();
     };
     window.addEventListener('batteryDataUpdated', handleBatteryUpdate);
@@ -50,6 +49,7 @@ export default function Dashboard() {
       // Check if user is demo
       let isDemoUser = false;
       if (user) {
+        try {
         const { data: profile } = await supabase
           .from('profiles')
           .select('is_demo')
@@ -57,6 +57,10 @@ export default function Dashboard() {
           .single();
         isDemoUser = profile?.is_demo || false;
         setIsDemo(isDemoUser);
+        } catch (profileError) {
+          console.error('Error checking demo status:', profileError);
+          setIsDemo(false);
+        }
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -72,7 +76,7 @@ export default function Dashboard() {
   };
   
   // Use allBatteries for all calculations
-  const recentBatteries = allBatteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 5);
+  const recentBatteries = allBatteries.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()).slice(0, 3);
   const criticalBatteries = allBatteries.filter(b => b.status === 'Critical');
   const degradingBatteries = allBatteries.filter(b => b.status === 'Degrading');
   
@@ -100,15 +104,16 @@ export default function Dashboard() {
     setIsPassportOpen(true);
   };
 
-  const handleSaveBattery = async (updatedBattery: BatteryType) => {
-    // Only allow saving if it's not a demo battery
-    if (updatedBattery.id.startsWith('DEMO-')) {
+  const handleSaveBattery = async (updatedBattery: BatteryType): Promise<boolean> => {
+    // Check if battery can be modified
+    const canModify = await batteryService.canModifyBattery(updatedBattery.id);
+    if (!canModify) {
       toast({
         title: "Demo Battery",
         description: "Cannot modify demo batteries",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     try {
@@ -119,6 +124,7 @@ export default function Dashboard() {
           title: "Success",
           description: "Battery updated successfully",
         });
+        return true;
       } else {
         throw new Error('Update failed');
       }
@@ -128,6 +134,7 @@ export default function Dashboard() {
         description: "Failed to update battery",
         variant: "destructive",
       });
+      return false;
     }
   };
   
@@ -182,14 +189,14 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {recentBatteries.length > 0 ? recentBatteries.map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-white/10">
-                    <div className="flex items-center gap-3">
-                      <Battery className="h-4 w-4 text-blue-400" />
-                      <div>
-                        <p className="text-sm font-medium text-white">{battery.id}</p>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <Battery className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-white truncate">{battery.id}</p>
                         <p className="text-xs text-slate-400">{battery.chemistry}</p>
                       </div>
                     </div>
-                    <Badge className={`text-xs ${getStatusColor(battery.status)}`}>
+                    <Badge className={`text-xs flex-shrink-0 ml-2 ${getStatusColor(battery.status)}`}>
                       {battery.status}
                     </Badge>
                   </div>) : <p className="text-slate-400 text-sm text-center py-4">No recent uploads</p>}
@@ -205,21 +212,33 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {criticalBatteries.length > 0 ? criticalBatteries.slice(0, 3).map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-red-500/50 bg-red-900/20">
-                    <div className="flex items-center gap-3">
-                      <AlertTriangle className="h-4 w-4 text-red-400" />
-                      <div>
-                        <p className="text-sm font-medium text-white">{battery.id}</p>
+                             {criticalBatteries.length > 0 ? (
+                 <div className="max-h-60 overflow-y-auto pr-2">
+                   {criticalBatteries.map(battery => <div key={battery.id} className="flex items-center justify-between p-2 rounded border border-red-500/50 bg-red-900/20 mb-2">
+                     <div className="flex items-center gap-3 min-w-0 flex-1">
+                       <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                       <div className="min-w-0 flex-1">
+                         <p className="text-sm font-medium text-white truncate">{battery.name || battery.id}</p>
                         <p className="text-xs text-red-300">SoH: {battery.soh.toFixed(1)}%</p>
                       </div>
                     </div>
-                    <Badge className="bg-red-600/80 text-red-100 text-xs">
+                     <Badge className="bg-red-600/80 text-red-100 text-xs flex-shrink-0 ml-2">
                       Critical
                     </Badge>
-                  </div>) : <p className="text-slate-400 text-sm text-center py-4">No critical alerts</p>}
-              {criticalBatteries.length > 3 && <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/search')}>
+                   </div>)}
+                 </div>
+                             ) : <p className="text-slate-400 text-sm text-center py-4">No critical alerts</p>}
+              {criticalBatteries.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full glass-button mt-3" 
+                  onClick={() => navigate('/search')}
+                  title="View all critical batteries in search page"
+                >
                   View All ({criticalBatteries.length})
-                </Button>}
+                </Button>
+              )}
             </CardContent>
           </Card>
 
@@ -252,7 +271,7 @@ export default function Dashboard() {
                   </Badge>
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/search')}>
+              <Button variant="outline" size="sm" className="w-full glass-button" onClick={() => navigate('/analytics')} title="Open advanced analytics dashboard">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 View Analytics
               </Button>
@@ -280,25 +299,25 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 {allBatteries.length > 0 ? (
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {allBatteries.map((battery) => (
-                      <Card key={battery.id} className="enhanced-card hover:border-blue-500/50 transition-colors">
+                      <Card key={battery.id} className="enhanced-card hover:border-blue-500/50 min-w-0">
                         <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-white text-lg">{battery.id}</CardTitle>
-                            <Badge className={getStatusColor(battery.status)}>
+                          <div className="flex items-center justify-between gap-2">
+                            <CardTitle className="text-white text-lg truncate flex-1">{battery.name || battery.id}</CardTitle>
+                            <Badge className={`${getStatusColor(battery.status)} flex-shrink-0`}>
                               {battery.status}
                             </Badge>
                           </div>
-                          <div className="flex gap-2">
-                            <Badge className={getGradeColor(battery.grade)}>
+                          <div className="flex gap-2 flex-wrap">
+                            <Badge className={`${getGradeColor(battery.grade)} flex-shrink-0`}>
                               Grade {battery.grade}
                             </Badge>
-                            <Badge variant="outline" className="text-slate-300">
+                            <Badge variant="outline" className="text-slate-300 flex-shrink-0">
                               {battery.chemistry}
                             </Badge>
                             {battery.id.startsWith('DEMO-') && (
-                              <Badge variant="outline" className="text-amber-300 border-amber-500/50">
+                              <Badge variant="outline" className="text-amber-300 border-amber-500/50 flex-shrink-0">
                                 Demo
                               </Badge>
                             )}
@@ -307,32 +326,32 @@ export default function Dashboard() {
                         <CardContent className="space-y-4">
                           {/* Key Metrics */}
                           <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-2">
-                              <Battery className="h-4 w-4 text-blue-400" />
-                              <div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Battery className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
                                 <p className="text-xs text-slate-400">SoH</p>
-                                <p className="text-white font-medium">{battery.soh.toFixed(1)}%</p>
+                                <p className="text-white font-medium truncate">{battery.soh.toFixed(1)}%</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="h-4 w-4 text-green-400" />
-                              <div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <TrendingUp className="h-4 w-4 text-green-400 flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
                                 <p className="text-xs text-slate-400">RUL</p>
-                                <p className="text-white font-medium">{battery.rul.toLocaleString()}</p>
+                                <p className="text-white font-medium truncate">{battery.rul.toLocaleString()}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Zap className="h-4 w-4 text-yellow-400" />
-                              <div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Zap className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
                                 <p className="text-xs text-slate-400">Cycles</p>
-                                <p className="text-white font-medium">{battery.cycles.toLocaleString()}</p>
+                                <p className="text-white font-medium truncate">{battery.cycles.toLocaleString()}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-purple-400" />
-                              <div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Calendar className="h-4 w-4 text-purple-400 flex-shrink-0" />
+                              <div className="min-w-0 flex-1">
                                 <p className="text-xs text-slate-400">Uploaded</p>
-                                <p className="text-white font-medium text-xs">
+                                <p className="text-white font-medium text-xs truncate">
                                   {new Date(battery.uploadDate).toLocaleDateString()}
                                 </p>
                               </div>
@@ -347,7 +366,7 @@ export default function Dashboard() {
                             </div>
                             <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
                               <div 
-                                className={`h-full transition-all duration-300 ${
+                                className={`h-full ${
                                   battery.soh >= 90 ? 'bg-green-500' :
                                   battery.soh >= 70 ? 'bg-yellow-500' : 'bg-red-500'
                                 }`}
@@ -370,6 +389,7 @@ export default function Dashboard() {
                           <Button
                             onClick={() => handleViewBattery(battery)}
                             className="w-full glass-button"
+                            title="View detailed battery information and passport"
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View Details

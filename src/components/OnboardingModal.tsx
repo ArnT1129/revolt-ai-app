@@ -54,7 +54,22 @@ export default function OnboardingModal() {
 
   return (
     <Dialog open={showOnboarding} onOpenChange={() => {}}>
-      <DialogContent className="enhanced-card max-w-2xl">
+      <DialogContent 
+        className="enhanced-card max-w-2xl"
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          margin: 0,
+          zIndex: 50,
+          borderRadius: '12px',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          width: 'auto',
+          minWidth: '320px'
+        }}
+      >
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-white flex items-center gap-2">

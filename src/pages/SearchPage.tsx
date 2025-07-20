@@ -20,9 +20,22 @@ import {
   AlertTriangle,
   TrendingUp,
   Calendar,
-  Zap
+  Zap,
+  Folder,
+  FolderOpen,
+  Edit3,
+  X,
+  Move,
+  Smartphone
 } from 'lucide-react';
 import type { Battery as BatteryType } from '@/types';
+
+interface BatteryFolder {
+  id: string;
+  name: string;
+  batteryIds: string[];
+  createdAt: Date;
+}
 
 export default function SearchPage() {
   const [batteries, setBatteries] = useState<BatteryType[]>([]);
@@ -30,6 +43,14 @@ export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBattery, setSelectedBattery] = useState<BatteryType | null>(null);
   const [isPassportOpen, setIsPassportOpen] = useState(false);
+  
+  // Folder grouping state
+  const [isHapticTouchMode, setIsHapticTouchMode] = useState(false);
+  const [folders, setFolders] = useState<BatteryFolder[]>([]);
+  const [draggedBattery, setDraggedBattery] = useState<string | null>(null);
+  const [editingFolder, setEditingFolder] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState('');
+  const [viewingFolder, setViewingFolder] = useState<BatteryFolder | null>(null);
   
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -47,7 +68,6 @@ export default function SearchPage() {
     
     // Listen for battery data updates
     const handleBatteryUpdate = () => {
-      console.log('Battery data updated, refreshing search page...');
       loadBatteries();
     };
     
@@ -76,6 +96,7 @@ export default function SearchPage() {
   const filteredAndSortedBatteries = useMemo(() => {
     let filtered = batteries.filter(battery => {
       const matchesSearch = battery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (battery.name && battery.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            battery.chemistry.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (battery.notes && battery.notes.toLowerCase().includes(searchTerm.toLowerCase()));
       
@@ -127,6 +148,130 @@ export default function SearchPage() {
     return filtered;
   }, [batteries, searchTerm, statusFilter, gradeFilter, chemistryFilter, sohRange, sortBy, sortOrder]);
 
+  // Get batteries that are not in any folder
+  const ungroupedBatteries = useMemo(() => {
+    const folderBatteryIds = folders.flatMap(folder => folder.batteryIds);
+    return filteredAndSortedBatteries.filter(battery => !folderBatteryIds.includes(battery.id));
+  }, [filteredAndSortedBatteries, folders]);
+
+  // Get batteries in a specific folder
+  const getBatteriesInFolder = (folderId: string) => {
+    const folder = folders.find(f => f.id === folderId);
+    if (!folder) return [];
+    return filteredAndSortedBatteries.filter(battery => folder.batteryIds.includes(battery.id));
+  };
+
+  // Handle drag start
+  const handleDragStart = (e: React.DragEvent, batteryId: string) => {
+    if (!isHapticTouchMode) return;
+    setDraggedBattery(batteryId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  // Handle drag over
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!isHapticTouchMode || !draggedBattery) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  // Handle drop to create folder or add to existing folder
+  const handleDrop = (e: React.DragEvent, targetBatteryId: string) => {
+    if (!isHapticTouchMode || !draggedBattery || draggedBattery === targetBatteryId) return;
+    e.preventDefault();
+
+    // Check if target battery is already in a folder
+    const targetFolder = folders.find(folder => folder.batteryIds.includes(targetBatteryId));
+    
+    if (targetFolder) {
+      // Add dragged battery to existing folder
+      setFolders(prev => prev.map(folder => 
+        folder.id === targetFolder.id 
+          ? { ...folder, batteryIds: [...folder.batteryIds, draggedBattery] }
+          : folder
+      ));
+      toast({
+        title: "Added to Folder",
+        description: `Added battery to "${targetFolder.name}"`,
+      });
+    } else {
+      // Create new folder
+      const newFolder: BatteryFolder = {
+        id: `folder-${Date.now()}`,
+        name: `Folder ${folders.length + 1}`,
+        batteryIds: [draggedBattery, targetBatteryId],
+        createdAt: new Date()
+      };
+      setFolders(prev => [...prev, newFolder]);
+      toast({
+        title: "Folder Created",
+        description: "Created new folder with selected batteries",
+      });
+    }
+    
+    setDraggedBattery(null);
+  };
+
+  // Handle drop on folder
+  const handleFolderDrop = (e: React.DragEvent, folderId: string) => {
+    if (!isHapticTouchMode || !draggedBattery) return;
+    e.preventDefault();
+
+    setFolders(prev => prev.map(folder => 
+      folder.id === folderId 
+        ? { ...folder, batteryIds: [...folder.batteryIds, draggedBattery] }
+        : folder
+    ));
+    
+    toast({
+      title: "Added to Folder",
+      description: "Battery added to folder",
+    });
+    
+    setDraggedBattery(null);
+  };
+
+  // Remove battery from folder
+  const removeBatteryFromFolder = (folderId: string, batteryId: string) => {
+    setFolders(prev => prev.map(folder => 
+      folder.id === folderId 
+        ? { ...folder, batteryIds: folder.batteryIds.filter(id => id !== batteryId) }
+        : folder
+    ));
+  };
+
+  // Delete folder
+  const deleteFolder = (folderId: string) => {
+    setFolders(prev => prev.filter(folder => folder.id !== folderId));
+  };
+
+  // Start editing folder name
+  const startEditFolder = (folder: BatteryFolder) => {
+    setEditingFolder(folder.id);
+    setEditingFolderName(folder.name);
+  };
+
+  // Save folder name
+  const saveFolderName = () => {
+    if (editingFolder && editingFolderName.trim()) {
+      setFolders(prev => prev.map(folder => 
+        folder.id === editingFolder 
+          ? { ...folder, name: editingFolderName.trim() }
+          : folder
+      ));
+    }
+    setEditingFolder(null);
+    setEditingFolderName('');
+  };
+
+  // Cancel editing folder name
+  const cancelEditFolder = () => {
+    setEditingFolder(null);
+    setEditingFolderName('');
+  };
+
+
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Healthy': return 'bg-green-600/80 text-green-100';
@@ -151,15 +296,16 @@ export default function SearchPage() {
     setIsPassportOpen(true);
   };
 
-  const handleSaveBattery = async (updatedBattery: BatteryType) => {
-    // Only allow saving if it's not a demo battery
-    if (updatedBattery.id.startsWith('DEMO-')) {
+  const handleSaveBattery = async (updatedBattery: BatteryType): Promise<boolean> => {
+    // Check if battery can be modified
+    const canModify = await batteryService.canModifyBattery(updatedBattery.id);
+    if (!canModify) {
       toast({
         title: "Demo Battery",
         description: "Cannot modify demo batteries",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     try {
@@ -170,6 +316,7 @@ export default function SearchPage() {
           title: "Success",
           description: "Battery updated successfully",
         });
+        return true;
       } else {
         throw new Error('Update failed');
       }
@@ -179,6 +326,7 @@ export default function SearchPage() {
         description: "Failed to update battery",
         variant: "destructive",
       });
+      return false;
     }
   };
 
@@ -216,6 +364,228 @@ export default function SearchPage() {
     setSortOrder('desc');
   };
 
+  // Render a battery card
+  const renderBatteryCard = (battery: BatteryType, isInFolder = false, folderId?: string) => (
+    <Card 
+      key={battery.id} 
+      className={`enhanced-card hover:border-blue-500/50 transition-all ${
+        isHapticTouchMode ? 'cursor-move' : ''
+      } ${draggedBattery === battery.id ? 'opacity-50' : ''}`}
+      draggable={isHapticTouchMode}
+      onDragStart={(e) => handleDragStart(e, battery.id)}
+      onDragOver={handleDragOver}
+      onDrop={(e) => handleDrop(e, battery.id)}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white text-lg">{battery.name || battery.id}</CardTitle>
+          <Badge className={getStatusColor(battery.status)}>
+            {battery.status}
+          </Badge>
+        </div>
+        <div className="flex gap-2">
+          <Badge className={getGradeColor(battery.grade)}>
+            Grade {battery.grade}
+          </Badge>
+          <Badge variant="outline" className="text-slate-300">
+            {battery.chemistry}
+          </Badge>
+          {battery.id.startsWith('DEMO-') && (
+            <Badge variant="outline" className="text-amber-300 border-amber-500/50">
+              Demo
+            </Badge>
+          )}
+          {isInFolder && (
+            <Badge variant="outline" className="text-blue-300 border-blue-500/50">
+              In Folder
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center gap-2">
+            <Battery className="h-4 w-4 text-blue-400" />
+            <div>
+              <p className="text-xs text-slate-400">SoH</p>
+              <p className="text-white font-medium">{battery.soh.toFixed(1)}%</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-green-400" />
+            <div>
+              <p className="text-xs text-slate-400">RUL</p>
+              <p className="text-white font-medium">{battery.rul.toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-yellow-400" />
+            <div>
+              <p className="text-xs text-slate-400">Cycles</p>
+              <p className="text-white font-medium">{battery.cycles.toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-purple-400" />
+            <div>
+              <p className="text-xs text-slate-400">Uploaded</p>
+              <p className="text-white font-medium text-xs">
+                {new Date(battery.uploadDate).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-400">Health Status</span>
+            <span className="text-white">{battery.soh.toFixed(1)}%</span>
+          </div>
+          <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div 
+              className={`h-full ${
+                battery.soh >= 90 ? 'bg-green-500' :
+                battery.soh >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${Math.max(0, Math.min(100, battery.soh))}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Issues */}
+        {battery.issues && battery.issues.length > 0 && (
+          <div className="flex items-center gap-2 p-2 bg-yellow-900/20 border border-yellow-500/30 rounded">
+            <AlertTriangle className="h-4 w-4 text-yellow-400" />
+            <span className="text-yellow-300 text-sm">
+              {battery.issues.length} issue{battery.issues.length !== 1 ? 's' : ''} detected
+            </span>
+          </div>
+        )}
+
+        <Separator className="bg-white/10" />
+
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => handleViewBattery(battery)}
+            className="flex-1 glass-button"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            View Details
+          </Button>
+          {isInFolder && folderId && (
+            <Button
+              onClick={() => removeBatteryFromFolder(folderId, battery.id)}
+              variant="outline"
+              size="sm"
+              className="glass-button"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // Render a folder card
+  const renderFolderCard = (folder: BatteryFolder) => {
+    const folderBatteries = getBatteriesInFolder(folder.id);
+    
+    return (
+      <Card 
+        key={folder.id} 
+        className="enhanced-card hover:border-blue-500/50 border-blue-500/30 bg-blue-900/10"
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleFolderDrop(e, folder.id)}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-blue-400" />
+              {editingFolder === folder.id ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingFolderName}
+                    onChange={(e) => setEditingFolderName(e.target.value)}
+                    className="h-8 text-sm glass-input"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveFolderName();
+                      if (e.key === 'Escape') cancelEditFolder();
+                    }}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={saveFolderName} className="glass-button">
+                    ✓
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={cancelEditFolder} className="glass-button">
+                    ✕
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-white text-lg">{folder.name}</CardTitle>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => startEditFolder(folder)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-blue-600/80 text-blue-100">
+                {folderBatteries.length} batteries
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => deleteFolder(folder.id)}
+                className="text-red-400 hover:text-red-300 glass-button"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Folder Preview */}
+          <div className="grid grid-cols-2 gap-2">
+            {folderBatteries.slice(0, 4).map((battery) => (
+              <div key={battery.id} className="flex items-center gap-2 p-2 bg-white/5 rounded">
+                <Battery className="h-3 w-3 text-blue-400" />
+                <span className="text-xs text-white truncate">{battery.name || battery.id}</span>
+              </div>
+            ))}
+            {folderBatteries.length > 4 && (
+              <div className="flex items-center justify-center p-2 bg-white/5 rounded">
+                <span className="text-xs text-slate-400">+{folderBatteries.length - 4} more</span>
+              </div>
+            )}
+          </div>
+          
+          <Separator className="bg-white/10" />
+          
+          {/* Folder Actions */}
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setViewingFolder(folder)}
+              className="flex-1 glass-button"
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              View All ({folderBatteries.length})
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex-1 p-6">
@@ -246,6 +616,14 @@ export default function SearchPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              onClick={() => setIsHapticTouchMode(!isHapticTouchMode)} 
+              variant={isHapticTouchMode ? "default" : "outline"} 
+              className="glass-button"
+            >
+              <Smartphone className="h-4 w-4 mr-2" />
+              {isHapticTouchMode ? 'Exit Haptic Touch' : 'Haptic Touch Mode'}
+            </Button>
             <Button onClick={handleExportResults} variant="outline" className="glass-button">
               <Download className="h-4 w-4 mr-2" />
               Export Results
@@ -255,6 +633,20 @@ export default function SearchPage() {
             </Button>
           </div>
         </div>
+
+        {/* Haptic Touch Mode Instructions */}
+        {isHapticTouchMode && (
+          <Card className="enhanced-card border-blue-500/30 bg-blue-900/10">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-blue-300">
+                <Move className="h-4 w-4" />
+                <span className="text-sm">
+                  Drag one battery card onto another to create a folder. Drag batteries onto folders to add them.
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search and Filters */}
         <Card className="enhanced-card">
@@ -269,7 +661,7 @@ export default function SearchPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
               <Input
-                placeholder="Search by ID, chemistry, or notes..."
+                placeholder="Search by name, ID, chemistry, or notes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 glass-input"
@@ -360,6 +752,11 @@ export default function SearchPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-white">
             Search Results ({filteredAndSortedBatteries.length})
+            {folders.length > 0 && (
+              <span className="text-slate-400 ml-2">
+                • {folders.length} folder{folders.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </h2>
         </div>
 
@@ -378,104 +775,55 @@ export default function SearchPage() {
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredAndSortedBatteries.map((battery) => (
-              <Card key={battery.id} className="enhanced-card hover:border-blue-500/50 transition-colors">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-white text-lg">{battery.id}</CardTitle>
-                    <Badge className={getStatusColor(battery.status)}>
-                      {battery.status}
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge className={getGradeColor(battery.grade)}>
-                      Grade {battery.grade}
-                    </Badge>
-                    <Badge variant="outline" className="text-slate-300">
-                      {battery.chemistry}
-                    </Badge>
-                    {battery.id.startsWith('DEMO-') && (
-                      <Badge variant="outline" className="text-amber-300 border-amber-500/50">
-                        Demo
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Key Metrics */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center gap-2">
-                      <Battery className="h-4 w-4 text-blue-400" />
-                      <div>
-                        <p className="text-xs text-slate-400">SoH</p>
-                        <p className="text-white font-medium">{battery.soh.toFixed(1)}%</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-400" />
-                      <div>
-                        <p className="text-xs text-slate-400">RUL</p>
-                        <p className="text-white font-medium">{battery.rul.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-yellow-400" />
-                      <div>
-                        <p className="text-xs text-slate-400">Cycles</p>
-                        <p className="text-white font-medium">{battery.cycles.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-purple-400" />
-                      <div>
-                        <p className="text-xs text-slate-400">Uploaded</p>
-                        <p className="text-white font-medium text-xs">
-                          {new Date(battery.uploadDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+            {/* Render Folders and their expanded content */}
+            {folders.map(folder => renderFolderCard(folder))}
+            
+            {/* Render Ungrouped Batteries */}
+            {ungroupedBatteries.map(battery => renderBatteryCard(battery))}
+          </div>
+        )}
 
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Health Status</span>
-                      <span className="text-white">{battery.soh.toFixed(1)}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-300 ${
-                          battery.soh >= 90 ? 'bg-green-500' :
-                          battery.soh >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${Math.max(0, Math.min(100, battery.soh))}%` }}
-                      />
-                    </div>
+        {/* Folder View Modal */}
+        {viewingFolder && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setViewingFolder(null)}
+            />
+            
+            {/* Modal Content */}
+            <div className="relative w-full max-w-6xl max-h-[90vh] bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-lg shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+                <div className="flex items-center gap-3">
+                  <FolderOpen className="h-6 w-6 text-blue-400" />
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">{viewingFolder.name}</h2>
+                    <p className="text-slate-400 text-sm">
+                      {getBatteriesInFolder(viewingFolder.id).length} batteries
+                    </p>
                   </div>
-
-                  {/* Issues */}
-                  {battery.issues && battery.issues.length > 0 && (
-                    <div className="flex items-center gap-2 p-2 bg-yellow-900/20 border border-yellow-500/30 rounded">
-                      <AlertTriangle className="h-4 w-4 text-yellow-400" />
-                      <span className="text-yellow-300 text-sm">
-                        {battery.issues.length} issue{battery.issues.length !== 1 ? 's' : ''} detected
-                      </span>
-                    </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewingFolder(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              
+              {/* Scrollable Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {getBatteriesInFolder(viewingFolder.id).map(battery => 
+                    renderBatteryCard(battery, true, viewingFolder.id)
                   )}
-
-                  <Separator className="bg-white/10" />
-
-                  {/* Actions */}
-                  <Button
-                    onClick={() => handleViewBattery(battery)}
-                    className="w-full glass-button"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

@@ -70,7 +70,7 @@ export default function RootCauseAnalysis({ battery, onClose }: RootCauseAnalysi
 
       for (let i = 0; i < stages.length; i++) {
         setAnalysisStage(stages[i]);
-        await new Promise(resolve => setTimeout(resolve, 400));
+        await new Promise(resolve => setTimeout(resolve, 150)); // Reduced from 400ms
       }
 
       const mechanisms: DegradationMechanism[] = [];

@@ -652,6 +652,170 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_configs: {
+        Row: {
+          id: string
+          user_id: string
+          agent_id: string
+          config_data: Json
+          is_demo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          agent_id: string
+          config_data?: Json
+          is_demo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          agent_id?: string
+          config_data?: Json
+          is_demo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_configs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ai_analysis_history: {
+        Row: {
+          id: string
+          user_id: string
+          battery_id: string
+          agent_id: string
+          analysis_type: string
+          result_data: Json
+          confidence: number
+          risk_level: "low" | "medium" | "high" | "critical"
+          is_demo: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          battery_id: string
+          agent_id: string
+          analysis_type: string
+          result_data: Json
+          confidence: number
+          risk_level: "low" | "medium" | "high" | "critical"
+          is_demo?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          battery_id?: string
+          agent_id?: string
+          analysis_type?: string
+          result_data?: Json
+          confidence?: number
+          risk_level?: "low" | "medium" | "high" | "critical"
+          is_demo?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ai_agent_settings: {
+        Row: {
+          id: string
+          user_id: string
+          setting_key: string
+          setting_value: Json
+          is_demo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          setting_key: string
+          setting_value: Json
+          is_demo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          setting_key?: string
+          setting_value?: Json
+          is_demo?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ai_agent_metrics: {
+        Row: {
+          id: string
+          user_id: string
+          agent_id: string
+          metric_type: string
+          metric_value: number
+          metric_data: Json | null
+          is_demo: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          agent_id: string
+          metric_type: string
+          metric_value: number
+          metric_data?: Json | null
+          is_demo?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          agent_id?: string
+          metric_type?: string
+          metric_value?: number
+          metric_data?: Json | null
+          is_demo?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_metrics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
